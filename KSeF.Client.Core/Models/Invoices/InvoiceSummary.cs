@@ -40,7 +40,7 @@ namespace KSeF.Client.Core.Models.Invoices
         /// <summary>
         /// Dane identyfikujące sprzedawcę.
         /// </summary>
-        public PartyInfo Seller { get; set; }
+        public Seller Seller { get; set; }
 
         /// <summary>
         /// Dane identyfikujące nabywcę.

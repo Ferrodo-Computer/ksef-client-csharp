@@ -15,6 +15,11 @@ namespace KSeF.Client.Core.Models.Invoices
         public DateTimeOffset? CompletedDate { get; set; }
 
         /// <summary>
+        /// Data wygaśnięcia paczki faktur przygotowanej do pobrania. Po upływie tej daty paczka nie będzie już dostępna do pobrania.
+        /// </summary>
+        public DateTimeOffset? PackageExpirationDate { get; set; }
+
+        /// <summary>
         /// Paczka faktur (InvoicePackage) – obecna tylko jeśli status = READY.
         /// </summary>
         public InvoiceExportPackage Package { get; set; }

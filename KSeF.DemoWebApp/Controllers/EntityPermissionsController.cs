@@ -3,6 +3,7 @@ using KSeF.Client.Core.Models.Permissions.Entity;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 
 namespace KSeF.DemoWebApp.Controllers;
 
@@ -11,7 +12,7 @@ namespace KSeF.DemoWebApp.Controllers;
 public class EntityPermissionsController(IKSeFClient ksefClient) : ControllerBase
 {
     [HttpPost("grant-permissions-for-Entity")]
-    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, EntitySubjectIdentifier subjectIdentifier, CancellationToken cancellationToken)
+    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, GrantPermissionsEntitySubjectIdentifier subjectIdentifier, CancellationToken cancellationToken)
     {
         GrantPermissionsEntityRequest request = GrantEntityPermissionsRequestBuilder
             .Create()

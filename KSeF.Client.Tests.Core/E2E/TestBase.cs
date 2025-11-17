@@ -1,3 +1,6 @@
+using KSeF.Client.Api.Services;
+using KSeF.Client.Api.Services.Internal;
+using KSeF.Client.Clients;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.DI;
@@ -17,6 +20,8 @@ public abstract class TestBase : IDisposable
 
     protected static readonly CancellationToken CancellationToken = CancellationToken.None;
     protected IKSeFClient KsefClient => _scope.ServiceProvider.GetRequiredService<IKSeFClient>();
+    protected IAuthorizationClient AuthorizationClient => _scope.ServiceProvider.GetRequiredService<IAuthorizationClient>();
+    protected IActiveSessionsClient ActiveSessionsClient => _scope.ServiceProvider.GetRequiredService<IActiveSessionsClient>();
     protected ILimitsClient LimitsClient => _scope.ServiceProvider.GetRequiredService<ILimitsClient>();
     protected ITestDataClient TestDataClient => _scope.ServiceProvider.GetRequiredService<ITestDataClient>();
 
@@ -24,9 +29,11 @@ public abstract class TestBase : IDisposable
     protected IPersonTokenService TokenService => _scope.ServiceProvider.GetRequiredService<IPersonTokenService>();
     protected ICryptographyService CryptographyService => _scope.ServiceProvider.GetRequiredService<ICryptographyService>();
 
-    
+
     public TestBase()
     {
+        CryptographyConfigInitializer.EnsureInitialized();
+
         ServiceCollection services = new ServiceCollection();
 
         ApiSettings apiSettings = TestConfig.GetApiSettings();
@@ -43,10 +50,12 @@ public abstract class TestBase : IDisposable
             options.CustomHeaders = apiSettings.CustomHeaders ?? new Dictionary<string, string>();
         });
 
-        services.AddCryptographyClient(options =>
-        {
-            options.WarmupOnStart = WarmupMode.NonBlocking;
-        });
+        // UWAGA! w testach nie używamy AddCryptographyClient tylko rejestrujemy ręcznie, bo on uruchamia HostedService w tle
+        services.AddSingleton<ICryptographyClient, CryptographyClient>();
+        services.AddSingleton<ICertificateFetcher, DefaultCertificateFetcher>();
+        services.AddSingleton<ICryptographyService, CryptographyService>();
+        // Rejestracja usługi hostowanej (Hosted Service) jako singleton na potrzeby testów
+        services.AddSingleton<CryptographyWarmupHostedService>();
 
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -57,12 +66,9 @@ public abstract class TestBase : IDisposable
         _scope = _serviceProvider.CreateScope();
 
         // opcjonalne: inicjalizacja lub inne czynności startowe
-        _scope.ServiceProvider.GetRequiredService<ICryptographyService>()
-                           .WarmupAsync(CancellationToken.None).GetAwaiter().GetResult();
-
-        CryptoConfig.AddAlgorithm(
-            typeof(Ecdsa256SignatureDescription),
-              "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256");
+        // Uruchomienie usługi hostowanej w trybie blokującym (domyślnym) na potrzeby testów
+        _scope.ServiceProvider.GetRequiredService<CryptographyWarmupHostedService>()
+                   .StartAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 
     public Task DisposeAsync() => Task.CompletedTask;

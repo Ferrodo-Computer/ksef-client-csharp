@@ -1,8 +1,9 @@
 using KSeF.Client.Api.Builders.EUEntityRepresentativePermissions;
-using KSeF.Client.Core.Models.Permissions.EUEntityRepresentative;
+using KSeF.Client.Core.Models.Permissions.EuEntityRepresentative;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 
 namespace KSeF.DemoWebApp.Controllers;
 
@@ -11,12 +12,12 @@ namespace KSeF.DemoWebApp.Controllers;
 public class EUEntityRepresentativePermissionsController(IKSeFClient ksefClient) : ControllerBase
 {
     [HttpPost("grant-eu-entity-representative-permissions")]
-    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, EUEntitRepresentativeSubjectIdentifier subjectIdentifier, CancellationToken cancellationToken)
+    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, EuEntityRepresentativeSubjectIdentifier subjectIdentifier, CancellationToken cancellationToken)
     {
-        GrantPermissionsEUEntitRepresentativeRequest request = GrantEUEntityRepresentativePermissionsRequestBuilder
+        GrantPermissionsEuEntityRepresentativeRequest request = GrantEUEntityRepresentativePermissionsRequestBuilder
             .Create()
             .WithSubject(subjectIdentifier)
-            .WithPermissions(EUEntitRepresentativeStandardPermissionType.InvoiceRead, EUEntitRepresentativeStandardPermissionType.InvoiceWrite)
+            .WithPermissions(EuEntityRepresentativeStandardPermissionType.InvoiceRead, EuEntityRepresentativeStandardPermissionType.InvoiceWrite)
             .WithDescription("Representative access")
             .Build();
 

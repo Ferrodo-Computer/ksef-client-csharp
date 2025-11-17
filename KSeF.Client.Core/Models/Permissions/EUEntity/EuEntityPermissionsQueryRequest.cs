@@ -8,6 +8,7 @@ namespace KSeF.Client.Core.Models.Permissions.EUEntity
         public string AuthorizedFingerprintIdentifier { get; set; }
         public List<EuEntityPermissionsQueryPermissionType> PermissionTypes { get; set; }
     }
+
     public enum EuEntityPermissionsQueryPermissionType
     {
         VatUeManage,

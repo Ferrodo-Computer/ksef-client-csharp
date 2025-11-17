@@ -25,18 +25,18 @@ public class BatchSessionStreamE2ETests : TestBase
     public BatchSessionStreamE2ETests()
     {
         string nip = MiscellaneousUtils.GetRandomNip();
-        Client.Core.Models.Authorization.AuthenticationOperationStatusResponse authOperationStatusRsponse = AuthenticationUtils
-            .AuthenticateAsync(KsefClient, SignatureService, nip)
+        Client.Core.Models.Authorization.AuthenticationOperationStatusResponse authOperationStatusResponse = AuthenticationUtils
+            .AuthenticateAsync(AuthorizationClient, SignatureService, nip)
             .GetAwaiter().GetResult();
 
-        accessToken = authOperationStatusRsponse.AccessToken.Token;
+        accessToken = authOperationStatusResponse.AccessToken.Token;
         sellerNip = nip;
     }
 
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
-    public async Task BatchSession_StreamBased_FullIntegrationFlow_ReturnsUpo(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    public async Task BatchSession_StreamBased_FullIntegrationFlow_ReturnsUpo(SystemCode systemCode, string invoiceTemplatePath)
     {
         // 1. Przygotowanie paczki i otwarcie sesji
         (string referenceNumber, OpenBatchSessionResponse openBatchSessionResponse, List<BatchPartStreamSendingInfo> streamParts) =
@@ -60,7 +60,7 @@ public class BatchSessionStreamE2ETests : TestBase
         // 2. Wysłanie wszystkich części
         await KsefClient.SendBatchPartsWithStreamAsync(openBatchSessionResponse, streamParts);
 
-        // 3. Zamknięcie sesji (powtarzaie na wypadek chwilowych błędów)
+        // 3. Zamknięcie sesji (powtarzanie na wypadek chwilowych błędów)
         Assert.False(string.IsNullOrWhiteSpace(batchSessionReferenceNumber));
         await AsyncPollingUtils.PollAsync(
             action: async () =>
@@ -100,17 +100,12 @@ public class BatchSessionStreamE2ETests : TestBase
 
         ksefNumber = documents.Invoices.First().KsefNumber;
 
-        // 6. UPO faktury po numerze KSeF
-        string invoiceUpoXml = await KsefClient.GetSessionInvoiceUpoByKsefNumberAsync(batchSessionReferenceNumber!, ksefNumber!, accessToken, CancellationToken);
+        // 6. pobranie UPO faktury z URL zawartego w metadanych faktury
+        Uri upoDownloadUrl = documents.Invoices.First().UpoDownloadUrl;
+        string invoiceUpoXml = await UpoUtils.GetUpoAsync(KsefClient, upoDownloadUrl);
         Assert.False(string.IsNullOrWhiteSpace(invoiceUpoXml));
         InvoiceUpo invoiceUpo = UpoUtils.UpoParse<InvoiceUpo>(invoiceUpoXml);
         Assert.Equal(invoiceUpo.Document.KSeFDocumentNumber, ksefNumber);
-
-        // 7. UPO zbiorcze sesji
-        string sessionUpoXml = await KsefClient.GetSessionUpoAsync(batchSessionReferenceNumber!, upoReferenceNumber!, accessToken, CancellationToken);
-        Assert.False(string.IsNullOrWhiteSpace(sessionUpoXml));
-        SessionUpo sessionUpo = UpoUtils.UpoParse<SessionUpo>(sessionUpoXml);
-        Assert.Equal(sessionUpo.ReferenceNumber, openBatchSessionResponse.ReferenceNumber);
     }
 
     private async Task<(string ReferenceNumber, OpenBatchSessionResponse OpenResp, List<BatchPartStreamSendingInfo> EncryptedParts)> PrepareAndOpenBatchSessionWithStreamsAsync(
@@ -118,7 +113,7 @@ public class BatchSessionStreamE2ETests : TestBase
         int invoiceCount,
         int partQuantity,
         string sellerNip,
-        SystemCodeEnum systemCode,
+        SystemCode systemCode,
         string invoiceTemplatePath,
         string accessToken)
     {

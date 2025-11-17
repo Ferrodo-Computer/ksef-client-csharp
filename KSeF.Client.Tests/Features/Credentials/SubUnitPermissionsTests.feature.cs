@@ -1,10 +1,15 @@
 ﻿using KSeF.Client.Api.Builders.SubUnitPermissions;
+using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
+using KSeF.Client.Core.Models.Permissions;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
+using KSeF.Client.Core.Models.Permissions.Person;
+using KSeF.Client.Core.Models.Permissions.SubUnit;
+using KSeF.Client.Core.Models.Sessions;
+using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using KSeF.Client.Tests.Utils;
-using System.Linq;
-using ContextIdentifier = KSeF.Client.Core.Models.Permissions.SubUnit.SubUnitContextIdentifier;
-using ContextIdentifierType = KSeF.Client.Core.Models.Permissions.SubUnit.SubUnitContextIdentifierType;
 
 namespace KSeF.Client.Tests.Features;
 
@@ -19,25 +24,25 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
     public async Task Test_Subunit_Permissions_Workflow()
     {
         // Arrange
-        var encryptionData = CryptographyService.GetEncryptionData();
-        var invoiceCreatorNip = MiscellaneousUtils.GetRandomNip();
-        var municipalOfficeNip = MiscellaneousUtils.GetRandomNip();
-        var kindergartenId = $"{municipalOfficeNip}-12345";
-        var directorPesel = MiscellaneousUtils.GetRandomPesel();
+        EncryptionData encryptionData = CryptographyService.GetEncryptionData();
+        string invoiceCreatorNip = MiscellaneousUtils.GetRandomNip();
+        string municipalOfficeNip = MiscellaneousUtils.GetRandomNip();
+        string kindergartenId = $"{municipalOfficeNip}-12345";
+        string directorPesel = MiscellaneousUtils.GetRandomPesel();
 
         // --- Etap 1: Wystawienie faktury przez wykonawcę dla przedszkola (jednostki podrzędnej) ---
-        var invoiceCreatorAuthToken = (await AuthenticationUtils.AuthenticateAsync(
-            KsefClient, SignatureService, invoiceCreatorNip)).AccessToken.Token;
+        string invoiceCreatorAuthToken = (await AuthenticationUtils.AuthenticateAsync(
+            AuthorizationClient, SignatureService, invoiceCreatorNip)).AccessToken.Token;
 
-        var openSessionResponse = await OnlineSessionUtils.OpenOnlineSessionAsync(
+        OpenOnlineSessionResponse openSessionResponse = await OnlineSessionUtils.OpenOnlineSessionAsync(
             KsefClient,
             encryptionData,
             invoiceCreatorAuthToken,
-            SystemCodeEnum.FA3);
+            SystemCode.FA3);
 
         Assert.NotNull(openSessionResponse?.ReferenceNumber);
 
-        var sendInvoiceResponse = await OnlineSessionUtils.SendInvoiceAsync(
+        SendInvoiceResponse sendInvoiceResponse = await OnlineSessionUtils.SendInvoiceAsync(
             KsefClient,
             openSessionResponse.ReferenceNumber,
             invoiceCreatorAuthToken,
@@ -49,7 +54,7 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
 
         Assert.NotNull(sendInvoiceResponse);
 
-        var sessionStatus = await AsyncPollingUtils.PollAsync(
+        SessionStatusResponse sessionStatus = await AsyncPollingUtils.PollAsync(
             async () => await OnlineSessionUtils.GetOnlineSessionStatusAsync(
                 KsefClient,
                 openSessionResponse.ReferenceNumber,
@@ -61,7 +66,7 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
         Assert.NotNull(sessionStatus);
         Assert.Equal(sessionStatus.InvoiceCount, sessionStatus.SuccessfulInvoiceCount);
 
-        var invoices = await KsefClient.GetSessionInvoicesAsync(
+        SessionInvoicesResponse invoices = await KsefClient.GetSessionInvoicesAsync(
             openSessionResponse.ReferenceNumber,
             invoiceCreatorAuthToken,
             pageSize: 10);
@@ -70,64 +75,64 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
         await Task.Delay(10 * SleepTime);
 
         // --- Etap 2: Gmina nadaje uprawnienia dyrektorowi przedszkola do zarządzania uprawnieniami w kontekście przedszkola---
-        var municipalOfficeAuthToken = (await AuthenticationUtils.AuthenticateAsync(
-            KsefClient, SignatureService, municipalOfficeNip)).AccessToken.Token;
+        string municipalOfficeAuthToken = (await AuthenticationUtils.AuthenticateAsync(
+            AuthorizationClient, SignatureService, municipalOfficeNip)).AccessToken.Token;
 
-        var grantSubUnitRequest = GrantSubUnitPermissionsRequestBuilder
+        GrantPermissionsSubunitRequest grantSubUnitRequest = GrantSubunitPermissionsRequestBuilder
             .Create()
-            .WithSubject(new Core.Models.Permissions.SubUnit.SubUnitSubjectIdentifier
+            .WithSubject(new SubunitSubjectIdentifier
             {
-                Type = Core.Models.Permissions.SubUnit.SubUnitSubjectIdentifierType.Pesel,
+                Type = SubUnitSubjectIdentifierType.Pesel,
                 Value = directorPesel
             })
-            .WithContext(new ContextIdentifier
+            .WithContext(new SubunitContextIdentifier
             {
-                Type = ContextIdentifierType.InternalId,
+                Type = SubunitContextIdentifierType.InternalId,
                 Value = kindergartenId
             })
             .WithSubunitName("Przedszkole Testowe")
             .WithDescription("Sub-unit permission grant")
             .Build();
 
-        var grantOperation = await KsefClient.GrantsPermissionSubUnitAsync(
+        OperationResponse grantOperation = await KsefClient.GrantsPermissionSubUnitAsync(
             grantSubUnitRequest,
             municipalOfficeAuthToken);
 
-        var grantOperationStatus = await PermissionsUtils.ConfirmOperationSuccessAsync(KsefClient,
+        bool grantOperationStatus = await PermissionsUtils.ConfirmOperationSuccessAsync(KsefClient,
             grantOperation,
             municipalOfficeAuthToken);
 
         Assert.NotNull(grantOperationStatus);
 
         // --- Etap 3: dyrektor w kontekście przedszkola nadaje sobie prawo do odczytu faktur ---
-        var kindergartenAuthResult = await AuthenticationUtils.AuthenticateAsync(
-            KsefClient,
+        AuthenticationOperationStatusResponse kindergartenAuthResult = await AuthenticationUtils.AuthenticateAsync(
+            AuthorizationClient,
             SignatureService,
             directorPesel,
             kindergartenId,
-            Client.Core.Models.Authorization.AuthenticationTokenContextIdentifierType.InternalId);
+            AuthenticationTokenContextIdentifierType.InternalId);
 
-        var kindergartenAuthToken = kindergartenAuthResult
+        string kindergartenAuthToken = kindergartenAuthResult
             .AccessToken.Token;
 
-        var directorSubject = new Core.Models.Permissions.Person.PersonSubjectIdentifier
+        GrantPermissionsPersonSubjectIdentifier directorSubject = new GrantPermissionsPersonSubjectIdentifier
         {
-            Type = Core.Models.Permissions.Person.PersonSubjectIdentifierType.Pesel,
+            Type = GrantPermissionsPersonSubjectIdentifierType.Pesel,
             Value = directorPesel
         };
 
-        var grantPersonResponse = await PermissionsUtils.GrantPersonPermissionsAsync(
+        OperationResponse grantPersonResponse = await PermissionsUtils.GrantPersonPermissionsAsync(
             KsefClient,
             kindergartenAuthToken,
             directorSubject,
-            new[] { Core.Models.Permissions.Person.PersonStandardPermissionType.InvoiceRead },
+            new[] { PersonPermissionType.InvoiceRead },
             "GrantPermissionToDirector");
 
-        var grantPersonStatus = await AsyncPollingUtils.PollAsync(
-                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient,grantPersonResponse.OperationReferenceNumber, kindergartenAuthToken),
+        PermissionsOperationStatusResponse grantPersonStatus = await AsyncPollingUtils.PollAsync(
+                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient,grantPersonResponse.ReferenceNumber, kindergartenAuthToken),
                 status => status is not null &&
                          status.Status is not null &&
-                         status.Status.Code == 200,
+                         status.Status.Code == OperationStatusCodeResponse.Success,
                 delay: TimeSpan.FromSeconds(5),
                 maxAttempts: 60,
                 cancellationToken: CancellationToken.None);
@@ -136,12 +141,12 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
         Assert.Equal((int)200, grantPersonStatus.Status.Code);
 
         // --- Etap 4: Dyrektor przedszkola wyszukuje faktury ---
-        RefreshTokenResponse refreshedAccessTokenResponse = await KsefClient.RefreshAccessTokenAsync(kindergartenAuthResult.RefreshToken.Token);
+        RefreshTokenResponse refreshedAccessTokenResponse = await AuthorizationClient.RefreshAccessTokenAsync(kindergartenAuthResult.RefreshToken.Token);
         kindergartenAuthToken = refreshedAccessTokenResponse.AccessToken.Token;
-        
-        var invoiceQuery = new InvoiceQueryFilters
+
+        InvoiceQueryFilters invoiceQuery = new InvoiceQueryFilters
         {
-            SubjectType = SubjectType.Subject3,
+            SubjectType = InvoiceSubjectType.Subject3,
             DateRange = new DateRange
             {
                 From = DateTime.UtcNow.AddMonths(-2),
@@ -152,7 +157,7 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
 
         await Task.Delay(20* SleepTime);
 
-        var invoiceQueryResponse = await KsefClient.QueryInvoiceMetadataAsync(
+        PagedInvoiceResponse invoiceQueryResponse = await KsefClient.QueryInvoiceMetadataAsync(
             requestPayload: invoiceQuery,
             accessToken: kindergartenAuthToken,
             cancellationToken: CancellationToken.None,
@@ -165,7 +170,7 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
         //Sprawdzanie dostępu z poziomu gminy
         invoiceQuery = new InvoiceQueryFilters
         {
-            SubjectType = SubjectType.Subject2,
+            SubjectType = InvoiceSubjectType.Subject2,
             DateRange = new DateRange
             {
                 From = DateTime.UtcNow.AddMonths(-2),

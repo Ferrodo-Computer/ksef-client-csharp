@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 
 using KSeF.Client.Core.Exceptions;
+using KSeF.Client.Core.Interfaces.Clients;
+using KSeF.Client.Core.Models.RateLimits;
 
 namespace KSeF.Client.Tests.Core.Utils.RateLimit;
 
@@ -21,15 +23,19 @@ public static class KsefRateLimitWrapper
     /// <param name="endpoint">Typ endpointu (używany do sprawdzenia limitów)</param>
     /// <param name="maxRetryAttempts">Maksymalna liczba prób</param>
     /// <param name="cancellationToken">Token anulowania</param>
+    /// <param name="limitsClient">Opcjonalny klient do pobierania dynamicznych limitów API</param>
+    /// <param name="accessToken">Opcjonalny token dostępu używany do pobrania limitów</param>
     /// <returns>Odpowiedź z KSeF API</returns>
     public static async Task<T> ExecuteWithRetryAsync<T>(
         Func<CancellationToken, Task<T>> ksefApiCall,
         KsefApiEndpoint endpoint,
+        ILimitsClient? limitsClient = null,
         int maxRetryAttempts = DefaultMaxRetryAttempts,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? accessToken = null)
     {
         // Odczyt profilu limitów dla danego endpointu (RPS/RPM/RPH)
-        ApiLimits limits = KsefApiLimits.GetLimits(endpoint);
+        ApiLimits limits = await ResolveApiLimitsAsync(endpoint, limitsClient, accessToken, cancellationToken).ConfigureAwait(false);
 
         for (int attempt = 1; attempt <= maxRetryAttempts; attempt++)
         {
@@ -38,7 +44,7 @@ public static class KsefRateLimitWrapper
                 // Lokalny ograniczenie przepustowości przed wywołaniem API – oczekiwanie na odnowienie limitów
                 await WaitForRateWindowAsync(endpoint, limits, cancellationToken).ConfigureAwait(false);
 
-                T? result = await ksefApiCall(cancellationToken);           
+                T? result = await ksefApiCall(cancellationToken);
                 return result;
             }
             catch (KsefRateLimitException rateLimitEx)
@@ -46,9 +52,9 @@ public static class KsefRateLimitWrapper
                 // Ostatnia próba - rzuć dalej wyjątek
                 if (attempt == maxRetryAttempts)
                 {
-                    throw; 
+                    throw;
                 }
-                
+
                 // Czekaj zgodnie z Retry-After header lub użyj fallback
                 await Task.Delay(rateLimitEx.RecommendedDelay, cancellationToken);
             }
@@ -58,14 +64,56 @@ public static class KsefRateLimitWrapper
             }
             catch (Exception)
             {
-                throw; 
+                throw;
             }
         }
-        
+
         throw new InvalidOperationException($"Nieoczekiwane zakończenie pętli powtórzeń dla {endpoint}");
     }
 
     private static readonly ConcurrentDictionary<KsefApiEndpoint, EndpointRateTracker> Trackers = new();
+
+    private static async Task<ApiLimits> ResolveApiLimitsAsync(
+        KsefApiEndpoint endpoint,
+        ILimitsClient? limitsClient,
+        string? accessToken,
+        CancellationToken cancellationToken)
+    {
+        // Próba pobrania limitów z API jeśli dostępny klient i token dostepu.
+        if (limitsClient is not null && !string.IsNullOrWhiteSpace(accessToken))
+        {
+
+            EffectiveApiRateLimits serverLimits = await limitsClient.GetRateLimitsAsync(accessToken!, cancellationToken).ConfigureAwait(false);
+            EffectiveApiRateLimitValues? values = MapEndpointToValues(endpoint, serverLimits);
+            if (values is not null)
+            {
+                return new ApiLimits
+                {
+                    RequestsPerSecond = values.PerSecond,
+                    RequestsPerMinute = values.PerMinute,
+                    RequestsPerHour = values.PerHour
+                };
+            }
+        }
+
+        // Fallback do statycznych limitów testowych
+        return KsefApiLimits.GetLimits(endpoint);
+    }
+
+    private static EffectiveApiRateLimitValues? MapEndpointToValues(KsefApiEndpoint endpoint, EffectiveApiRateLimits limits)
+        => endpoint switch
+        {
+            KsefApiEndpoint.InvoiceQueryMetadata => limits.InvoiceMetadata,
+            KsefApiEndpoint.InvoiceExport => limits.InvoiceExport,
+            KsefApiEndpoint.InvoiceGetByNumber => limits.InvoiceDownload,
+            KsefApiEndpoint.SessionBatchOpen => limits.BatchSession,
+            KsefApiEndpoint.SessionBatchClose => limits.BatchSession,
+            KsefApiEndpoint.SessionOnlineOpen => limits.OnlineSession,
+            KsefApiEndpoint.SessionOnlineSendInvoice => limits.InvoiceSend,
+            KsefApiEndpoint.SessionOnlineClose => limits.OnlineSession,
+            KsefApiEndpoint.SessionInvoiceStatus => limits.InvoiceStatus,
+            _ => limits.Other
+        };
 
     private static async Task WaitForRateWindowAsync(
         KsefApiEndpoint endpoint,
@@ -128,7 +176,7 @@ public static class KsefRateLimitWrapper
         public TimeSpan CalculateDelay(DateTimeOffset now, ApiLimits limits)
         {
             // Zbieramy potrzebne opóźnienia dla każdego progu i wybieramy najdłuższe
-            var delays = new List<TimeSpan>(capacity: 3);
+            List<TimeSpan> delays = new List<TimeSpan>(capacity: 3);
 
             if (limits.RequestsPerSecond > 0 && _perSecond.Count >= limits.RequestsPerSecond)
             {

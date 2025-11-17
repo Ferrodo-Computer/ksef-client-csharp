@@ -3,6 +3,7 @@ using KSeF.Client.Core.Models.Permissions.Person;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 
 namespace WebApplication.Controllers;
 
@@ -11,12 +12,12 @@ namespace WebApplication.Controllers;
 public class PersonPermissionController(IKSeFClient ksefClient) : ControllerBase
 {
     [HttpPost("grant-permissions-for-person")]
-    public async Task<ActionResult<OperationResponse>> GrantPermissionsPerson(string accessToken, PersonSubjectIdentifier subjectIdentifier, CancellationToken cancellationToken)
+    public async Task<ActionResult<OperationResponse>> GrantPermissionsPerson(string accessToken, GrantPermissionsPersonSubjectIdentifier subjectIdentifier, CancellationToken cancellationToken)
     {
         GrantPermissionsPersonRequest request = GrantPersonPermissionsRequestBuilder
             .Create()
             .WithSubject(subjectIdentifier)
-            .WithPermissions(PersonStandardPermissionType.InvoiceRead, PersonStandardPermissionType.InvoiceWrite)
+            .WithPermissions(PersonPermissionType.InvoiceRead, PersonPermissionType.InvoiceWrite)
             .WithDescription("Access for quarterly review")
             .Build();
 

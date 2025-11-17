@@ -1,4 +1,5 @@
 using KSeF.Client.Core.Models.Permissions.Authorizations;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 
 namespace KSeF.Client.Api.Builders.AuthorizationPermissions;
 

@@ -1,10 +1,5 @@
 ﻿using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Tests.Utils;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace KSeF.Client.Tests.Core.E2E.Limits;
 
@@ -21,13 +16,13 @@ public class LimitsE2ETests : TestBase
         // 1. Uwierzytelnianie i uzyskanie tokenu dostępu
         AuthenticationOperationStatusResponse authorizationInfo =
             await AuthenticationUtils.AuthenticateAsync(
-                KsefClient,
+                AuthorizationClient,
                 SignatureService,
                 MiscellaneousUtils.GetRandomNip());
         string accessToken = authorizationInfo.AccessToken.Token;
 
         // 2. Pobranie limitów dla bieżącego kontekstu sesji
-        Client.Core.Models.Tests.SessionLimitsInCurrentContextResponse limitsForContext =
+        Client.Core.Models.TestData.SessionLimitsInCurrentContextResponse limitsForContext =
             await LimitsClient.GetLimitsForCurrentContextAsync(
                 accessToken,
                 CancellationToken);
@@ -36,36 +31,28 @@ public class LimitsE2ETests : TestBase
         Assert.NotNull(limitsForContext);
         Assert.True(limitsForContext.OnlineSession.MaxInvoices > 0);
         Assert.True(limitsForContext.OnlineSession.MaxInvoiceSizeInMB > 0);
-        Assert.True(limitsForContext.OnlineSession.MaxInvoiceSizeInMib > 0);
-        Assert.True(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMib > 0);
         Assert.True(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB > 0);
 
         Assert.True(limitsForContext.BatchSession.MaxInvoices > 0);
         Assert.True(limitsForContext.BatchSession.MaxInvoiceSizeInMB > 0);
-        Assert.True(limitsForContext.BatchSession.MaxInvoiceSizeInMib > 0);
-        Assert.True(limitsForContext.BatchSession.MaxInvoiceWithAttachmentSizeInMib > 0);
         Assert.True(limitsForContext.BatchSession.MaxInvoiceWithAttachmentSizeInMB > 0);
 
         // 4. Zmiana limitów dla bieżącego kontekstu sesji
-        Client.Core.Models.Tests.ChangeSessionLimitsInCurrentContextRequest newLimits =
-            new Client.Core.Models.Tests.ChangeSessionLimitsInCurrentContextRequest
+        Client.Core.Models.TestData.ChangeSessionLimitsInCurrentContextRequest newLimits =
+            new Client.Core.Models.TestData.ChangeSessionLimitsInCurrentContextRequest
             {
-                OnlineSession = new Client.Core.Models.Tests.SessionLimitsBase
+                OnlineSession = new Client.Core.Models.TestData.TestDataSessionLimitsBase
                 {
                     MaxInvoices = limitsForContext.OnlineSession.MaxInvoices + LimitsChangeValue,
                     MaxInvoiceSizeInMB = limitsForContext.OnlineSession.MaxInvoiceSizeInMB + LimitsChangeValue,
-                    MaxInvoiceSizeInMib = limitsForContext.OnlineSession.MaxInvoiceSizeInMib + LimitsChangeValue,
                     MaxInvoiceWithAttachmentSizeInMB = limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB + LimitsChangeValue,
-                    MaxInvoiceWithAttachmentSizeInMib = limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMib + LimitsChangeValue
                 },
 
-                BatchSession = new Client.Core.Models.Tests.SessionLimitsBase
+                BatchSession = new Client.Core.Models.TestData.TestDataSessionLimitsBase
                 {
                     MaxInvoices = limitsForContext.BatchSession.MaxInvoices + LimitsChangeValue,
                     MaxInvoiceSizeInMB = limitsForContext.BatchSession.MaxInvoiceSizeInMB + LimitsChangeValue,
-                    MaxInvoiceSizeInMib = limitsForContext.BatchSession.MaxInvoiceSizeInMib + LimitsChangeValue,
                     MaxInvoiceWithAttachmentSizeInMB = limitsForContext.BatchSession.MaxInvoiceWithAttachmentSizeInMB + LimitsChangeValue,
-                    MaxInvoiceWithAttachmentSizeInMib = limitsForContext.BatchSession.MaxInvoiceWithAttachmentSizeInMib + LimitsChangeValue
                 }
             };
 
@@ -81,9 +68,7 @@ public class LimitsE2ETests : TestBase
 
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoices, newLimits.OnlineSession.MaxInvoices);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceSizeInMB, newLimits.OnlineSession.MaxInvoiceSizeInMB);
-        Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceSizeInMib, newLimits.OnlineSession.MaxInvoiceSizeInMib);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMB);
-        Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMib, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMib);
 
         // 6. Przywrócenie oryginalnych limitów dla bieżącego kontekstu sesji
         await TestDataClient.RestoreDefaultSessionLimitsInCurrentContextAsync(
@@ -97,29 +82,27 @@ public class LimitsE2ETests : TestBase
 
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoices, newLimits.OnlineSession.MaxInvoices - LimitsChangeValue);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceSizeInMB, newLimits.OnlineSession.MaxInvoiceSizeInMB - LimitsChangeValue);
-        Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceSizeInMib, newLimits.OnlineSession.MaxInvoiceSizeInMib - LimitsChangeValue);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMB - LimitsChangeValue);
-        Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMib, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMib - LimitsChangeValue);
     }
 
     /// <summary>
-    /// Sprawdzenie dostępnych limitów certyfkatów dla bieżącego podmiotu.
+    /// Sprawdzenie dostępnych limitów certyfikatów dla bieżącego podmiotu.
     /// </summary>
     [Fact]
-    public async Task CertifiactesLimits_E2E_Positive()
+    public async Task CertificatesLimits_E2E_Positive()
     {
         const int LimitsChangeValue = 4;
 
         // 1. Uwierzytelnianie i uzyskanie tokenu dostępu
         AuthenticationOperationStatusResponse authorizationInfo =
             await AuthenticationUtils.AuthenticateAsync(
-                KsefClient,
+                AuthorizationClient,
                 SignatureService,
                 MiscellaneousUtils.GetRandomNip());
         string accessToken = authorizationInfo.AccessToken.Token;
 
         // 2. Pobranie limitów dla bieżącego podmiotu
-        Client.Core.Models.Tests.CertificatesLimitInCurrentSubjectResponse limitsForSubject =
+        Client.Core.Models.TestData.CertificatesLimitInCurrentSubjectResponse limitsForSubject =
             await LimitsClient.GetLimitsForCurrentSubjectAsync(
                 accessToken,
                 CancellationToken);
@@ -129,14 +112,14 @@ public class LimitsE2ETests : TestBase
         Assert.True(limitsForSubject.Enrollment.MaxEnrollments > 0);
 
         // 3. Zmiana limitów
-        Client.Core.Models.Tests.ChangeCertificatesLimitInCurrentSubjectRequest newCertificateLimitsForSubject = new Client.Core.Models.Tests.ChangeCertificatesLimitInCurrentSubjectRequest
+        Client.Core.Models.TestData.ChangeCertificatesLimitInCurrentSubjectRequest newCertificateLimitsForSubject = new Client.Core.Models.TestData.ChangeCertificatesLimitInCurrentSubjectRequest
         {
-            SubjectIdentifierType = Client.Core.Models.Tests.SubjectIdentifierType.Nip,
-            Certificate = new Client.Core.Models.Tests.Certificate
+            SubjectIdentifierType = Client.Core.Models.TestData.TestDataSubjectIdentifierType.Nip,
+            Certificate = new Client.Core.Models.TestData.TestDataCertificate
             {
                 MaxCertificates = limitsForSubject.Certificate.MaxCertificates + LimitsChangeValue
             },
-            Enrollment = new Client.Core.Models.Tests.Enrollment
+            Enrollment = new Client.Core.Models.TestData.TestDataEnrollment
             {
                 MaxEnrollments = limitsForSubject.Enrollment.MaxEnrollments + LimitsChangeValue
             }

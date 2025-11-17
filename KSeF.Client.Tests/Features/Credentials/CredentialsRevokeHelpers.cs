@@ -1,6 +1,8 @@
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Permissions;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.IndirectEntity;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Tests.Utils;
@@ -41,8 +43,8 @@ public partial class CredentialsRevokeTests
         public static async Task<bool> GrantCredentialsManageToDelegateAsync(
             IKSeFClient client, string ownerToken, string delegateNip)
         {
-            PersonSubjectIdentifier subjectIdentifier = new PersonSubjectIdentifier { Type = PersonSubjectIdentifierType.Nip, Value = delegateNip };
-            PersonStandardPermissionType[] permissions = new[] { PersonStandardPermissionType.CredentialsManage };
+            GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new GrantPermissionsPersonSubjectIdentifier { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip };
+            PersonPermissionType[] permissions = new[] { PersonPermissionType.CredentialsManage };
 
             OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(client, ownerToken, subjectIdentifier, permissions);
 
@@ -113,7 +115,7 @@ public partial class CredentialsRevokeTests
             await Task.Delay(1000);
 
             PermissionsOperationStatusResponse status = await PermissionsUtils.GetPermissionsOperationStatusAsync(client, operationResponse.ReferenceNumber!, token);
-            return status?.Status?.Code == 200;
+            return status?.Status?.Code == OperationStatusCodeResponse.Success;
         }
     }
 }

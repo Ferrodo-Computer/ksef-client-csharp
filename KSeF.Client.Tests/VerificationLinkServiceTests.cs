@@ -11,8 +11,8 @@ namespace KSeF.Client.Tests;
 
 public class VerificationLinkServiceTests
 {
-    private readonly IVerificationLinkService _svc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnviromentsUris.TEST }); 
-    private readonly string BaseUrl = $"{KsefEnviromentsUris.TEST}/client-app";
+    private readonly IVerificationLinkService _svc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST }); 
+    private readonly string BaseUrl = $"{KsefEnvironmentsUris.TEST}/client-app";
 
 
     // =============================================

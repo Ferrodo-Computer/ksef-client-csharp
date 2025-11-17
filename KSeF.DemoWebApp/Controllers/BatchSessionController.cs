@@ -16,13 +16,13 @@ public class BatchSessionController : ControllerBase
     private readonly EncryptionData encryptionData;
     private static readonly string BatchPartsDirectory = Path.Combine(AppContext.BaseDirectory, "BatchParts");
     private static readonly string InvoicesDirectory = Path.Combine(AppContext.BaseDirectory, "Invoices");
-    private readonly string contextIndentifier;
+    private readonly string contextIdentifier;
     public BatchSessionController(ICryptographyService cryptographyService, IKSeFClient ksefClient, IConfiguration configuration)
     {
         this.ksefClient = ksefClient;
         this.cryptographyService = cryptographyService;
         encryptionData = cryptographyService.GetEncryptionData();
-        contextIndentifier = configuration["Tools:contextIdentifier"]!;
+        contextIdentifier = configuration["Tools:contextIdentifier"]!;
     }
 
 
@@ -37,7 +37,7 @@ public class BatchSessionController : ControllerBase
 
         for(int i =0; i < 20; i++)
         {
-            string inv = System.IO.File.ReadAllText(invoicePath).Replace("#nip#", contextIndentifier).Replace("#invoice_number#", Guid.NewGuid().ToString());
+            string inv = System.IO.File.ReadAllText(invoicePath).Replace("#nip#", contextIdentifier).Replace("#invoice_number#", Guid.NewGuid().ToString());
             string invoiceName = $"faktura_{i + 1}.xml";
             invoices.Add(Path.Combine(InvoicesDirectory, invoiceName));
             System.IO.File.WriteAllText(Path.Combine(InvoicesDirectory, invoiceName), inv);

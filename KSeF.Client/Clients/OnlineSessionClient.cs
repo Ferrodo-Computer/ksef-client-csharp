@@ -1,0 +1,46 @@
+using KSeF.Client.Core.Infrastructure.Rest;
+using KSeF.Client.Core.Interfaces.Clients;
+using KSeF.Client.Core.Interfaces.Rest;
+using KSeF.Client.Core.Models.Sessions.OnlineSession;
+using KSeF.Client.Core.Models.Sessions;
+
+namespace KSeF.Client.Clients;
+
+/// <inheritdoc />
+public class OnlineSessionClient(IRestClient restClient, IRouteBuilder routeBuilder)
+    : ClientBase(restClient, routeBuilder), IOnlineSessionClient
+{
+    /// <inheritdoc />
+    public Task<OpenOnlineSessionResponse> OpenOnlineSessionAsync(OpenOnlineSessionRequest requestPayload, string accessToken, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(requestPayload);
+        ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
+
+        return ExecuteAsync<OpenOnlineSessionResponse, OpenOnlineSessionRequest>(
+            Routes.Sessions.Online.Open,
+            requestPayload,
+            accessToken,
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<SendInvoiceResponse> SendOnlineSessionInvoiceAsync(SendInvoiceRequest requestPayload, string sessionReferenceNumber, string accessToken, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(requestPayload);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionReferenceNumber);
+        ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
+
+        string endpoint = Routes.Sessions.Online.Invoices(Uri.EscapeDataString(sessionReferenceNumber));
+        return ExecuteAsync<SendInvoiceResponse, SendInvoiceRequest>(endpoint, requestPayload, accessToken, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task CloseOnlineSessionAsync(string sessionReferenceNumber, string accessToken, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionReferenceNumber);
+        ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
+
+        string endpoint = Routes.Sessions.Online.Close(Uri.EscapeDataString(sessionReferenceNumber));
+        return ExecuteAsync(endpoint, HttpMethod.Post, accessToken, cancellationToken);
+    }
+}

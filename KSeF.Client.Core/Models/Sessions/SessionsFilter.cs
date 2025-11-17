@@ -71,7 +71,7 @@ namespace KSeF.Client.Core.Models.Sessions
         /// </summary>
         Online,
         /// <summary>
-        /// Sesjs wsadowa.
+        /// Sesja wsadowa.
         /// </summary>
         Batch
     }

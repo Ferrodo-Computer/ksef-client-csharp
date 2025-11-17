@@ -11,7 +11,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Folder Include="Models\Invoices\Query\" />
+	  <Compile Remove="Models\Invoices\Query\**" />
+	  <EmbeddedResource Remove="Models\Invoices\Query\**" />
+	  <None Remove="Models\Invoices\Query\**" />
 	</ItemGroup>
 	
 	<PropertyGroup>
@@ -23,5 +25,7 @@
 		<PackageTags>ksef; e-invoicing; polish; dotnet; integration; invoices</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<ProduceReferenceAssembly>True</ProduceReferenceAssembly>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 </Project>

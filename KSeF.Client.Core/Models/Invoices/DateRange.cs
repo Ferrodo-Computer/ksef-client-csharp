@@ -9,4 +9,10 @@ namespace KSeF.Client.Core.Models.Invoices
         public DateTime From { get; set; }
         public DateTime? To { get; set; }
     }
+    public enum DateType
+    {
+        Issue,
+        Invoicing,
+        PermanentStorage
+    }
 }

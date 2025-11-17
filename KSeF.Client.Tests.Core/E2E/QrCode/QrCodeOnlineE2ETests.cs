@@ -1,4 +1,5 @@
 using KSeF.Client.Api.Services;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
 using KSeF.Client.Core.Models.Sessions;
@@ -28,26 +29,22 @@ public class QrCodeOnlineE2ETests : TestBase
     private readonly QrCodeService _qrSvc;
     private readonly VerificationLinkService _linkSvc;
 
-    private const int SuccessfulSessionStatusCode = 200;
-    private const int SessionPendingStatusCode = 170;
-    private const int SessionFailedStatusCode = 445;
-
     public QrCodeOnlineE2ETests(QrCodeOnlineE2EScenarioFixture fixture)
     {
         _fixture = fixture;
-        _linkSvc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnviromentsUris.TEST });
+        _linkSvc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST });
         _encryptionData = CryptographyService.GetEncryptionData();
         _qrSvc = new QrCodeService();
         _fixture.Nip = MiscellaneousUtils.GetRandomNip();
 
-        AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(KsefClient, SignatureService, _fixture.Nip).GetAwaiter().GetResult();
+        AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, _fixture.Nip).GetAwaiter().GetResult();
         _fixture.AccessToken = authInfo.AccessToken.Token;
     }
 
     [Theory]
-    [InlineData([SystemCodeEnum.FA2, "invoice-template-fa-2.xml"])]
-    [InlineData([SystemCodeEnum.FA3, "invoice-template-fa-3.xml"])]
-    public async Task QrCodeOnlineE2ETest(SystemCodeEnum systemCode, string invoiceTemplate)
+    [InlineData([SystemCode.FA2, "invoice-template-fa-2.xml"])]
+    [InlineData([SystemCode.FA3, "invoice-template-fa-3.xml"])]
+    public async Task QrCodeOnlineE2ETest(SystemCode systemCode, string invoiceTemplate)
     {
         OpenOnlineSessionResponse openSessionResponse = await OnlineSessionUtils.OpenOnlineSessionAsync(
             KsefClient,
@@ -91,13 +88,13 @@ public class QrCodeOnlineE2ETests : TestBase
                 KsefClient,
                 openSessionResponse.ReferenceNumber,
                 _fixture.AccessToken),
-            condition: s => s.Status.Code != SessionPendingStatusCode,
+            condition: s => s.Status.Code != OnlineSessionCodeResponse.SessionClosed,
             description: "Oczekiwanie na zakończenie przetwarzania sesji (status != 170)",
             delay: TimeSpan.FromMilliseconds(SleepTime),
             maxAttempts: MaxSessionStatusAttempts
         );
 
-        Assert.NotEqual(SessionFailedStatusCode, sessionStatus.Status.Code);
+        Assert.NotEqual(OnlineSessionCodeResponse.NoValidInvoices, sessionStatus.Status.Code);
 
         SessionInvoice invoicesStatus = await KsefClient.GetSessionInvoiceAsync(
             _fixture.SessionReferenceNumber,
@@ -118,7 +115,7 @@ public class QrCodeOnlineE2ETests : TestBase
             maxAttempts: MaxInvoiceStatusAttempts
         );
 
-        Assert.Equal(SuccessfulSessionStatusCode, invoicesStatus.Status.Code);
+        Assert.Equal(OnlineSessionCodeResponse.ProcessedSuccessfully, invoicesStatus.Status.Code);
 
         SessionInvoicesResponse invoicesMetadata = await OnlineSessionUtils.GetSessionInvoicesMetadataAsync(
             KsefClient,

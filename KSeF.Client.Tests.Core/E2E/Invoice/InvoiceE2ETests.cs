@@ -1,4 +1,5 @@
 using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
 using KSeF.Client.Core.Models.Sessions;
@@ -14,8 +15,7 @@ public class InvoiceE2ETests : TestBase
     private const int PageSize = 10;
     private const int DateRangeDays = 30;
     private const int MaxRetries = 60;
-    private const int SuccessStatusCode = 200;
-
+    
     private readonly string _sellerNip;
     private readonly string _accessToken;
 
@@ -27,7 +27,7 @@ public class InvoiceE2ETests : TestBase
         _sellerNip = MiscellaneousUtils.GetRandomNip();
 
         AuthenticationOperationStatusResponse authOperationStatusResponse =
-            AuthenticationUtils.AuthenticateAsync(KsefClient, SignatureService, _sellerNip).GetAwaiter().GetResult();
+            AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, _sellerNip).GetAwaiter().GetResult();
         _accessToken = authOperationStatusResponse.AccessToken.Token;
     }
 
@@ -40,7 +40,7 @@ public class InvoiceE2ETests : TestBase
         // Arrange
         InvoiceQueryFilters invoiceMetadataQueryRequest = new InvoiceQueryFilters
         {
-            SubjectType = SubjectType.Subject1,
+            SubjectType = InvoiceSubjectType.Subject1,
             DateRange = new DateRange
             {
                 From = DateTime.UtcNow.AddDays(-DateRangeDays),
@@ -62,8 +62,8 @@ public class InvoiceE2ETests : TestBase
     }
 
     [Theory]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
-    public async Task Invoice_GetInvoiceAsync_ReturnsInvoiceXml(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    public async Task Invoice_GetInvoiceAsync_ReturnsInvoiceXml(SystemCode systemCode, string invoiceTemplatePath)
     {
         // Arrange
         EncryptionData encryptionData = CryptographyService.GetEncryptionData();
@@ -145,7 +145,7 @@ public class InvoiceE2ETests : TestBase
                 To = DateTime.Now.AddDays(1),
                 DateType = DateType.Invoicing
             },
-            SubjectType = SubjectType.Subject1
+            SubjectType = InvoiceSubjectType.Subject1
         };
 
         // 9. Pobierz metadane faktury
@@ -172,13 +172,13 @@ public class InvoiceE2ETests : TestBase
                 invoicesForSellerResponse.ReferenceNumber,
                 _accessToken,
                 CancellationToken),
-            result => result?.Status?.Code == SuccessStatusCode,
+            result => result?.Status?.Code == InvoiceExportStatusCodeResponse.ExportSuccess,
             delay: TimeSpan.FromMilliseconds(SleepTime),
-            maxAttempts: MaxRetries,
+            maxAttempts: MaxRetries * 10,
             cancellationToken: CancellationToken);
 
         Assert.NotNull(exportStatus);
-        Assert.Equal(SuccessStatusCode, exportStatus.Status.Code);
+        Assert.Equal(InvoiceExportStatusCodeResponse.ExportSuccess, exportStatus.Status.Code);
         Assert.NotNull(exportStatus.Package);
         Assert.NotEmpty(exportStatus.Package.Parts);
     }

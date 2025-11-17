@@ -1,19 +1,20 @@
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.SubUnit;
 
 namespace KSeF.Client.Api.Builders.SubUnitPermissions;
 
-public static class GrantSubUnitPermissionsRequestBuilder
+public static class GrantSubunitPermissionsRequestBuilder
 {
     public static ISubjectStep Create() => GrantPermissionsRequestBuilderImpl.Create();
 
     public interface ISubjectStep
     {
-        IContextStep WithSubject(SubUnitSubjectIdentifier subject);
+        IContextStep WithSubject(SubunitSubjectIdentifier subject);
     }
 
     public interface IContextStep
     {
-        IOptionalStep WithContext(SubUnitContextIdentifier context);
+        IOptionalStep WithContext(SubunitContextIdentifier context);
     }
 
     public interface ISubunitNameStep
@@ -25,7 +26,7 @@ public static class GrantSubUnitPermissionsRequestBuilder
     {
         IOptionalStep WithDescription(string description);
         IOptionalStep WithSubunitName(string subunitName);
-        GrantPermissionsSubUnitRequest Build();
+        GrantPermissionsSubunitRequest Build();
     }
 
     private sealed class GrantPermissionsRequestBuilderImpl :
@@ -33,8 +34,8 @@ public static class GrantSubUnitPermissionsRequestBuilder
         IContextStep,
         IOptionalStep
     {
-        private SubUnitSubjectIdentifier _subject;
-        private SubUnitContextIdentifier _context;
+        private SubunitSubjectIdentifier _subject;
+        private SubunitContextIdentifier _context;
         private string _description;
         private string _subunitName;
 
@@ -42,13 +43,13 @@ public static class GrantSubUnitPermissionsRequestBuilder
 
         internal static ISubjectStep Create() => new GrantPermissionsRequestBuilderImpl();
 
-        public IContextStep WithSubject(SubUnitSubjectIdentifier subject)
+        public IContextStep WithSubject(SubunitSubjectIdentifier subject)
         {
             _subject = subject ?? throw new ArgumentNullException(nameof(subject));
             return this;
         }
 
-        public IOptionalStep WithContext(SubUnitContextIdentifier context)
+        public IOptionalStep WithContext(SubunitContextIdentifier context)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             return this;
@@ -66,16 +67,16 @@ public static class GrantSubUnitPermissionsRequestBuilder
             return this;
         }
 
-        public GrantPermissionsSubUnitRequest Build()
+        public GrantPermissionsSubunitRequest Build()
         {
             if (_subject is null)
                 throw new InvalidOperationException("Metoda WithSubject(...) musi zostać wywołana jako pierwsza.");
             if (_context is null)
                 throw new InvalidOperationException("Metoda WithContext(...) musi zostać wywołana po ustawieniu podmiotu.");
-            if (_context.Type == SubUnitContextIdentifierType.InternalId && string.IsNullOrWhiteSpace(_subunitName))
+            if (_context.Type == SubunitContextIdentifierType.InternalId && string.IsNullOrWhiteSpace(_subunitName))
                 throw new InvalidOperationException("Dla typu ContextIdentifierType.InternalId, metoda WithSubunitName(...) musi zostać wywołana przed Build().");
 
-            return new GrantPermissionsSubUnitRequest
+            return new GrantPermissionsSubunitRequest
             {
                 SubjectIdentifier = _subject,
                 ContextIdentifier = _context,

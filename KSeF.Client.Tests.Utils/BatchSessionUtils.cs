@@ -13,7 +13,7 @@ namespace KSeF.Client.Tests.Utils;
 /// </summary>
 public static class BatchUtils
 {
-    private const SystemCodeEnum DefaultSystemCode = SystemCodeEnum.FA3;
+    private const SystemCode DefaultSystemCode = SystemCode.FA3;
     private const string DefaultSchemaVersion = "1-0E";
     private const string DefaultValue = "FA";
     private const int DefaultSleepTimeMs = 1000;
@@ -28,14 +28,13 @@ public static class BatchUtils
     /// <param name="ksefClient">Klient KSeF.</param>
     /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
     /// <param name="accessToken">Token dostępu.</param>
-    /// <param name="pageOffset">Numer strony wyników.</param>
     /// <param name="pageSize">Rozmiar strony wyników.</param>
     /// <returns>Odpowiedź z metadanymi faktur sesji.</returns>
     public static async Task<SessionInvoicesResponse> GetSessionInvoicesAsync(
         IKSeFClient ksefClient,
         string sessionReferenceNumber,
         string accessToken,
-        int pageOffset = DefaultPageOffset, int pageSize = DefaultPageSize)
+        int pageSize = DefaultPageSize)
         => await ksefClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken, pageSize);
 
     /// <summary>
@@ -223,7 +222,7 @@ public static class BatchUtils
         FileMetadata zipMeta,
         EncryptionData encryption,
         IEnumerable<BatchPartSendingInfo> encryptedParts,
-        SystemCodeEnum systemCode = DefaultSystemCode,
+        SystemCode systemCode = DefaultSystemCode,
         string schemaVersion = DefaultSchemaVersion,
         string value = DefaultValue)
     {

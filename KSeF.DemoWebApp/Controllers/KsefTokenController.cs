@@ -47,16 +47,16 @@ public class KsefTokenController : ControllerBase
         return Ok(result);
     }
     [HttpGet("get-token")]
-    public async Task<ActionResult<AuthenticationKsefToken>> GetTokenAsync(string tokenRefrenceNumber, string accessToken, CancellationToken cancellationToken)
+    public async Task<ActionResult<AuthenticationKsefToken>> GetTokenAsync(string tokenReferenceNumber, string accessToken, CancellationToken cancellationToken)
     {
-        AuthenticationKsefToken ksefToken = await ksefClient.GetKsefTokenAsync(tokenRefrenceNumber, accessToken, cancellationToken);
+        AuthenticationKsefToken ksefToken = await ksefClient.GetKsefTokenAsync(tokenReferenceNumber, accessToken, cancellationToken);
         return Ok(ksefToken);
     }
 
     [HttpDelete]
-    public async Task<ActionResult> RevokeAsync(string tokenRefrenceNumber, string accessToken, CancellationToken cancellationToken)
+    public async Task<ActionResult> RevokeAsync(string tokenReferenceNumber, string accessToken, CancellationToken cancellationToken)
     {
-        await ksefClient.RevokeKsefTokenAsync(tokenRefrenceNumber, accessToken, cancellationToken);
+        await ksefClient.RevokeKsefTokenAsync(tokenReferenceNumber, accessToken, cancellationToken);
         return NoContent();
     }
 }

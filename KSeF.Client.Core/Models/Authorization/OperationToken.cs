@@ -6,7 +6,7 @@ namespace KSeF.Client.Core.Models.Authorization
     public class OperationToken
     {
         /// <summary>
-        /// Token uwierzytelniający słżący do dostępu do chronionych zasobów API.
+        /// Token uwierzytelniający służący do dostępu do chronionych zasobów API.
         /// </summary>
         public string Token { get; set; }
 

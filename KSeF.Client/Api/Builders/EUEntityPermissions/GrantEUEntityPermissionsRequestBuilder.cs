@@ -1,13 +1,14 @@
 using KSeF.Client.Core.Models.Permissions.EUEntity;
-namespace KSeF.Client.Api.Builders.EUEntityPermissions;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
+namespace KSeF.Client.Api.Builders.EuEntityPermissions;
 
-public static class GrantEUEntityPermissionsRequestBuilder
+public static class GrantEuEntityPermissionsRequestBuilder
 {
     public static ISubjectStep Create() => GrantPermissionsRequestBuilderImpl.Create();
 
     public interface ISubjectStep
     {
-        ISubjectNameStep WithSubject(EUEntitySubjectIdentifier subject);
+        ISubjectNameStep WithSubject(EuEntitySubjectIdentifier subject);
     }
 
     public interface ISubjectNameStep
@@ -17,7 +18,7 @@ public static class GrantEUEntityPermissionsRequestBuilder
 
     public interface IPermissionsStep
     {
-        IDescriptionStep WithContext(EUEntityContextIdentifier subject);
+        IDescriptionStep WithContext(EuEntityContextIdentifier subject);
     }
 
     public interface IDescriptionStep
@@ -27,7 +28,7 @@ public static class GrantEUEntityPermissionsRequestBuilder
 
     public interface IBuildStep
     {
-        GrantPermissionsEUEntityRequest Build();
+        GrantPermissionsEuEntityRequest Build();
     }
 
     private sealed class GrantPermissionsRequestBuilderImpl :
@@ -37,8 +38,8 @@ public static class GrantEUEntityPermissionsRequestBuilder
         IDescriptionStep,
         IBuildStep
     {
-        private EUEntitySubjectIdentifier _subject;
-        private EUEntityContextIdentifier _context;
+        private EuEntitySubjectIdentifier _subject;
+        private EuEntityContextIdentifier _context;
         private string _description;
         private string _subjectName;
 
@@ -46,7 +47,7 @@ public static class GrantEUEntityPermissionsRequestBuilder
 
         internal static ISubjectStep Create() => new GrantPermissionsRequestBuilderImpl();
 
-        public ISubjectNameStep WithSubject(EUEntitySubjectIdentifier subject)
+        public ISubjectNameStep WithSubject(EuEntitySubjectIdentifier subject)
         {
             _subject = subject ?? throw new ArgumentNullException(nameof(subject));
             return this;
@@ -60,7 +61,7 @@ public static class GrantEUEntityPermissionsRequestBuilder
             return this;
         }
 
-        public IDescriptionStep WithContext(EUEntityContextIdentifier context)
+        public IDescriptionStep WithContext(EuEntityContextIdentifier context)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             return this;
@@ -72,7 +73,7 @@ public static class GrantEUEntityPermissionsRequestBuilder
             return this;
         }
 
-        public GrantPermissionsEUEntityRequest Build()
+        public GrantPermissionsEuEntityRequest Build()
         {
             if (_subject is null)
                 throw new InvalidOperationException("Metoda WithSubject(...) musi zostać wywołana jako pierwsza.");
@@ -81,7 +82,7 @@ public static class GrantEUEntityPermissionsRequestBuilder
             if (_description is null)
                 throw new InvalidOperationException("Metoda WithDescription(...) musi zostać wywołana po ustawieniu uprawnień.");
 
-            return new GrantPermissionsEUEntityRequest
+            return new GrantPermissionsEuEntityRequest
             {
                 SubjectIdentifier = _subject,
                 ContextIdentifier = _context,

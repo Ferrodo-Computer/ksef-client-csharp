@@ -1,6 +1,6 @@
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Permissions;
-using KSeF.Client.Core.Models.Permissions.EUEntity;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Tests.Utils;
 
 namespace KSeF.Client.Tests.Core.E2E.Permissions.EuEntityPermissions;
@@ -8,9 +8,9 @@ namespace KSeF.Client.Tests.Core.E2E.Permissions.EuEntityPermissions;
 public class EuEntityPermissionScenarioE2EFixture
 {
     public string AccessToken { get; set; }
-    public EUEntitySubjectIdentifier EuEntity { get; } = new EUEntitySubjectIdentifier
+    public EuEntitySubjectIdentifier EuEntity { get; } = new EuEntitySubjectIdentifier
     {
-        Type = EUEntitySubjectIdentifierType.Fingerprint,
+        Type = EuEntitySubjectIdentifierType.Fingerprint,
         Value = MiscellaneousUtils.GetRandomNip()
     };
     public OperationResponse GrantResponse { get; set; }

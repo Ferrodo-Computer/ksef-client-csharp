@@ -13,14 +13,14 @@ public class QrCodeTests
 
     public QrCodeTests()
     {
-        _linkSvc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnviromentsUris.TEST });
+        _linkSvc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST });
     }
 
     [Theory]
     [InlineData("RSA", "TestRsaPublic")]
     [InlineData("ECC", "TestEccPublic")]
     [Trait("Category", "QRCode")]
-    [Trait("Scenario", "Zbuduj link weryfikujący uzywając publiczny certyfikat")]
+    [Trait("Scenario", "Zbuduj link weryfikujący używając certyfikatu publicznego")]
     [Trait("Expected", "InvalidOperationException")]
     public void GivenPublicOnlyCertificate_WhenBuildingVerificationUrl_ThenThrowsInvalidOperationException(
         string keyType, string subjectName)

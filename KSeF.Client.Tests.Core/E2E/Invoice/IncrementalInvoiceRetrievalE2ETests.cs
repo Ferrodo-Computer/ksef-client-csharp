@@ -42,7 +42,7 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
     {
         _sellerNip = MiscellaneousUtils.GetRandomNip();
         AuthenticationOperationStatusResponse authOperationStatusResponse = AuthenticationUtils
-            .AuthenticateAsync(KsefClient, SignatureService, _sellerNip)
+            .AuthenticateAsync(AuthorizationClient, SignatureService, _sellerNip)
             .GetAwaiter()
             .GetResult();
 
@@ -50,8 +50,8 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
     }
 
     [Theory]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
-    public async Task IncrementalInvoiceRetrieval_E2E_WithDeduplication(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    public async Task IncrementalInvoiceRetrieval_E2E_WithDeduplication(SystemCode systemCode, string invoiceTemplatePath)
     {
         // 1. Generowanie faktur poprzez sesję wsadową w celu uzyskania danych do eksportu
         DateTime batchCreationStart = DateTime.UtcNow;
@@ -65,13 +65,13 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
         int totalMetadataEntries = 0;
 
         // Słownik do śledzenia punktu kontynuacji dla każdego SubjectType
-        Dictionary<SubjectType, DateTime?> continuationPoints = new();
+        Dictionary<InvoiceSubjectType, DateTime?> continuationPoints = new();
 
         // 2. Budowanie listy okien czasowych. Zachodzą na siebie celowo w celu wymuszenia konieczności deduplikacji.
         IReadOnlyList<(DateTime From, DateTime To)> windows = BuildIncrementalWindows(batchCreationStart, batchCreationCompleted);
 
         // Tworzenie planu eksportu - krotki (okno czasowe, typ podmiotu)
-        IEnumerable<SubjectType> subjectTypes = Enum.GetValues<SubjectType>().Where(x => x != SubjectType.SubjectAuthorized);
+        IEnumerable<InvoiceSubjectType> subjectTypes = Enum.GetValues<InvoiceSubjectType>().Where(x => x != InvoiceSubjectType.SubjectAuthorized);
         IOrderedEnumerable<ExportTask> exportTasks = windows
             .SelectMany(window => subjectTypes, (window, subjectType) => new ExportTask(window.From, window.To, subjectType))
             .OrderBy(task => task.From)
@@ -133,7 +133,7 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
         int invoiceCount, 
         string sellerNip, 
         string invoiceTemplatePath, 
-        SystemCodeEnum systemCode)
+        SystemCode systemCode)
     {
         EncryptionData encryptionData = CryptographyService.GetEncryptionData();
 
@@ -202,7 +202,7 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
         return (openResponse.ReferenceNumber, ksefNumbers);
     }
 
-    private async Task<OperationResponse?> InitiateInvoiceExportAsync(DateTime windowFromUtc, DateTime windowToUtc, SubjectType subjectType)
+    private async Task<OperationResponse?> InitiateInvoiceExportAsync(DateTime windowFromUtc, DateTime windowToUtc, InvoiceSubjectType subjectType)
     {
         if (windowToUtc <= windowFromUtc)
         {
@@ -231,7 +231,9 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
         OperationResponse response = await KsefRateLimitWrapper.ExecuteWithRetryAsync(
             ksefApiCall: ct => KsefClient.ExportInvoicesAsync(request, _accessToken, ct, includeMetadata: true),
             endpoint: KsefApiEndpoint.InvoiceExport,
-            cancellationToken: CancellationToken);
+            cancellationToken: CancellationToken,
+            limitsClient: LimitsClient,
+            accessToken: _accessToken);
 
         if (!string.IsNullOrWhiteSpace(response?.ReferenceNumber))
         {
@@ -241,27 +243,29 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
         return response;
     }
 
-    private async Task<InvoiceExportStatusResponse?> WaitForExportCompletionAsync(string operationReferenceNumber)
+    private async Task<InvoiceExportStatusResponse?> WaitForExportCompletionAsync(string referenceNumber)
     {
         return await AsyncPollingUtils.PollAsync(
             action: async () => await KsefRateLimitWrapper.ExecuteWithRetryAsync(
-                ct => KsefClient.GetInvoiceExportStatusAsync(operationReferenceNumber, _accessToken, ct),
+                ct => KsefClient.GetInvoiceExportStatusAsync(referenceNumber, _accessToken, ct),
                 KsefApiEndpoint.InvoiceExport,
-                cancellationToken: CancellationToken),
+                cancellationToken: CancellationToken,
+                limitsClient: LimitsClient,
+                accessToken: _accessToken),
             condition: status => status?.Status?.Code == SuccessStatusCode,
             delay: ExportPollingDelay,
             maxAttempts: MaxExportStatusRetries,
             cancellationToken: CancellationToken);
     }
 
-    private EncryptionData GetEncryptionDataForOperation(string operationReferenceNumber)
+    private EncryptionData GetEncryptionDataForOperation(string referenceNumber)
     {
-        if (_exportEncryptionByOperation.TryGetValue(operationReferenceNumber, out EncryptionData? encryption) && encryption != null)
+        if (_exportEncryptionByOperation.TryGetValue(referenceNumber, out EncryptionData? encryption) && encryption != null)
         {
             return encryption;
         }
 
-        throw new InvalidOperationException($"Brak danych szyfrujących dla eksportu {operationReferenceNumber}.");
+        throw new InvalidOperationException($"Brak danych szyfrujących dla eksportu {referenceNumber}.");
     }
 
     private async Task<PackageProcessingResult> DownloadAndProcessPackageAsync(InvoiceExportPackage package, EncryptionData encryptionData)
@@ -322,8 +326,8 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
     /// wykorzystywane jest LastPermanentStorageDate z tej paczki jako punkt startowy w celu zapewnienia ciągłości pobierania.
     /// </summary>
     private static DateTime GetEffectiveStartDate(
-        Dictionary<SubjectType, DateTime?> continuationPoints, 
-        SubjectType subjectType, 
+        Dictionary<InvoiceSubjectType, DateTime?> continuationPoints, 
+        InvoiceSubjectType subjectType, 
         DateTime windowFrom)
     {
         if (continuationPoints.TryGetValue(subjectType, out DateTime? continuationPoint) && continuationPoint.HasValue)
@@ -340,8 +344,8 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
     /// w celu zapewnienia, że żadne faktury nie zostaną pominięte.
     /// </summary>
     private static void UpdateContinuationPointIfNeeded(
-        Dictionary<SubjectType, DateTime?> continuationPoints,
-        SubjectType subjectType,
+        Dictionary<InvoiceSubjectType, DateTime?> continuationPoints,
+        InvoiceSubjectType subjectType,
         InvoiceExportPackage package)
     {
         if (package.IsTruncated && package.LastPermanentStorageDate.HasValue)
@@ -355,7 +359,7 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
         }
     }
 
-    private sealed record ExportTask(DateTime From, DateTime To, SubjectType SubjectType);
+    private sealed record ExportTask(DateTime From, DateTime To, InvoiceSubjectType SubjectType);
 
     private sealed record PackageProcessingResult(
         IReadOnlyCollection<InvoiceSummary> MetadataSummaries,

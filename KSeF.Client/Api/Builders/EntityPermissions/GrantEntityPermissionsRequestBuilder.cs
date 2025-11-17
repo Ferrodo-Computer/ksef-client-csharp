@@ -1,4 +1,5 @@
 using KSeF.Client.Core.Models.Permissions.Entity;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 
 namespace KSeF.Client.Api.Builders.EntityPermissions;
 
@@ -8,7 +9,7 @@ public static class GrantEntityPermissionsRequestBuilder
 
     public interface ISubjectStep
     {
-        IPermissionsStep WithSubject(EntitySubjectIdentifier subject);
+        IPermissionsStep WithSubject(GrantPermissionsEntitySubjectIdentifier subject);
     }
 
     public interface IPermissionsStep
@@ -27,7 +28,7 @@ public static class GrantEntityPermissionsRequestBuilder
         IPermissionsStep,
         IOptionalStep
     {
-        private EntitySubjectIdentifier _subject;
+        private GrantPermissionsEntitySubjectIdentifier _subject;
         private ICollection<EntityPermission> _permissions;
         private string _description;
 
@@ -35,7 +36,7 @@ public static class GrantEntityPermissionsRequestBuilder
 
         internal static ISubjectStep Create() => new GrantPermissionsRequestBuilderImpl();
 
-        public IPermissionsStep WithSubject(EntitySubjectIdentifier subject)
+        public IPermissionsStep WithSubject(GrantPermissionsEntitySubjectIdentifier subject)
         {
             _subject = subject ?? throw new ArgumentNullException(nameof(subject));
             return this;

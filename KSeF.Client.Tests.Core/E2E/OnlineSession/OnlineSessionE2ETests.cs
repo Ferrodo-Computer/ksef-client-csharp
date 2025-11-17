@@ -1,6 +1,10 @@
+using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Interfaces.Services;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
+using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Core.Models.Sessions;
 using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using KSeF.Client.Tests.Utils;
@@ -12,12 +16,11 @@ namespace KSeF.Client.Tests.Core.E2E.OnlineSession;
 [Collection("OnlineSessionScenario")]
 public class OnlineSessionE2ETests : TestBase
 {
-    private const int SuccessfulSessionStatusCode = 200;
-    private const SystemCodeEnum DefaultSystemCode = SystemCodeEnum.FA3;
+    private const SystemCode DefaultSystemCode = SystemCode.FA3;
     private const string DefaultSchemaVersion = "1-0E";
     private const string DefaultFormCodeValue = "FA";
     private const int SuccessfulInvoiceCountExpected = 1;
-    private const int SessionStatusCodeExpected = 100;
+    private const int MaxRetries = 60;
 
     private string accessToken = string.Empty;
     private string Nip { get; }
@@ -25,16 +28,82 @@ public class OnlineSessionE2ETests : TestBase
     public OnlineSessionE2ETests()
     {
         Nip = MiscellaneousUtils.GetRandomNip();
-        AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(KsefClient, SignatureService, Nip)
+        AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, Nip)
                                           .GetAwaiter()
                                           .GetResult();
         accessToken = authInfo.AccessToken.Token;
     }
 
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
-    public async Task OnlineSessionAsync_FullIntegrationFlow_AllStepsSucceed(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    public async Task OnlineSessionAsync_TryReadInvoiceWithNoPermission_ShouldThrowException(SystemCode systemCode, string invoiceTemplatePath)
+    {
+        string authorizedNip = MiscellaneousUtils.GetRandomNip();
+        Client.Core.Models.OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(
+            KsefClient,
+            accessToken,
+            new GrantPermissionsPersonSubjectIdentifier
+            {
+                Type = GrantPermissionsPersonSubjectIdentifierType.Nip,
+                Value = authorizedNip
+            },
+            [
+                PersonPermissionType.InvoiceWrite
+            ],
+            "Grant write invoices permission for testing.");
+
+        bool isSuccess = await PermissionsUtils.ConfirmOperationSuccessAsync(KsefClient, operationResponse, accessToken);
+
+        // Arrange
+        EncryptionData encryptionData = CryptographyService.GetEncryptionData();
+
+        // 1) Otwarcie sesji
+        OpenOnlineSessionResponse openSessionResponse = await OpenOnlineSessionAsync(encryptionData, systemCode);
+        Assert.NotNull(openSessionResponse);
+        Assert.False(string.IsNullOrWhiteSpace(openSessionResponse.ReferenceNumber));
+        await Task.Delay(SleepTime);
+
+        // 2) Wysłanie faktury
+        SendInvoiceResponse sendInvoiceResponse = await SendEncryptedInvoiceAsync(openSessionResponse.ReferenceNumber, encryptionData, CryptographyService, invoiceTemplatePath, Nip);
+        Assert.NotNull(sendInvoiceResponse);
+        Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse.ReferenceNumber));
+        await Task.Delay(SleepTime);
+
+        SessionStatusResponse statusAfterSend = await AsyncPollingUtils.PollAsync(
+            async () => await GetSessionStatusUntilInvoiceCountAvailableAsync(openSessionResponse.ReferenceNumber),
+            result => result is not null && result.SuccessfulInvoiceCount is not null,
+            delay: TimeSpan.FromMilliseconds(SleepTime),
+            maxAttempts: MaxRetries,
+            cancellationToken: CancellationToken);
+
+        Assert.NotNull(statusAfterSend);
+        Assert.True(statusAfterSend.SuccessfulInvoiceCount is not null);
+        Assert.Equal(SuccessfulInvoiceCountExpected, statusAfterSend.SuccessfulInvoiceCount);
+        Assert.True(statusAfterSend.FailedInvoiceCount is null);
+        Assert.Null(statusAfterSend.Upo);
+        
+        SessionInvoicesResponse invoices = await KsefClient.GetSessionInvoicesAsync(openSessionResponse.ReferenceNumber, accessToken);
+
+        // 3) Autoryzacja drugiego nipu
+        AuthenticationOperationStatusResponse unauthorizedNipToken = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, authorizedNip);
+
+        // 4) Próba pobrania faktur sesji przez nieautoryzowany nip
+        await Assert.ThrowsAsync<KsefApiException>(async () =>
+        {
+            await GetSessionInvoicesAsync(openSessionResponse.ReferenceNumber, unauthorizedNipToken.AccessToken.Token);
+        });
+
+        // 5) Próba pobrania faktury przez nadany numer KSeF przez nieautoryzowany nip
+        await Assert.ThrowsAsync<KsefApiException>(async () =>
+        {
+            await KsefClient.GetInvoiceAsync(invoices.Invoices.First().KsefNumber, unauthorizedNipToken.AccessToken.Token);
+        });
+    }
+
+    [Theory]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    public async Task OnlineSessionAsync_FullIntegrationFlow_AllStepsSucceed(SystemCode systemCode, string invoiceTemplatePath)
     {
         // Arrange
         EncryptionData encryptionData = CryptographyService.GetEncryptionData();
@@ -58,7 +127,7 @@ public class OnlineSessionE2ETests : TestBase
         Assert.Equal(SuccessfulInvoiceCountExpected, statusAfterSend.SuccessfulInvoiceCount);
         Assert.True(statusAfterSend.FailedInvoiceCount is null);
         Assert.Null(statusAfterSend.Upo);
-        Assert.Equal(SessionStatusCodeExpected, statusAfterSend.Status.Code);
+        Assert.Equal(OnlineSessionCodeResponse.SessionOpened, statusAfterSend.Status.Code);
         await Task.Delay(SleepTime);
 
         // 4) Zamknięcie sesji
@@ -75,27 +144,22 @@ public class OnlineSessionE2ETests : TestBase
         // 6) Status po zamknięciu (kod 200) i numer referencyjny UPO
         SessionStatusResponse statusAfterClose = await GetSessionStatusAsync(openSessionResponse.ReferenceNumber);
         Assert.NotNull(statusAfterClose);
-        Assert.Equal(SuccessfulSessionStatusCode, statusAfterClose.Status.Code);
+        Assert.Equal(InvoiceInSessionStatusCodeResponse.Success, statusAfterClose.Status.Code);
         string upoReferenceNumber = statusAfterClose.Upo.Pages.First().ReferenceNumber;
 
-        // 7) UPO faktury po numerze KSeF
-        string invoiceUpoXml = await GetSessionInvoiceUpoAsync(openSessionResponse.ReferenceNumber, ksefNumber);
+        // 7) pobranie UPO faktury z URL zawartego w metadanych faktury
+        Uri upoDownloadUrl = invoices.Invoices.First().UpoDownloadUrl;
+        string invoiceUpoXml = await UpoUtils.GetUpoAsync(KsefClient, upoDownloadUrl);
         Assert.False(string.IsNullOrWhiteSpace(invoiceUpoXml));
         InvoiceUpo invoiceUpo = UpoUtils.UpoParse<InvoiceUpo>(invoiceUpoXml);
         Assert.Equal(invoiceUpo.Document.KSeFDocumentNumber, ksefNumber);
-
-        // 8) UPO sesji po numerze referencyjnym UPO
-        string sessionUpoXml = await GetSessionUpoAsync(openSessionResponse.ReferenceNumber, upoReferenceNumber);
-        Assert.False(string.IsNullOrWhiteSpace(sessionUpoXml));
-        SessionUpo sessionUpo = UpoUtils.UpoParse<SessionUpo>(sessionUpoXml);
-        Assert.Equal(sessionUpo.ReferenceNumber, openSessionResponse.ReferenceNumber);
     }
 
     /// <summary>
     /// Buduje i wysyła żądanie otwarcia sesji interaktywnej na podstawie danych szyfrowania.
     /// Zwraca odpowiedź z numerem referencyjnym sesji.
     /// </summary>
-    private async Task<OpenOnlineSessionResponse> OpenOnlineSessionAsync(EncryptionData encryptionData, SystemCodeEnum systemCode = DefaultSystemCode)
+    private async Task<OpenOnlineSessionResponse> OpenOnlineSessionAsync(EncryptionData encryptionData, SystemCode systemCode = DefaultSystemCode)
     {
         OpenOnlineSessionRequest openOnlineSessionRequest = OpenOnlineSessionRequestBuilder
             .Create()
@@ -144,7 +208,7 @@ public class OnlineSessionE2ETests : TestBase
     }
 
     /// <summary>
-    /// Pytluje pobieranie statusu sesji do momentu, aż licznik poprawnych faktur będzie znany.
+    /// Wykonuje pobieranie statusu sesji do momentu, aż licznik poprawnych faktur nie będzie null.
     /// Zwraca aktualny status sesji.
     /// </summary>
     private async Task<SessionStatusResponse> GetSessionStatusUntilInvoiceCountAvailableAsync(string sessionReferenceNumber)
@@ -184,18 +248,10 @@ public class OnlineSessionE2ETests : TestBase
     }
 
     /// <summary>
-    /// Pobiera UPO faktury z sesji na podstawie jej numeru KSeF.
+    /// Pobiera listę faktur (metadanych) przesłanych w ramach sesji interaktywnej.
     /// </summary>
-    private async Task<string> GetSessionInvoiceUpoAsync(string sessionReferenceNumber, string ksefNumber)
+    private async Task<SessionInvoicesResponse> GetSessionInvoicesAsync(string sessionReferenceNumber, string accessToken)
     {
-        return await KsefClient.GetSessionInvoiceUpoByKsefNumberAsync(sessionReferenceNumber, ksefNumber, accessToken, CancellationToken.None);
-    }
-
-    /// <summary>
-    /// Pobiera zbiorcze UPO dla sesji na podstawie numeru referencyjnego UPO.
-    /// </summary>
-    private async Task<string> GetSessionUpoAsync(string sessionReferenceNumber, string upoReferenceNumber)
-    {
-        return await KsefClient.GetSessionUpoAsync(sessionReferenceNumber, upoReferenceNumber, accessToken, CancellationToken.None);
+        return await KsefClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken);
     }
 }

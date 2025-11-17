@@ -1,33 +1,31 @@
 using KSeF.Client.Core.Interfaces.Services;
-using KSeF.Client.DI;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace KSeF.Client.Api.Services;
 
-public sealed class CryptographyWarmupHostedService : IHostedService
+public sealed partial class CryptographyWarmupHostedService : IHostedService
 {
     private readonly ICryptographyService _cryptographyService;
-    private readonly IOptions<CryptographyClientOptions> _cryptographyClientOptions;
+    private readonly CryptographyServiceWarmupMode _warmupMode;
 
     public CryptographyWarmupHostedService(
         ICryptographyService cryptographyService,
-        IOptions<CryptographyClientOptions> cryptographyClientOptions)
+        CryptographyServiceWarmupMode warmupMode = CryptographyServiceWarmupMode.Blocking)
     {
         _cryptographyService = cryptographyService;
-        _cryptographyClientOptions = cryptographyClientOptions;
+        _warmupMode = warmupMode;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        switch (_cryptographyClientOptions.Value.WarmupOnStart)
+        switch (_warmupMode)
         {
-            case WarmupMode.Disabled:
+            case CryptographyServiceWarmupMode.Disabled:
                 return Task.CompletedTask;
-            case WarmupMode.NonBlocking:
+            case CryptographyServiceWarmupMode.NonBlocking:
                 _ = Task.Run(() => SafeWarmup(cancellationToken), CancellationToken.None);
                 return Task.CompletedTask;
-            case WarmupMode.Blocking:
+            case CryptographyServiceWarmupMode.Blocking:
                 return SafeWarmup(cancellationToken);
             default:
                 return Task.CompletedTask;
@@ -44,7 +42,7 @@ public sealed class CryptographyWarmupHostedService : IHostedService
         }
         catch (Exception)
         {
-            if (_cryptographyClientOptions.Value.WarmupOnStart == WarmupMode.Blocking)
+            if (_warmupMode == CryptographyServiceWarmupMode.Blocking)
             {
                 throw;
             }

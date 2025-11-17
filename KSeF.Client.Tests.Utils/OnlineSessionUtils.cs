@@ -13,7 +13,7 @@ namespace KSeF.Client.Tests.Utils;
 /// </summary>
 public static class OnlineSessionUtils
 {
-    private const SystemCodeEnum DefaultSystemCode = SystemCodeEnum.FA3;
+    private const SystemCode DefaultSystemCode = SystemCode.FA3;
     private const int ProcessingStatusCode = 150;
     private const int DefaultSleepTimeMs = 1000;
     private const int DefaultMaxAttempts = 60;
@@ -31,7 +31,7 @@ public static class OnlineSessionUtils
     public static async Task<OpenOnlineSessionResponse> OpenOnlineSessionAsync(IKSeFClient ksefClient,
         EncryptionData encryptionData,
         string accessToken,
-        SystemCodeEnum systemCode = DefaultSystemCode)
+        SystemCode systemCode = DefaultSystemCode)
     {
         OpenOnlineSessionRequest openOnlineSessionRequest = OpenOnlineSessionRequestBuilder
           .Create()

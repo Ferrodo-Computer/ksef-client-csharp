@@ -7,4 +7,10 @@ namespace KSeF.Client.Core.Models.Invoices
         public decimal From { get; set; }
         public decimal To { get; set; }
     }
+    public enum AmountType
+    {
+        Brutto, // Gross
+        Netto,  // Net
+        Vat     // VAT
+    }
 }

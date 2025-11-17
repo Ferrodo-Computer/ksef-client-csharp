@@ -1,6 +1,6 @@
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Permissions;
-using KSeF.Client.Core.Models.Permissions.Authorizations;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Tests.Utils;
 
 namespace KSeF.Client.Tests.Core.E2E.Permissions.AuthorizationPermissions;

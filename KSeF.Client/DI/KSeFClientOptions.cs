@@ -15,5 +15,11 @@ public class KSeFClientOptions
     public Dictionary<string, string> CustomHeaders { get; set; }
     public IWebProxy WebProxy { get; set; } = null;
 
+    public string ResourcesPath { get; set; } = null;
+    public string[] SupportedUICultures { get; set; }
+    public string[] SupportedCultures { get; set; }
+    public string DefaultCulture { get; set; }
+
+
     public ApiConfiguration ApiConfiguration { get; set; } = new ApiConfiguration();
 }

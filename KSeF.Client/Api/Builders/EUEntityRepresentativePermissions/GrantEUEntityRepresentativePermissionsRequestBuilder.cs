@@ -1,4 +1,5 @@
-using KSeF.Client.Core.Models.Permissions.EUEntityRepresentative;
+using KSeF.Client.Core.Models.Permissions.EuEntityRepresentative;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 
 namespace KSeF.Client.Api.Builders.EUEntityRepresentativePermissions;
 
@@ -8,18 +9,18 @@ public static class GrantEUEntityRepresentativePermissionsRequestBuilder
 
     public interface ISubjectStep
     {
-        IPermissionsStep WithSubject(EUEntitRepresentativeSubjectIdentifier subject);
+        IPermissionsStep WithSubject(EuEntityRepresentativeSubjectIdentifier subject);
     }
 
     public interface IPermissionsStep
     {
-        IOptionalStep WithPermissions(params EUEntitRepresentativeStandardPermissionType[] permissions);
+        IOptionalStep WithPermissions(params EuEntityRepresentativeStandardPermissionType[] permissions);
     }
 
     public interface IOptionalStep
     {
         IOptionalStep WithDescription(string description);
-        GrantPermissionsEUEntitRepresentativeRequest Build();
+        GrantPermissionsEuEntityRepresentativeRequest Build();
     }
 
     private sealed class GrantPermissionsRequestBuilderImpl :
@@ -27,21 +28,21 @@ public static class GrantEUEntityRepresentativePermissionsRequestBuilder
         IPermissionsStep,
         IOptionalStep
     {
-        private EUEntitRepresentativeSubjectIdentifier _subject;
-        private ICollection<EUEntitRepresentativeStandardPermissionType> _permissions;
+        private EuEntityRepresentativeSubjectIdentifier _subject;
+        private ICollection<EuEntityRepresentativeStandardPermissionType> _permissions;
         private string _description;
 
         private GrantPermissionsRequestBuilderImpl() { }
 
         internal static ISubjectStep Create() => new GrantPermissionsRequestBuilderImpl();
 
-        public IPermissionsStep WithSubject(EUEntitRepresentativeSubjectIdentifier subject)
+        public IPermissionsStep WithSubject(EuEntityRepresentativeSubjectIdentifier subject)
         {
             _subject = subject ?? throw new ArgumentNullException(nameof(subject));
             return this;
         }
 
-        public IOptionalStep WithPermissions(params EUEntitRepresentativeStandardPermissionType[] permissions)
+        public IOptionalStep WithPermissions(params EuEntityRepresentativeStandardPermissionType[] permissions)
         {
             if (permissions == null || permissions.Length == 0)
                 throw new ArgumentException("Należy podać co najmniej jedno uprawnienie.", nameof(permissions));
@@ -56,14 +57,14 @@ public static class GrantEUEntityRepresentativePermissionsRequestBuilder
             return this;
         }
 
-        public GrantPermissionsEUEntitRepresentativeRequest Build()
+        public GrantPermissionsEuEntityRepresentativeRequest Build()
         {
             if (_subject is null)
                 throw new InvalidOperationException("Metoda WithSubject(...) musi zostać wywołana jako pierwsza.");
             if (_permissions is null)
                 throw new InvalidOperationException("Metoda WithPermissions(...) musi zostać wywołana po ustawieniu podmiotu.");
 
-            return new GrantPermissionsEUEntitRepresentativeRequest
+            return new GrantPermissionsEuEntityRepresentativeRequest
             {
                 SubjectIdentifier = _subject,
                 Permissions = _permissions,

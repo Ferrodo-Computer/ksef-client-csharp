@@ -1,13 +1,19 @@
-using System.Text;
-using System.Security.Cryptography.X509Certificates;
 using KSeF.Client.Api.Builders.Auth;
+using KSeF.Client.Api.Services;
+using KSeF.Client.Api.Services.Internal;
+using KSeF.Client.Clients;
+using KSeF.Client.Core.Interfaces.Clients;
+using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.DI;
+using KSeF.Client.Extensions;
 using KSeF.Client.Tests.Utils;
 using Microsoft.Extensions.DependencyInjection;
-using KSeF.Client.Core.Interfaces.Clients;
-using KSeF.Client.Core.Interfaces.Services;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+
+CryptographyConfigInitializer.EnsureInitialized();
 
 // Tryb wyjścia: screen (domyślnie) lub file
 string outputMode = ParseOutputMode(args);
@@ -18,17 +24,27 @@ Console.WriteLine($"Tryb wyjścia: {outputMode}");
 ServiceCollection services = new ServiceCollection();
 services.AddKSeFClient(options =>
 {
-    options.BaseUrl = KsefEnviromentsUris.TEST;
+    options.BaseUrl = KsefEnvironmentsUris.TEST;
 });
 
-services.AddCryptographyClient(options =>
-{
-    options.WarmupOnStart = WarmupMode.NonBlocking;
-});
+// UWAGA! w testach nie używamy AddCryptographyClient tylko rejestrujemy ręcznie, bo on uruchamia HostedService w tle
+services.AddSingleton<ICryptographyClient, CryptographyClient>();
+services.AddSingleton<ICertificateFetcher, DefaultCertificateFetcher>();
+services.AddSingleton<ICryptographyService, CryptographyService>();
+// Rejestracja usługi hostowanej (Hosted Service) jako singleton na potrzeby testów
+services.AddSingleton<CryptographyWarmupHostedService>();
 
 ServiceProvider provider = services.BuildServiceProvider();
 
+using IServiceScope scope = provider.CreateScope();
+
+// opcjonalne: inicjalizacja lub inne czynności startowe
+// Uruchomienie usługi hostowanej w trybie blokującym (domyślnym) na potrzeby testów
+scope.ServiceProvider.GetRequiredService<CryptographyWarmupHostedService>()
+           .StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+
 IKSeFClient ksefClient = provider.GetRequiredService<IKSeFClient>();
+IAuthorizationClient authorizationClient = provider.GetRequiredService<IAuthorizationClient>();
 ISignatureService signatureService = provider.GetRequiredService<ISignatureService>();
 
 try
@@ -41,7 +57,7 @@ try
 
     // 2) Challenge
     Console.WriteLine("[2] Pobieranie wyzwania (challenge) z KSeF...");
-    AuthenticationChallengeResponse challengeResponse = await ksefClient.GetAuthChallengeAsync();
+    AuthenticationChallengeResponse challengeResponse = await authorizationClient.GetAuthChallengeAsync();
     Console.WriteLine($"    Challenge: {challengeResponse.Challenge}");
 
     // 3) Budowa AuthTokenRequest
@@ -60,7 +76,7 @@ try
 
     // 5) Samopodpisany certyfikat do podpisu XAdES
     Console.WriteLine("[5] Generowanie samopodpisanego certyfikatu testowego (Utils)...");
-    System.Security.Cryptography.X509Certificates.X509Certificate2 certificate = CertificateUtils.GetPersonalCertificate("A", "R", "TINPL", nip, "A R");
+    X509Certificate2 certificate = CertificateUtils.GetPersonalCertificate("A", "R", "TINPL", nip, "A R");
     Console.WriteLine($"    Certyfikat: {certificate.Subject}");
 
     // (5a) Zapis certyfikatu gdy tryb file
@@ -101,7 +117,7 @@ try
 
     // 7) Przesłanie podpisanego XML do KSeF
     Console.WriteLine("[7] Wysyłanie podpisanego XML do KSeF...");
-    SignatureResponse submission = await ksefClient.SubmitXadesAuthRequestAsync(signedXml, verifyCertificateChain: false);
+    SignatureResponse submission = await authorizationClient.SubmitXadesAuthRequestAsync(signedXml, verifyCertificateChain: false);
     Console.WriteLine($"    ReferenceNumber: {submission.ReferenceNumber}");
 
     // 8) Odpytanie o status
@@ -111,7 +127,7 @@ try
     AuthStatus status;
     do
     {
-        status = await ksefClient.GetAuthStatusAsync(submission.ReferenceNumber, submission.AuthenticationToken.Token);
+        status = await authorizationClient.GetAuthStatusAsync(submission.ReferenceNumber, submission.AuthenticationToken.Token);
         Console.WriteLine($"      Status: {status.Status.Code} - {status.Status.Description} | upłynęło: {DateTime.UtcNow - startTime:mm\\:ss}");
         if (status.Status.Code != 200)
         {
@@ -129,7 +145,7 @@ try
 
     // 9) Pobranie access token
     Console.WriteLine("[9] Pobieranie access token...");
-    AuthenticationOperationStatusResponse tokenResponse = await ksefClient.GetAccessTokenAsync(submission.AuthenticationToken.Token);
+    AuthenticationOperationStatusResponse tokenResponse = await authorizationClient.GetAccessTokenAsync(submission.AuthenticationToken.Token);
 
     string accessToken = tokenResponse.AccessToken?.Token ?? string.Empty;
     string refreshToken = tokenResponse.RefreshToken?.Token ?? string.Empty;

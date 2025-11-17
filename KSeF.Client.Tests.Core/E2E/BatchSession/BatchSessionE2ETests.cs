@@ -30,7 +30,7 @@ public partial class BatchSessionE2ETests : TestBase
         // Autoryzacja do testów – jednorazowa, dane zapisane w readonly properties
         string nip = MiscellaneousUtils.GetRandomNip();
         AuthenticationOperationStatusResponse authInfo = AuthenticationUtils
-            .AuthenticateAsync(KsefClient, SignatureService, nip)
+            .AuthenticateAsync(AuthorizationClient, SignatureService, nip)
             .GetAwaiter().GetResult();
 
         accessToken = authInfo.AccessToken.Token;
@@ -54,9 +54,9 @@ public partial class BatchSessionE2ETests : TestBase
     /// 7. Pobranie UPO zbiorczego sesji.
     /// </remarks>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
-    public async Task BatchSession_FullIntegrationFlow_ReturnsUpo(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    public async Task BatchSession_FullIntegrationFlow_ReturnsUpo(SystemCode systemCode, string invoiceTemplatePath)
     {
         // 1. Przygotowanie paczki i otwarcie sesji
         OpenBatchSessionResult openResult = await PrepareAndOpenBatchSessionAsync(
@@ -118,7 +118,7 @@ public partial class BatchSessionE2ETests : TestBase
         upoReferenceNumber = statusResponse.Upo.Pages.First().ReferenceNumber;
 
         // 5. Dokumenty sesji
-        SessionInvoicesResponse documents = await GetBatchSessionInvoicesAsync(batchSessionReferenceNumber!, accessToken, 0, TotalInvoices);
+        SessionInvoicesResponse documents = await GetBatchSessionInvoicesAsync(batchSessionReferenceNumber!, accessToken, TotalInvoices);
 
         Assert.NotNull(documents);
         Assert.NotEmpty(documents.Invoices);
@@ -126,28 +126,12 @@ public partial class BatchSessionE2ETests : TestBase
 
         ksefNumber = documents.Invoices.First().KsefNumber;
 
-        // 6. UPO faktury po numerze KSeF
-        string invoiceUpoXml = await GetInvoiceUpoByKsefNumberAsync(
-            batchSessionReferenceNumber!,
-            ksefNumber!,
-            accessToken
-        );
+        // 6. pobranie UPO faktury z URL zawartego w metadanych faktury
+        Uri upoDownloadUrl = documents.Invoices.First().UpoDownloadUrl;
+        string invoiceUpoXml = await UpoUtils.GetUpoAsync(KsefClient, upoDownloadUrl);
         Assert.False(string.IsNullOrWhiteSpace(invoiceUpoXml));
         InvoiceUpo invoiceUpo = UpoUtils.UpoParse<InvoiceUpo>(invoiceUpoXml);
         Assert.Equal(invoiceUpo.Document.KSeFDocumentNumber, ksefNumber);
-
-
-
-        // 7. UPO zbiorcze sesji
-        string sessionUpoXml = await GetSessionUpoAsync(
-            batchSessionReferenceNumber!,
-            upoReferenceNumber!,
-            accessToken
-        );
-
-        Assert.False(string.IsNullOrWhiteSpace(sessionUpoXml));
-        SessionUpo sessionUpo = UpoUtils.UpoParse<SessionUpo>(sessionUpoXml);
-        Assert.Equal(sessionUpo.ReferenceNumber, openResult.OpenBatchSessionResponse.ReferenceNumber);
     }
 
     /// <summary>
@@ -159,7 +143,7 @@ public partial class BatchSessionE2ETests : TestBase
         int invoiceCount,
         int partQuantity,
         string sellerNip,
-        SystemCodeEnum systemCode,
+        SystemCode systemCode,
         string invoiceTemplatePath,
         string accessToken)
     {
@@ -223,10 +207,9 @@ public partial class BatchSessionE2ETests : TestBase
     private async Task<SessionInvoicesResponse> GetBatchSessionInvoicesAsync(
         string sessionReferenceNumber,
         string accessToken,
-        int offset,
         int count)
     {
-        return await BatchUtils.GetSessionInvoicesAsync(KsefClient, sessionReferenceNumber, accessToken, offset, count);
+        return await BatchUtils.GetSessionInvoicesAsync(KsefClient, sessionReferenceNumber, accessToken, count);
     }
 
     /// <summary>

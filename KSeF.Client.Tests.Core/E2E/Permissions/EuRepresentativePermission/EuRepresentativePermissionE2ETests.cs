@@ -1,10 +1,11 @@
-using KSeF.Client.Api.Builders.EUEntityPermissions;
+using KSeF.Client.Api.Builders.EuEntityPermissions;
 using KSeF.Client.Api.Builders.EUEntityRepresentativePermissions;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Permissions;
 using KSeF.Client.Core.Models.Permissions.EUEntity;
-using KSeF.Client.Core.Models.Permissions.EUEntityRepresentative;
+using KSeF.Client.Core.Models.Permissions.EuEntityRepresentative;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Tests.Utils;
 using System.Security.Cryptography.X509Certificates;
 
@@ -49,34 +50,34 @@ public class EuRepresentativePermissionE2ETests : TestBase
         X509Certificate2 euEntityPersonalCertificate = CertificateUtils.GetPersonalCertificate("Paweł", "Testowy", "TINPL", euEntityNip, "T P");
         string euEntityPersonalCertificateFingerprint = CertificateUtils.GetSha256Fingerprint(euEntityPersonalCertificate);
 
-        X509Certificate2 euRepresentativeEntityCerticate = CertificateUtils.GetPersonalCertificate(
+        X509Certificate2 euRepresentativeEntityCertificate = CertificateUtils.GetPersonalCertificate(
             "Reprezentant M",
             "Reprezentant B",
             "TINPL",
             euRepresentativeEntityNip,
             "M B"
             );
-        string euRepresentativeEntityCerticateFingerprint = CertificateUtils.GetSha256Fingerprint(euRepresentativeEntityCerticate);
+        string euRepresentativeEntityCertificateFingerprint = CertificateUtils.GetSha256Fingerprint(euRepresentativeEntityCertificate);
 
         // Działanie
         // 1) Uwierzytelnij właściciela (kontekst NIP)
         AuthenticationOperationStatusResponse ownerAuthInfo = await AuthenticationUtils.AuthenticateAsync(
-            KsefClient,
+            AuthorizationClient,
             SignatureService,
             ownerNip,
             AuthenticationTokenContextIdentifierType.Nip,
             ownerCertificate);
 
         // 2) Właściciel nadaje uprawnienia administracyjne jednostce unijnej (kontekst NipVatEu)
-        GrantPermissionsEUEntityRequest grantAdministrativePermissionsRequest = GrantEUEntityPermissionsRequestBuilder
+        GrantPermissionsEuEntityRequest grantAdministrativePermissionsRequest = GrantEuEntityPermissionsRequestBuilder
             .Create()
-            .WithSubject(new EUEntitySubjectIdentifier
+            .WithSubject(new EuEntitySubjectIdentifier
             {
-                Type = EUEntitySubjectIdentifierType.Fingerprint,
+                Type = EuEntitySubjectIdentifierType.Fingerprint,
                 Value = euEntityPersonalCertificateFingerprint
             })
             .WithSubjectName("MB Company")
-            .WithContext(new EUEntityContextIdentifier { Type = EUEntityContextIdentifierType.NipVatUe, Value = ownerNipVatEu })
+            .WithContext(new EuEntityContextIdentifier { Type = EuEntityContextIdentifierType.NipVatUe, Value = ownerNipVatEu })
             .WithDescription("EU Company")
             .Build();
 
@@ -96,25 +97,25 @@ public class EuRepresentativePermissionE2ETests : TestBase
 
         // 4) Uwierzytelnij jako jednostka unijna (kontekst NipVatEu) używając certyfikatu osobistego jednostki unijnej
         AuthenticationOperationStatusResponse euAuthInfo = await AuthenticationUtils.AuthenticateAsync(
-            KsefClient,
+            AuthorizationClient,
             SignatureService,
             ownerNipVatEu, // nipvateu kontekstu
             AuthenticationTokenContextIdentifierType.NipVatUe, // typ identyfikatora kontekstu
             euEntityPersonalCertificate, // certyfikat jednostki eu
-            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateFingerprint); // typ identyfiktora jednostki eu
+            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateFingerprint); // typ identyfikatora jednostki eu
 
         // 6) Nadaj uprawnienia reprezentanta
-        GrantPermissionsEUEntitRepresentativeRequest grantRepresentativePermissionsRequest =
+        GrantPermissionsEuEntityRepresentativeRequest grantRepresentativePermissionsRequest =
             GrantEUEntityRepresentativePermissionsRequestBuilder
                 .Create()
-                .WithSubject(new EUEntitRepresentativeSubjectIdentifier
+                .WithSubject(new EuEntityRepresentativeSubjectIdentifier
                 {
-                    Type = EUEntitRepresentativeSubjectIdentifierType.Fingerprint,
-                    Value = euRepresentativeEntityCerticateFingerprint
+                    Type = EuEntityRepresentativeSubjectIdentifierType.Fingerprint,
+                    Value = euRepresentativeEntityCertificateFingerprint
                 })
                 .WithPermissions(
-                    EUEntitRepresentativeStandardPermissionType.InvoiceWrite,
-                    EUEntitRepresentativeStandardPermissionType.InvoiceRead
+                    EuEntityRepresentativeStandardPermissionType.InvoiceWrite,
+                    EuEntityRepresentativeStandardPermissionType.InvoiceRead
                 )
                 .WithDescription("Representative for EU Entity")
                 .Build();

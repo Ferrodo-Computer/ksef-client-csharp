@@ -1,8 +1,9 @@
-using KSeF.Client.Api.Builders.EUEntityPermissions;
+using KSeF.Client.Api.Builders.EuEntityPermissions;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Permissions;
 using KSeF.Client.Core.Models.Permissions.EUEntity;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Tests.Utils;
 using System.Security.Cryptography.X509Certificates;
 
@@ -25,7 +26,7 @@ public class EuEntityAdminsListAsOwnerE2ETests : TestBase
 
         // Uwierzytelnij właściciela w kontekście NIP
         AuthenticationOperationStatusResponse ownerAuth = await AuthenticationUtils.AuthenticateAsync(
-            KsefClient,
+            AuthorizationClient,
             SignatureService,
             ownerNip);
 
@@ -42,17 +43,17 @@ public class EuEntityAdminsListAsOwnerE2ETests : TestBase
         string euAdminFingerprint = CertificateUtils.GetSha256Fingerprint(euAdminCertificate);
 
         // Nadaj uprawnienia administracyjne jednostce UE w kontekście właściciela (NipVatUe)
-        GrantPermissionsEUEntityRequest grantRequest = GrantEUEntityPermissionsRequestBuilder
+        GrantPermissionsEuEntityRequest grantRequest = GrantEuEntityPermissionsRequestBuilder
             .Create()
-            .WithSubject(new EUEntitySubjectIdentifier
+            .WithSubject(new EuEntitySubjectIdentifier
             {
-                Type = EUEntitySubjectIdentifierType.Fingerprint,
+                Type = EuEntitySubjectIdentifierType.Fingerprint,
                 Value = euAdminFingerprint
             })
             .WithSubjectName("EU Admin Entity")
-            .WithContext(new EUEntityContextIdentifier
+            .WithContext(new EuEntityContextIdentifier
             {
-                Type = EUEntityContextIdentifierType.NipVatUe,
+                Type = EuEntityContextIdentifierType.NipVatUe,
                 Value = ownerNipVatEu
             })
             .WithDescription("Grant admin for EU Entity context")

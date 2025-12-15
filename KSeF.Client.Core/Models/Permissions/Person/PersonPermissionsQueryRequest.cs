@@ -13,6 +13,7 @@ namespace KSeF.Client.Core.Models.Permissions.Person
         public PersonPermissionState? PermissionState { get; set; }
         public PersonQueryType QueryType { get; set; }
     }
+
     public enum PersonQueryType
     {
         PermissionsInCurrentContext,

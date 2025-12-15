@@ -7,7 +7,7 @@ namespace KSeF.Client.Extensions
     /// </summary>
     public static class CryptographyConfigInitializer
     {
-        private static readonly Lazy<bool> _initialized = new Lazy<bool>(InitializeInternal, isThreadSafe: true);
+        private static readonly Lazy<bool> _initialized = new(InitializeInternal, isThreadSafe: true);
 
         /// <summary>
         /// Zapewnia, że algorytm kryptograficzny dla ECDSA z SHA-256 jest zainicjalizowany i dostępny do użycia.

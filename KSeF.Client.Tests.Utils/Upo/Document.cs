@@ -28,4 +28,7 @@ public class Document
 
     [XmlElement("SkrotDokumentu")]
     public required string DocumentHash { get; set; }
+
+	[XmlElement("TrybWysylki")]
+	public string InvoicingMode { get; set; }
 }

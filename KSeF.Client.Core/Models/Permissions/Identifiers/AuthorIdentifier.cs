@@ -11,5 +11,6 @@
         Nip,
         Pesel,
         Fingerprint,
+        System
     }
 }

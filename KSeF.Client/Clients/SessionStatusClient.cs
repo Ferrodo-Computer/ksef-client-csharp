@@ -3,6 +3,7 @@ using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Rest;
 using KSeF.Client.Core.Models.Sessions;
 using KSeF.Client.Extensions;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -17,11 +18,11 @@ public class SessionStatusClient(IRestClient restClient, IRouteBuilder routeBuil
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new StringBuilder($"{Routes.Sessions.Root}?sessionType={sessionType}");
+        StringBuilder urlBuilder = new($"{Routes.Sessions.Root}?sessionType={sessionType}");
 
         if (pageSize.HasValue)
         {
-            urlBuilder.Append($"&pageSize={pageSize.Value}");
+            urlBuilder.Append(CultureInfo.InvariantCulture,$"&pageSize={pageSize.Value}");
         }
 
         sessionsFilter?.AppendAsQuery(urlBuilder);
@@ -54,11 +55,11 @@ public class SessionStatusClient(IRestClient restClient, IRouteBuilder routeBuil
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionReferenceNumber);
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new StringBuilder(Routes.Sessions.Invoices(Uri.EscapeDataString(sessionReferenceNumber)));
+        StringBuilder urlBuilder = new(Routes.Sessions.Invoices(Uri.EscapeDataString(sessionReferenceNumber)));
 
         if (pageSize.HasValue)
         {
-            urlBuilder.Append($"?pageSize={pageSize.Value}");
+            urlBuilder.Append(CultureInfo.InvariantCulture,$"?pageSize={pageSize.Value}");
         }
 
         string endpoint = urlBuilder.ToString();
@@ -90,11 +91,11 @@ public class SessionStatusClient(IRestClient restClient, IRouteBuilder routeBuil
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionReferenceNumber);
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new StringBuilder(Routes.Sessions.FailedInvoices(Uri.EscapeDataString(sessionReferenceNumber)));
+        StringBuilder urlBuilder = new(Routes.Sessions.FailedInvoices(Uri.EscapeDataString(sessionReferenceNumber)));
 
         if (pageSize.HasValue)
         {
-            urlBuilder.Append($"?pageSize={pageSize.Value}");
+            urlBuilder.Append(CultureInfo.InvariantCulture,$"?pageSize={pageSize.Value}");
         }
 
         string endpoint = urlBuilder.ToString();

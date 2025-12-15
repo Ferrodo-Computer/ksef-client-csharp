@@ -6,34 +6,36 @@ using KSeF.Client.Core.Interfaces.Services;
 
 namespace KSeF.Client.Api.Services;
 
+/// <inheritdoc/>
 public class PersonTokenService : IPersonTokenService
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
+
+    /// <inheritdoc/>
     public PersonToken MapFromJwt(string jwt)
     {
-        JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
+        JwtSecurityTokenHandler handler = new();
         JwtSecurityToken jwtToken = handler.ReadJwtToken(jwt);
 
-        IEnumerable<Claim> claims = jwtToken.Claims.ToList();
+        IEnumerable<Claim> claims = [.. jwtToken.Claims];
 
         string Get(string type) =>
             claims.FirstOrDefault(c => c.Type.Equals(type, StringComparison.OrdinalIgnoreCase))?.Value;
 
         string[] GetMany(params string[] types) =>
-            claims.Where(c => types.Contains(c.Type, StringComparer.OrdinalIgnoreCase))
+            [.. claims.Where(c => types.Contains(c.Type, StringComparer.OrdinalIgnoreCase))
                   .Select(c => c.Value)
-                  .Distinct(StringComparer.OrdinalIgnoreCase)
-                  .ToArray();
+                  .Distinct(StringComparer.OrdinalIgnoreCase)];
 
-        DateTimeOffset? exp = jwtToken.Payload.Exp is { } e
+        DateTimeOffset? exp = jwtToken.Payload.Expiration is { } e
             ? DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(e))
             : null;
 
-        DateTimeOffset? iat = jwtToken.Payload.Iat is { } i
-            ? DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(i))
+        DateTimeOffset? iat = jwtToken.Payload.IssuedAt is { } i
+            ? new DateTimeOffset(i.ToUniversalTime())
             : null;
 
         TokenSubjectDetails subjectDetails = TryParseJson<TokenSubjectDetails>(Get("sud"));
@@ -44,23 +46,22 @@ public class PersonTokenService : IPersonTokenService
         string[] rol = ParseJsonStringArray(Get("rol"));
         string[] pep = ParseJsonStringArray(Get("pep"));
 
-        string[] roleTypes = new[]
-        {
+        string[] roleTypes =
+        [
             ClaimTypes.Role, "role", "roles", "permissions",
             "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-        };
+        ];
         string[] classicRoles = GetMany(roleTypes);
 
-        string[] unifiedRoles = classicRoles
+        string[] unifiedRoles = [.. classicRoles
             .Concat(per)
             .Concat(rol)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
 
         return new PersonToken
         {
             Issuer = jwtToken.Issuer,
-            Audiences = jwtToken.Audiences?.ToArray() ?? Array.Empty<string>(),
+            Audiences = jwtToken.Audiences?.ToArray() ?? [],
             IssuedAt = iat,
             ExpiresAt = exp,
 
@@ -82,7 +83,11 @@ public class PersonTokenService : IPersonTokenService
 
     private static T TryParseJson<T>(string maybeJson)
     {
-        if (string.IsNullOrWhiteSpace(maybeJson)) return default;
+        if (string.IsNullOrWhiteSpace(maybeJson))
+        {
+            return default;
+        }
+
         try
         {
             string s = UnwrapIfQuotedJson(maybeJson);
@@ -96,32 +101,36 @@ public class PersonTokenService : IPersonTokenService
 
     private static string[] ParseJsonStringArray(string maybeJsonArray)
     {
-        if (string.IsNullOrWhiteSpace(maybeJsonArray)) return Array.Empty<string>();
+        if (string.IsNullOrWhiteSpace(maybeJsonArray))
+        {
+            return [];
+        }
+
         try
         {
             string s = UnwrapIfQuotedJson(maybeJsonArray);
-            using JsonDocument? doc = JsonDocument.Parse(s);
+            using JsonDocument doc = JsonDocument.Parse(s);
             if (doc.RootElement.ValueKind == JsonValueKind.Array)
             {
-                return doc.RootElement
+                return [.. doc.RootElement
                           .EnumerateArray()
                           .Where(e => e.ValueKind == JsonValueKind.String)
                           .Select(e => e.GetString()!)
                           .Where(v => !string.IsNullOrWhiteSpace(v))
-                          .Distinct(StringComparer.OrdinalIgnoreCase)
-                          .ToArray();
+                          .Distinct(StringComparer.OrdinalIgnoreCase)];
             }
         }
         catch { /* ignore */ }
 
         if (maybeJsonArray.Contains(','))
-            return maybeJsonArray.Split(',')
+        {
+            return [.. maybeJsonArray.Split(',')
                                  .Select(x => x.Trim().Trim('"'))
                                  .Where(x => !string.IsNullOrWhiteSpace(x))
-                                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                                 .ToArray();
+                                 .Distinct(StringComparer.OrdinalIgnoreCase)];
+        }
 
-        return new[] { maybeJsonArray.Trim().Trim('"') };
+        return [maybeJsonArray.Trim().Trim('"')];
     }
 
     private static string UnwrapIfQuotedJson(string s)

@@ -31,10 +31,10 @@ public static class KsefRateLimitWrapper
         KsefApiEndpoint endpoint,
         ILimitsClient? limitsClient = null,
         int maxRetryAttempts = DefaultMaxRetryAttempts,
-        CancellationToken cancellationToken = default,
-        string? accessToken = null)
+        string? accessToken = null,
+        CancellationToken cancellationToken = default)
     {
-        // Odczyt profilu limitów dla danego endpointu (RPS/RPM/RPH)
+        // Odczyt profilu limitów danego endpointu (RPS/RPM/RPH)
         ApiLimits limits = await ResolveApiLimitsAsync(endpoint, limitsClient, accessToken, cancellationToken).ConfigureAwait(false);
 
         for (int attempt = 1; attempt <= maxRetryAttempts; attempt++)
@@ -44,7 +44,7 @@ public static class KsefRateLimitWrapper
                 // Lokalny ograniczenie przepustowości przed wywołaniem API – oczekiwanie na odnowienie limitów
                 await WaitForRateWindowAsync(endpoint, limits, cancellationToken).ConfigureAwait(false);
 
-                T? result = await ksefApiCall(cancellationToken);
+                T result = await ksefApiCall(cancellationToken).ConfigureAwait(false);
                 return result;
             }
             catch (KsefRateLimitException rateLimitEx)
@@ -56,7 +56,7 @@ public static class KsefRateLimitWrapper
                 }
 
                 // Czekaj zgodnie z Retry-After header lub użyj fallback
-                await Task.Delay(rateLimitEx.RecommendedDelay, cancellationToken);
+                await Task.Delay(rateLimitEx.RecommendedDelay, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -176,7 +176,7 @@ public static class KsefRateLimitWrapper
         public TimeSpan CalculateDelay(DateTimeOffset now, ApiLimits limits)
         {
             // Zbieramy potrzebne opóźnienia dla każdego progu i wybieramy najdłuższe
-            List<TimeSpan> delays = new List<TimeSpan>(capacity: 3);
+            List<TimeSpan> delays = new(capacity: 3);
 
             if (limits.RequestsPerSecond > 0 && _perSecond.Count >= limits.RequestsPerSecond)
             {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace KSeF.Client.Core.Exceptions
@@ -20,7 +21,7 @@ namespace KSeF.Client.Core.Exceptions
                 IEnumerable<string> items = error.Exception.ExceptionDetailList
                     .Select(detail =>
                     {
-                        string head = detail.ExceptionCode.ToString();
+                        string head = detail.ExceptionCode.ToString(CultureInfo.InvariantCulture);
                         if (!string.IsNullOrWhiteSpace(detail.ExceptionDescription))
                         {
                             head += ": " + EnsureTrailingDot(detail.ExceptionDescription.Trim());
@@ -45,12 +46,35 @@ namespace KSeF.Client.Core.Exceptions
             if (error != null && error.Exception != null)
             {
                 List<string> meta = new List<string>(5);
-                if (!string.IsNullOrWhiteSpace(error.Exception.ServiceName)) meta.Add("service=" + error.Exception.ServiceName);
-                if (!string.IsNullOrWhiteSpace(error.Exception.ServiceCode)) meta.Add("serviceCode=" + error.Exception.ServiceCode);
-                if (!string.IsNullOrWhiteSpace(error.Exception.ReferenceNumber)) meta.Add("ref=" + error.Exception.ReferenceNumber);
-                if (error.Exception.Timestamp != default) meta.Add("ts=" + error.Exception.Timestamp.ToString("O"));
-                if (!string.IsNullOrWhiteSpace(error.Exception.ServiceCtx)) meta.Add("ctx=" + error.Exception.ServiceCtx);
-                if (meta.Count > 0) return string.Join(", ", meta);
+                if (!string.IsNullOrWhiteSpace(error.Exception.ServiceName))
+                {
+                    meta.Add("service=" + error.Exception.ServiceName);
+                }
+
+                if (!string.IsNullOrWhiteSpace(error.Exception.ServiceCode))
+                {
+                    meta.Add("serviceCode=" + error.Exception.ServiceCode);
+                }
+
+                if (!string.IsNullOrWhiteSpace(error.Exception.ReferenceNumber))
+                {
+                    meta.Add("ref=" + error.Exception.ReferenceNumber);
+                }
+
+                if (error.Exception.Timestamp != default)
+                {
+                    meta.Add("ts=" + error.Exception.Timestamp.ToString("O"));
+                }
+
+                if (!string.IsNullOrWhiteSpace(error.Exception.ServiceCtx))
+                {
+                    meta.Add("ctx=" + error.Exception.ServiceCtx);
+                }
+
+                if (meta.Count > 0)
+                {
+                    return string.Join(", ", meta);
+                }
             }
 
             return fallback.Invoke();
@@ -58,8 +82,12 @@ namespace KSeF.Client.Core.Exceptions
 
         private static string EnsureTrailingDot(string text)
         {
-            if (string.IsNullOrWhiteSpace(text)) return text;
-            return text.EndsWith(".") ? text : text + ".";
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+
+            return text.EndsWith(".", StringComparison.Ordinal) ? text : text + ".";
         }
     }
 }

@@ -21,7 +21,7 @@ public class PeppolClient(IRestClient restClient, IRouteBuilder routeBuilder) : 
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new StringBuilder(Routes.Peppol.Query);
+        StringBuilder urlBuilder = new(Routes.Peppol.Query);
 
         PaginationHelper.AppendPagination(pageOffset, pageSize, urlBuilder);
 

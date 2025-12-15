@@ -33,7 +33,7 @@ public class KsefTokenClient(IRestClient restClient, IRouteBuilder routeBuilder)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new StringBuilder(Routes.Tokens.Root);
+        StringBuilder urlBuilder = new(Routes.Tokens.Root);
         bool hasQuery = false;
 
         void AppendQuery(string name, string value)

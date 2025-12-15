@@ -37,7 +37,10 @@ namespace KSeF.Client.Core.Models.Authorization
         {
             writer.WriteStartElement(Type.ToString());
             if (Value != null)
+            {
                 writer.WriteString(Value);
+            }
+
             writer.WriteEndElement();
         }
     }

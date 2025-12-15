@@ -4,17 +4,13 @@ using KSeF.Client.Api.Builders.Certificates;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 
-namespace WebApplication.Controllers;
+namespace KSeF.DemoWebApp.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class CertificateController : ControllerBase
+public class CertificateController(IKSeFClient kSeFClient) : ControllerBase
 {
-    private readonly IKSeFClient kSeFClient;
-    public CertificateController(IKSeFClient kSeFClient)
-    {
-        this.kSeFClient = kSeFClient;
-    }
+    private readonly IKSeFClient kSeFClient = kSeFClient;
 
     [HttpGet("limits")]
     public async Task<ActionResult<CertificateLimitResponse>> GetLimitsAsync(string accessToken, CancellationToken cancellationToken)
@@ -38,7 +34,7 @@ public class CertificateController : ControllerBase
         [FromQuery] CertificateType certificateType = CertificateType.Authentication,
         CancellationToken cancellationToken = default)
     {
-        (string? csrBase64encoded, string? privateKeyBase64Encoded) = cryptographyService.GenerateCsrWithRsa(requestPayload);
+        (string csrBase64encoded, string privateKeyBase64Encoded) = cryptographyService.GenerateCsrWithRsa(requestPayload);
         SendCertificateEnrollmentRequest enrollmentRequest = SendCertificateEnrollmentRequestBuilder.Create()
             .WithCertificateName("Testowy certyfikat")
             .WithCertificateType(certificateType)
@@ -83,7 +79,7 @@ public class CertificateController : ControllerBase
             .WithCertificateSerialNumber(serialNumber)
             .WithName(name)
             .Build();
-        CertificateMetadataListResponse metadataList = await kSeFClient.GetCertificateMetadataListAsync(accessToken, request, 20, 0, cancellationToken);
+        CertificateMetadataListResponse metadataList = await kSeFClient.GetCertificateMetadataListAsync(accessToken, request, 20, 0, cancellationToken).ConfigureAwait(false);
         return metadataList;
     }
 }

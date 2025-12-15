@@ -1,3 +1,4 @@
+using KSeF.Client.Api.Builders.Batch;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Invoices;
@@ -35,7 +36,7 @@ public static class BatchUtils
         string sessionReferenceNumber,
         string accessToken,
         int pageSize = DefaultPageSize)
-        => await ksefClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken, pageSize);
+        => await ksefClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken, pageSize).ConfigureAwait(false);
 
     /// <summary>
     /// Pobiera UPO dla faktury z sesji wsadowej na podstawie numeru KSeF.
@@ -50,7 +51,7 @@ public static class BatchUtils
         string sessionReferenceNumber,
         string ksefNumber,
         string accessToken)
-        => await ksefClient.GetSessionInvoiceUpoByKsefNumberAsync(sessionReferenceNumber, ksefNumber, accessToken);
+        => await ksefClient.GetSessionInvoiceUpoByKsefNumberAsync(sessionReferenceNumber, ksefNumber, accessToken).ConfigureAwait(false);
 
     /// <summary>
     /// Otwiera nową sesję wsadową w systemie KSeF.
@@ -63,7 +64,7 @@ public static class BatchUtils
         IKSeFClient client,
         OpenBatchSessionRequest openReq,
         string accessToken)
-        => await client.OpenBatchSessionAsync(openReq, accessToken);
+        => await client.OpenBatchSessionAsync(openReq, accessToken).ConfigureAwait(false);
 
     /// <summary>
     /// Wysyła części paczki faktur w ramach otwartej sesji wsadowej.
@@ -75,7 +76,7 @@ public static class BatchUtils
         IKSeFClient client,
         OpenBatchSessionResponse openResp,
         ICollection<BatchPartSendingInfo> parts)
-        => await client.SendBatchPartsAsync(openResp, parts);
+        => await client.SendBatchPartsAsync(openResp, parts).ConfigureAwait(false);
 
     /// <summary>
     /// Zamyka sesję wsadową w systemie KSeF.
@@ -87,7 +88,7 @@ public static class BatchUtils
         IKSeFClient client,
         string sessionReferenceNumber,
         string accessToken)
-        => await client.CloseBatchSessionAsync(sessionReferenceNumber, accessToken);
+        => await client.CloseBatchSessionAsync(sessionReferenceNumber, accessToken).ConfigureAwait(false);
 
     /// <summary>
     /// Buduje ZIP w pamięci z podanych plików i zwraca bajty oraz metadane (przed szyfrowaniem).
@@ -99,8 +100,8 @@ public static class BatchUtils
         IEnumerable<(string FileName, byte[] Content)> files,
         ICryptographyService cryptographyService)
     {
-        using MemoryStream zipStream = new MemoryStream();
-        using ZipArchive archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true);
+        using MemoryStream zipStream = new();
+        using ZipArchive archive = new(zipStream, ZipArchiveMode.Create, leaveOpen: true);
 
         foreach ((string fileName, byte[] content) in files)
         {
@@ -146,14 +147,17 @@ public static class BatchUtils
         ArgumentNullException.ThrowIfNull(input);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partCount);
 
-        List<byte[]> result = new List<byte[]>(partCount);
+        List<byte[]> result = new(partCount);
         int partSize = (int)Math.Ceiling((double)input.Length / partCount);
 
         for (int i = 0; i < partCount; i++)
         {
             int start = i * partSize;
             int size = Math.Min(partSize, input.Length - start);
-            if (size <= 0) break;
+            if (size <= 0)
+            {
+                break;
+            }
 
             byte[] part = new byte[size];
             Array.Copy(input, start, part, 0, size);
@@ -187,10 +191,10 @@ public static class BatchUtils
         int actualPartCount = partCount ?? CalculateBatchPartQuantity(zipBytes.Length);
 
         List<byte[]> rawParts = actualPartCount <= 1
-            ? new List<byte[]> { zipBytes }
+            ? [zipBytes]
             : Split(zipBytes, actualPartCount);
 
-        List<BatchPartSendingInfo> result = new List<BatchPartSendingInfo>(rawParts.Count);
+        List<BatchPartSendingInfo> result = new(rawParts.Count);
 
         for (int i = 0; i < rawParts.Count; i++)
         {
@@ -271,13 +275,13 @@ public static class BatchUtils
             return await AsyncPollingUtils.PollAsync(
                 action: async () =>
                 {
-                    last = await client.GetSessionStatusAsync(sessionRef, accessToken);
+                    last = await client.GetSessionStatusAsync(sessionRef, accessToken).ConfigureAwait(false);
                     return last;
                 },
                 condition: s => s.Status.Code != 150, // 150 = w trakcie przetwarzania
                 delay: TimeSpan.FromMilliseconds(sleepTime),
                 maxAttempts: maxAttempts
-            );
+            ).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
@@ -302,7 +306,9 @@ public static class BatchUtils
     {
         string path = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
         if (!File.Exists(path))
+        {
             throw new FileNotFoundException($"Template not found at: {path}");
+        }
 
         string template = File.ReadAllText(path, Encoding.UTF8);
 
@@ -345,7 +351,7 @@ public static class BatchUtils
 
             using Stream entryStream = entry.Open();
             using StreamReader reader = new(entryStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-            string content = await reader.ReadToEndAsync(cancellationToken);
+            string content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
             files[entry.Name] = content;
         }
 
@@ -365,7 +371,7 @@ public static class BatchUtils
         ArgumentNullException.ThrowIfNull(zipBytes);
 
         using MemoryStream stream = new(zipBytes);
-        return await UnzipAsync(stream, cancellationToken);
+        return await UnzipAsync(stream, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -394,10 +400,10 @@ public static class BatchUtils
         {
             foreach (InvoiceExportPackagePart? part in parts.OrderBy(p => p.OrdinalNumber))
             {
-                byte[] encryptedBytes = await DownloadPackagePartAsync(part, httpClientFactory, cancellationToken);
+                byte[] encryptedBytes = await DownloadPackagePartAsync(part, httpClientFactory, cancellationToken).ConfigureAwait(false);
                 byte[] decryptedBytes = crypto.DecryptBytesWithAES256(encryptedBytes, encryptionData.CipherKey, encryptionData.CipherIv);
 
-                await decryptedStream.WriteAsync(decryptedBytes, 0, decryptedBytes.Length, cancellationToken);
+                await decryptedStream.WriteAsync(decryptedBytes, cancellationToken).ConfigureAwait(false);
             }
 
             decryptedStream.Position = 0;
@@ -429,9 +435,9 @@ public static class BatchUtils
 
         using HttpClient httpClient = httpClientFactory?.Invoke() ?? new HttpClient();
         using HttpRequestMessage request = new(new HttpMethod(part.Method ?? HttpMethod.Get.Method), part.Url);
-        using HttpResponseMessage response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
+        using HttpResponseMessage response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
     }
 }

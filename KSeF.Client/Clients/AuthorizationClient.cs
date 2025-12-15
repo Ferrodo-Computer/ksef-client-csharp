@@ -13,53 +13,59 @@ namespace KSeF.Client.Clients;
 public class AuthorizationClient(IRestClient restClient, IRouteBuilder routeBuilder)
     : ClientBase(restClient, routeBuilder), IAuthorizationClient
 {
+    /// <inheritdoc/>
     public Task<AuthenticationChallengeResponse> GetAuthChallengeAsync(CancellationToken cancellationToken = default)
         => ExecuteAsync<AuthenticationChallengeResponse>(Routes.Authorization.Challenge, HttpMethod.Post, cancellationToken);
 
+    /// <inheritdoc/>
     public Task<SignatureResponse> SubmitXadesAuthRequestAsync(string signedXML, bool verifyCertificateChain = false, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(signedXML);
 
-        string endpoint = Routes.Authorization.XadesSignature + $"?verifyCertificateChain={verifyCertificateChain.ToString().ToLower()}";
-        string path = _routeBuilder.Build(endpoint);
+        string endpoint = Routes.Authorization.XadesSignature + $"?verifyCertificateChain={verifyCertificateChain.ToString().ToLower(System.Globalization.CultureInfo.CurrentCulture)}";
+        string path = routeBuilder.Build(endpoint);
 
-        return _restClient.SendAsync<SignatureResponse, string>(HttpMethod.Post, path, signedXML, null, RestClient.XmlContentType, cancellationToken);
+        return restClient.SendAsync<SignatureResponse, string>(HttpMethod.Post, path, signedXML, null, RestClient.XmlContentType, cancellationToken);
     }
 
+    /// <inheritdoc/>
     public Task<SignatureResponse> SubmitKsefTokenAuthRequestAsync(AuthenticationKsefTokenRequest requestPayload, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(requestPayload);
         return ExecuteAsync<SignatureResponse, AuthenticationKsefTokenRequest>(Routes.Authorization.KsefToken, requestPayload, cancellationToken);
     }
 
+    /// <inheritdoc/>
     public Task<AuthStatus> GetAuthStatusAsync(string authOperationReferenceNumber, string authenticationToken, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(authenticationToken);
         string endpoint = Routes.Authorization.Status(Uri.EscapeDataString(authOperationReferenceNumber));
-        return _restClient.SendAsync<AuthStatus, string>(HttpMethod.Get,
-            _routeBuilder.Build(endpoint),
+        return restClient.SendAsync<AuthStatus, string>(HttpMethod.Get,
+            routeBuilder.Build(endpoint),
             default,
             authenticationToken,
             RestClient.DefaultContentType,
             cancellationToken);
     }
 
+    /// <inheritdoc/>
     public Task<AuthenticationOperationStatusResponse> GetAccessTokenAsync(string authenticationToken, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(authenticationToken);
-        return _restClient.SendAsync<AuthenticationOperationStatusResponse, string>(HttpMethod.Post,
-            _routeBuilder.Build(Routes.Authorization.Token.Redeem),
+        return restClient.SendAsync<AuthenticationOperationStatusResponse, string>(HttpMethod.Post,
+            routeBuilder.Build(Routes.Authorization.Token.Redeem),
             default,
             authenticationToken,
             RestClient.DefaultContentType,
             cancellationToken);
     }
 
+    /// <inheritdoc/>
     public Task<RefreshTokenResponse> RefreshAccessTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(refreshToken);
-        return _restClient.SendAsync<RefreshTokenResponse, string>(HttpMethod.Post,
-            _routeBuilder.Build(Routes.Authorization.Token.Refresh),
+        return restClient.SendAsync<RefreshTokenResponse, string>(HttpMethod.Post,
+            routeBuilder.Build(Routes.Authorization.Token.Refresh),
             default,
             refreshToken,
             RestClient.DefaultContentType,

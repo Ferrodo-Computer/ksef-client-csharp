@@ -1,6 +1,7 @@
-﻿Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.13.35931.197
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.3.11206.111
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KSeF.Client", "KSeF.Client\KSeF.Client.csproj", "{06CD3541-021B-4894-BB09-37C35DD8857F}"
 EndProject
@@ -17,6 +18,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KSeF.Client.Tests.CertTestApp", "KSeF.Client.Tests.CertTestApp\KSeF.Client.Tests.CertTestApp.csproj", "{0BD2C922-DB7D-4F24-8D68-8E186A32E020}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KSeF.Client.Tests.PdfTestApp", "KSeF.Client.Tests.PdfTestApp\KSeF.Client.Tests.PdfTestApp.csproj", "{D73360BD-D88D-4CF2-876C-DDF33A97C36B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KSeF.Client.Tests.ClientFactory", "KSeF.Client.Tests.ClientFactory\KSeF.Client.Tests.ClientFactory.csproj", "{F73AC8DB-7A04-46A8-9A3F-7B5CAF812071}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KSeF.Client.ClientFactory", "KSeF.Client.ClientFactory\KSeF.Client.ClientFactory.csproj", "{317BEE52-4420-43A1-B4B9-95AAC0B3A010}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -56,6 +61,14 @@ Global
 		{D73360BD-D88D-4CF2-876C-DDF33A97C36B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D73360BD-D88D-4CF2-876C-DDF33A97C36B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D73360BD-D88D-4CF2-876C-DDF33A97C36B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F73AC8DB-7A04-46A8-9A3F-7B5CAF812071}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F73AC8DB-7A04-46A8-9A3F-7B5CAF812071}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F73AC8DB-7A04-46A8-9A3F-7B5CAF812071}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F73AC8DB-7A04-46A8-9A3F-7B5CAF812071}.Release|Any CPU.Build.0 = Release|Any CPU
+		{317BEE52-4420-43A1-B4B9-95AAC0B3A010}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{317BEE52-4420-43A1-B4B9-95AAC0B3A010}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{317BEE52-4420-43A1-B4B9-95AAC0B3A010}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{317BEE52-4420-43A1-B4B9-95AAC0B3A010}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

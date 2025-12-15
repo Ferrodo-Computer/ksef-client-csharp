@@ -23,14 +23,16 @@ public static class AsyncPollingUtils
         string description = "",
         TimeSpan? delay = null,
         int maxAttempts = 60,
-        Func<Exception, bool>? shouldRetryOnException = null,
-        CancellationToken cancellationToken = default,
+        Func<Exception, bool>? shouldRetryOnException = null,        
         Func<Exception, RateLimitDecision>? rateLimitOnException = null,
-        Func<TResult, RateLimitDecision>? rateLimitOnResult = null)
+        Func<TResult, RateLimitDecision>? rateLimitOnResult = null,
+        CancellationToken cancellationToken = default)
     {
-        if (action is null) throw new ArgumentNullException(nameof(action));
-        if (condition is null) throw new ArgumentNullException(nameof(condition));
-        if (maxAttempts <= 0) throw new ArgumentOutOfRangeException(nameof(maxAttempts));
+        ArgumentNullException.ThrowIfNull(action);
+
+        ArgumentNullException.ThrowIfNull(condition);
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxAttempts);
 
         TimeSpan defaultWait = delay ?? TimeSpan.FromSeconds(1);
         shouldRetryOnException ??= static ex => ex is not OperationCanceledException and not TaskCanceledException;
@@ -48,8 +50,15 @@ public static class AsyncPollingUtils
             try
             {
                 lastResult = await action().ConfigureAwait(false);
-                if (condition(lastResult))
+                bool isConditionMet = condition(lastResult);
+                if (isConditionMet)
+                {
                     return lastResult;
+                }
+                else if (!isConditionMet && attempt == maxAttempts)
+                {
+                    string jsonResult = System.Text.Json.JsonSerializer.Serialize(lastResult);
+                    throw new InvalidOperationException($"{jsonResult}");                }
 
                 // Możliwość oznaczenia rate limitu na podstawie wyniku (jeśli wynik niesie takie informacje)
                 if (rateLimitOnResult is not null)
@@ -58,7 +67,10 @@ public static class AsyncPollingUtils
                     if (rl.IsRateLimited)
                     {
                         doNotCountAttempt = true;
-                        if (rl.DelayOverride is TimeSpan d) waitThisTime = d;
+                        if (rl.DelayOverride is TimeSpan d)
+                        {
+                            waitThisTime = d;
+                        }
                     }
                 }
 
@@ -73,7 +85,10 @@ public static class AsyncPollingUtils
                     if (rl.IsRateLimited)
                     {
                         doNotCountAttempt = true;
-                        if (rl.DelayOverride is TimeSpan d) waitThisTime = d;
+                        if (rl.DelayOverride is TimeSpan d)
+                        {
+                            waitThisTime = d;
+                        }
                     }
                 }
 
@@ -110,17 +125,22 @@ public static class AsyncPollingUtils
         double backoffFactor = 2.0,
         bool jitter = true,
         Func<Exception, bool>? shouldRetryOnException = null,
-        CancellationToken cancellationToken = default,
         Func<Exception, RateLimitDecision>? rateLimitOnException = null,
         Func<TResult, RateLimitDecision>? rateLimitOnResult = null,
-        string description = "")
+        string description = "",
+        CancellationToken cancellationToken = default)
     {
-        if (action is null) throw new ArgumentNullException(nameof(action));
-        if (condition is null) throw new ArgumentNullException(nameof(condition));
-        if (maxAttempts <= 0) throw new ArgumentOutOfRangeException(nameof(maxAttempts));
-        if (initialDelay <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(initialDelay));
-        if (maxDelay < initialDelay) throw new ArgumentOutOfRangeException(nameof(maxDelay));
-        if (backoffFactor < 1.0) throw new ArgumentOutOfRangeException(nameof(backoffFactor));
+        ArgumentNullException.ThrowIfNull(action);
+
+        ArgumentNullException.ThrowIfNull(condition);
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxAttempts);
+
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(initialDelay, TimeSpan.Zero);
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxDelay, initialDelay);
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(backoffFactor, 1.0);
 
         shouldRetryOnException ??= static ex => ex is not OperationCanceledException and not TaskCanceledException;
 
@@ -141,7 +161,9 @@ public static class AsyncPollingUtils
             {
                 lastResult = await action().ConfigureAwait(false);
                 if (condition(lastResult))
+                {
                     return lastResult;
+                }
 
                 if (rateLimitOnResult is not null)
                 {
@@ -149,7 +171,10 @@ public static class AsyncPollingUtils
                     if (rl.IsRateLimited)
                     {
                         doNotCountAttempt = true;
-                        if (rl.DelayOverride is TimeSpan d) waitThisTime = d;
+                        if (rl.DelayOverride is TimeSpan d)
+                        {
+                            waitThisTime = d;
+                        }
                     }
                 }
 
@@ -163,7 +188,10 @@ public static class AsyncPollingUtils
                     if (rl.IsRateLimited)
                     {
                         doNotCountAttempt = true;
-                        if (rl.DelayOverride is TimeSpan d) waitThisTime = d;
+                        if (rl.DelayOverride is TimeSpan d)
+                        {
+                            waitThisTime = d;
+                        }
                     }
                 }
 
@@ -211,16 +239,16 @@ public static class AsyncPollingUtils
         TimeSpan? delay = null,
         int maxAttempts = 60,
         Func<Exception, bool>? shouldRetryOnException = null,
-        CancellationToken cancellationToken = default,
         Func<Exception, RateLimitDecision>? rateLimitOnException = null,
-        Func<bool, RateLimitDecision>? rateLimitOnResult = null)
+        Func<bool, RateLimitDecision>? rateLimitOnResult = null,
+        CancellationToken cancellationToken = default)
         => PollAsync(async () => await check().ConfigureAwait(false),
                      result => result,                     
                      description,
                      delay,
                      maxAttempts,
                      shouldRetryOnException,
-                     cancellationToken,
                      rateLimitOnException,
-                     rateLimitOnResult);
+                     rateLimitOnResult,
+                     cancellationToken);
 }

@@ -2,6 +2,7 @@ using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Sessions.ActiveSessions;
 using KSeF.Client.Tests.Utils;
+using System.Net.NetworkInformation;
 
 
 namespace KSeF.Client.Tests.Core.E2E.Authorization.Sessions;
@@ -18,7 +19,7 @@ public class SessionE2ETests : TestBase
         nip = MiscellaneousUtils.GetRandomNip();
 
         AuthenticationOperationStatusResponse auth = AuthenticationUtils
-            .AuthenticateAsync(AuthorizationClient, SignatureService, nip)
+            .AuthenticateAsync(AuthorizationClient, nip)
             .GetAwaiter()
             .GetResult();
 
@@ -31,12 +32,12 @@ public class SessionE2ETests : TestBase
     /// a wśród nich bieżąca (IsCurrent = true).
     /// </summary>
     [Fact]
-    public async Task GetActiveSessionsAsync_ListActiveSessions_ReturnsAtLeastOneWithCurrent()
+    public async Task GetActiveSessionsAsyncListActiveSessionsReturnsAtLeastOneWithCurrent()
     {
         // Arrange
         const int pageSize = 20;
-        string? continuationToken = null;
-        List<AuthenticationListItem> all = new List<AuthenticationListItem>();
+        string continuationToken = string.Empty;
+        List<AuthenticationListItem> all = [];
 
         // Act
         do
@@ -44,7 +45,9 @@ public class SessionE2ETests : TestBase
             AuthenticationListResponse page = await ActiveSessionsClient.GetActiveSessions(accessToken, pageSize, continuationToken, CancellationToken.None);
             continuationToken = page.ContinuationToken;
             if (page.Items != null)
+            {
                 all.AddRange(page.Items);
+            }
         }
         while (!string.IsNullOrWhiteSpace(continuationToken));
 
@@ -52,25 +55,40 @@ public class SessionE2ETests : TestBase
         Assert.NotNull(all);
         Assert.NotEmpty(all);
         Assert.Contains(all, x => x.IsCurrent);
+
+        foreach (AuthenticationListItem item in all)
+        {
+            Assert.NotNull(item);
+            Assert.True(!string.IsNullOrWhiteSpace(item.ReferenceNumber));
+            Assert.NotNull(item.Status.Code);
+            Assert.NotNull(item.StartDate);
+            Assert.True(DateTime.UtcNow.AddMinutes(-1) < item.StartDate.DateTime && item.StartDate.DateTime < DateTime.UtcNow.AddMinutes(1));
+            Assert.True(item.IsTokenRedeemed);
+            Assert.True(item.IsCurrent);
+            Assert.NotNull(item.RefreshTokenValidUntil);
+            Assert.Null(item.LastTokenRefreshDate);
+        }
     }
 
     /// <summary>
     /// Unieważnia bieżącą sesję (po refresh tokenie) i weryfikuje, że odświeżenie tokenu
     /// kończy się błędem 21304: Brak uwierzytelnienia. - Nieprawidłowy token.
     /// </summary>
-    [Fact]
-    public async Task RevokeCurrentSessionAsync_RevokeByRefreshToken_RefreshFailsWth21304Code()
+    [Theory]
+    [InlineData($"{nameof(accessToken)}")]
+    [InlineData($"{nameof(refreshToken)}")]
+    public async Task RevokeCurrentSessionAsyncRevokeByRefreshTokenRefreshFailsWth21304Code(string tokenType)
     {
         // Arrange
-        string tokenToRevoke = refreshToken;
+        string tokenToRevoke = tokenType == nameof(accessToken) ? accessToken : refreshToken;
         
         // Act
         await ActiveSessionsClient.RevokeCurrentSessionAsync(tokenToRevoke, CancellationToken.None);
 
         // Assert
-        KsefApiException ex = await Assert.ThrowsAsync<KsefApiException>(() =>
-            AuthorizationClient.RefreshAccessTokenAsync(tokenToRevoke, CancellationToken.None));
-        Assert.Equal(ExpectedErrorMessage, ex.Message);
+        KsefApiException exception = await Assert.ThrowsAsync<KsefApiException>(() =>
+            AuthorizationClient.RefreshAccessTokenAsync(refreshToken, CancellationToken.None));
+        Assert.Equal(ExpectedErrorMessage, exception.Message);
     }
 
     /// <summary>
@@ -78,10 +96,10 @@ public class SessionE2ETests : TestBase
     /// i sprawdza, że jej refresh token nie działa kończąc błędem 21304: Brak uwierzytelnienia. - Nieprawidłowy token.
     /// </summary>
     [Fact]
-    public async Task RevokeSessionAsync_RevokeByReferenceNumber_TargetRefreshFailsWith401()
+    public async Task RevokeSessionAsyncRevokeByReferenceNumberTargetRefreshFailsWith401()
     {
         // Arrange
-        AuthenticationOperationStatusResponse secondAuth = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, nip);
+        AuthenticationOperationStatusResponse secondAuth = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, nip);
         string secondAccessToken = secondAuth.AccessToken.Token;
         string secondRefreshToken = secondAuth.RefreshToken.Token;
 
@@ -94,9 +112,9 @@ public class SessionE2ETests : TestBase
         await ActiveSessionsClient.RevokeSessionAsync(secondSessionRef!, accessToken, CancellationToken.None);
 
         // Assert
-        KsefApiException ex = await Assert.ThrowsAsync<KsefApiException>(() =>
+        KsefApiException exception = await Assert.ThrowsAsync<KsefApiException>(() =>
             AuthorizationClient.RefreshAccessTokenAsync(secondRefreshToken, CancellationToken.None));
-        Assert.Equal(ExpectedErrorMessage, ex.Message);
+        Assert.Equal(ExpectedErrorMessage, exception.Message);
     }
 
     /// <summary>
@@ -104,11 +122,11 @@ public class SessionE2ETests : TestBase
     /// że otrzymany access token różni się od początkowego.
     /// </summary>
     [Fact]
-    public async Task RefreshAccessTokenAsync_WithRefreshToken_ReturnsNewAccessToken()
+    public async Task RefreshAccessTokenAsyncWithRefreshTokenReturnsNewAccessToken()
     {
         // Arrange
         AuthenticationOperationStatusResponse authenticationResponse = await AuthenticationUtils
-            .AuthenticateAsync(AuthorizationClient, SignatureService);
+            .AuthenticateAsync(AuthorizationClient);
 
         string initialAccessToken = authenticationResponse.AccessToken.Token;
         string initialRefreshToken = authenticationResponse.RefreshToken.Token;

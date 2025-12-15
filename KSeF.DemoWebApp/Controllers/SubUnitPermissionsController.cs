@@ -1,8 +1,8 @@
-using KSeF.Client.Api.Builders.SubUnitPermissions;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Models.Permissions.SubUnit;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models;
+using KSeF.Client.Api.Builders.SubEntityPermissions;
 
 namespace KSeF.DemoWebApp.Controllers;
 
@@ -18,15 +18,16 @@ public class SubUnitPermissionsController(IKSeFClient ksefClient) : ControllerBa
             .WithSubject(grantPermissionsRequest.SubjectIdentifier)
             .WithContext(grantPermissionsRequest.ContextIdentifier)
             .WithDescription(grantPermissionsRequest.Description)
+            .WithSubjectDetails(grantPermissionsRequest.SubjectDetails)
             .Build();
 
-        return await ksefClient.GrantsPermissionSubUnitAsync(request, accessToken, cancellationToken);
+        return await ksefClient.GrantsPermissionSubUnitAsync(request, accessToken, cancellationToken).ConfigureAwait(false);
     }
 
     [HttpPost("revoke-sub-entity-permissions")]
     public async Task<ActionResult<OperationResponse>> RevokePermissionsEntity(string accessToken, string permissionId, CancellationToken cancellationToken)
     {
       
-        return await ksefClient.RevokeAuthorizationsPermissionAsync(permissionId, accessToken, cancellationToken);
+        return await ksefClient.RevokeAuthorizationsPermissionAsync(permissionId, accessToken, cancellationToken).ConfigureAwait(false);
     }
 }

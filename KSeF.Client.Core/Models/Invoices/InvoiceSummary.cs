@@ -105,7 +105,7 @@ namespace KSeF.Client.Core.Models.Invoices
         /// <summary>
         /// Lista podmiotów trzecich (array lub null).
         /// </summary>
-        public List<ThirdSubjects> ThirdSubjects { get; set; }
+        public List<ThirdSubject> ThirdSubjects { get; set; }
 
         /// <summary>
         /// Podmiot upoważniony (object lub null).

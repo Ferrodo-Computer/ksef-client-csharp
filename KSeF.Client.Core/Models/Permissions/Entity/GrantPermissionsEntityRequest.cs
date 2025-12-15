@@ -9,6 +9,7 @@ namespace KSeF.Client.Core.Models.Permissions.Entity
         public GrantPermissionsEntitySubjectIdentifier SubjectIdentifier { get; set; }
         public ICollection<EntityPermission> Permissions { get; set; }
         public string Description { get; set; }
+        public PermissionsEntitySubjectDetails SubjectDetails { get; set; }
     }
 
     public enum EntityStandardPermissionType
@@ -32,5 +33,10 @@ namespace KSeF.Client.Core.Models.Permissions.Entity
         {
             return new EntityPermission(invoiceRead, canDelegate);
         }
+    }
+
+    public class PermissionsEntitySubjectDetails
+    {
+        public string FullName { get; set; }
     }
 }

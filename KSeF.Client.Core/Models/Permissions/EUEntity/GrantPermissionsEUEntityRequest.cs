@@ -8,5 +8,7 @@ namespace KSeF.Client.Core.Models.Permissions.EUEntity
         public EuEntityContextIdentifier ContextIdentifier { get; set; }
         public string Description { get; set; }
         public string EuEntityName { get; set; }
+        public PermissionsEuEntitySubjectDetails SubjectDetails { get; set; }
+        public PermissionsEuEntityDetails EuEntityDetails { get; set; }
     }
 }

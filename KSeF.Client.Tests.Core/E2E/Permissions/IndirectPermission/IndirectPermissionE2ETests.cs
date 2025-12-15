@@ -8,10 +8,10 @@ using KSeF.Client.Core.Models.Permissions.IndirectEntity;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Tests.Utils;
 
-namespace KSeF.Client.Tests.Core.E2E.Permissions.IndirectPermissions;
+namespace KSeF.Client.Tests.Core.E2E.Permissions.IndirectPermission;
 
 /// <summary>
-/// Testy end-to-end dla nadawania uprawnień w sposób pośredni systemie KSeF.
+/// Testy end-to-end nadawania uprawnień w sposób pośredni systemie KSeF.
 /// Obejmuje scenariusze nadawania i odwoływania uprawnień oraz ich weryfikację.
 /// </summary>
 [Collection("IndirectPermissionScenario")]
@@ -41,7 +41,7 @@ public class IndirectPermissionE2ETests : TestBase
 
     /// <summary>
     /// Wykonuje kompletny scenariusz obsługi uprawnień pośrednich E2E:
-    /// 1. Nadaje uprawnienia CredentialsManage dla pośrednika
+    /// 1. Nadaje uprawnienia CredentialsManage pośrednikowi
     /// 2. Nadaje uprawnienia pośrednie
     /// 3. Wyszukuje nadane uprawnienia
     /// 4. Usuwa uprawnienia
@@ -51,9 +51,9 @@ public class IndirectPermissionE2ETests : TestBase
     public async Task IndirectPermission_E2E_GrantSearchRevokeSearch()
     {
         // Arrange: Uwierzytelnienie właściciela 
-        ownerAccessToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, ownerNip)).AccessToken.Token;
+        ownerAccessToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip)).AccessToken.Token;
 
-        // Act: 1) Nadanie uprawnień CredentialsManage dla pośrednika
+        // Act: 1) Nadanie uprawnień CredentialsManage pośrednikowi
         PermissionsOperationStatusResponse personGrantStatus = await GrantCredentialsManageToDelegateAsync();
 
         // Assert
@@ -61,7 +61,7 @@ public class IndirectPermissionE2ETests : TestBase
         Assert.Equal(OperationStatusCodeResponse.Success, personGrantStatus.Status.Code);
 
         // Arrange: Uwierzytelnienie pośrednika (Arrange)
-        delegateAccessToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, delegateNip)).AccessToken.Token;
+        delegateAccessToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, delegateNip)).AccessToken.Token;
 
         // Act: 2) Nadanie uprawnień pośrednich przez pośrednika
         PermissionsOperationStatusResponse indirectGrantStatus = await GrantIndirectPermissionsAsync();
@@ -71,7 +71,7 @@ public class IndirectPermissionE2ETests : TestBase
         Assert.Equal(OperationStatusCodeResponse.Success, indirectGrantStatus.Status.Code);
 
         // Act: 3) Wyszukanie nadanych uprawnień (w bieżącym kontekście, nieaktywne)
-        PagedPermissionsResponse<PersonPermission> permissionsAfterGrant =
+        PagedPermissionsResponse<Client.Core.Models.Permissions.PersonPermission> permissionsAfterGrant =
             await SearchGrantedPersonPermissionsInCurrentContextAsync(
                 accessToken: delegateAccessToken,
                 includeInactive: true,
@@ -108,7 +108,7 @@ public class IndirectPermissionE2ETests : TestBase
         );
 
         // Poll: 5) Wyszukanie po cofnięciu – oczekujemy pustej listy
-        PagedPermissionsResponse<PersonPermission> permissionsAfterRevoke =
+        PagedPermissionsResponse<Client.Core.Models.Permissions.PersonPermission> permissionsAfterRevoke =
             await AsyncPollingUtils.PollAsync(
                 action: () => SearchGrantedPersonPermissionsInCurrentContextAsync(
                     accessToken: delegateAccessToken,
@@ -127,7 +127,7 @@ public class IndirectPermissionE2ETests : TestBase
     }
 
     /// <summary>
-    /// Nadaje uprawnienie CredentialsManage przez właściciela dla pośrednika
+    /// Nadaje uprawnienie CredentialsManage przez właściciela pośrednikowi
     /// </summary>
     /// <returns>Status operacji nadania uprawnień osobowych</returns>
     private async Task<PermissionsOperationStatusResponse> GrantCredentialsManageToDelegateAsync()
@@ -146,20 +146,20 @@ public class IndirectPermissionE2ETests : TestBase
             .Build();
 
         OperationResponse grantOperationResponse =
-            await KsefClient.GrantsPermissionPersonAsync(request, ownerAccessToken, CancellationToken);
+            await KsefClient.GrantsPermissionPersonAsync(request, ownerAccessToken, CancellationToken).ConfigureAwait(false);
 
         Assert.NotNull(grantOperationResponse);
         Assert.False(string.IsNullOrEmpty(grantOperationResponse.ReferenceNumber));
 
         // Poll zamiast stałego opóźnienia
         PermissionsOperationStatusResponse grantOperationStatus =
-            await WaitForOperationSuccessAsync(grantOperationResponse.ReferenceNumber, ownerAccessToken);
+            await WaitForOperationSuccessAsync(grantOperationResponse.ReferenceNumber, ownerAccessToken).ConfigureAwait(false);
 
         return grantOperationStatus;
     }
 
     /// <summary>
-    /// Nadaje uprawnienia pośrednie dla podmiotu w kontekście wskazanego NIP przez pośrednika.
+    /// Nadaje uprawnienia pośrednie podmiotowi w kontekście wskazanego NIP przez pośrednika.
     /// </summary>
     /// <returns>Status operacji nadania uprawnień pośrednich</returns>
     private async Task<PermissionsOperationStatusResponse> GrantIndirectPermissionsAsync()
@@ -179,17 +179,24 @@ public class IndirectPermissionE2ETests : TestBase
                 IndirectEntityStandardPermissionType.InvoiceWrite
             )
             .WithDescription("E2E test - przekazanie uprawnień (InvoiceRead, InvoiceWrite) przez pośrednika")
+            .WithSubjectDetails(
+                new PermissionsIndirectEntitySubjectDetails
+                {
+                    SubjectDetailsType = PermissionsIndirectEntitySubjectDetailsType.PersonByIdentifier,
+                    PersonById = new PermissionsIndirectEntityPersonByIdentifier { FirstName = "Jan", LastName = "Kowalski" }
+                }
+            )
             .Build();
 
         OperationResponse grantOperationResponse =
-            await KsefClient.GrantsPermissionIndirectEntityAsync(request, delegateAccessToken, CancellationToken);
+            await KsefClient.GrantsPermissionIndirectEntityAsync(request, delegateAccessToken, CancellationToken).ConfigureAwait(false);
 
         Assert.NotNull(grantOperationResponse);
         Assert.False(string.IsNullOrEmpty(grantOperationResponse.ReferenceNumber));
 
         // Poll zamiast stałego opóźnienia
         PermissionsOperationStatusResponse grantOperationStatus =
-            await WaitForOperationSuccessAsync(grantOperationResponse.ReferenceNumber, delegateAccessToken);
+            await WaitForOperationSuccessAsync(grantOperationResponse.ReferenceNumber, delegateAccessToken).ConfigureAwait(false);
 
         return grantOperationStatus;
     }
@@ -199,14 +206,14 @@ public class IndirectPermissionE2ETests : TestBase
     /// Możliwe jest włączenie filtracji po stanie (np. nieaktywne).
     /// </summary>
     /// <returns>Zwraca stronicowaną listę uprawnień.</returns>
-    private async Task<PagedPermissionsResponse<PersonPermission>>
+    private async Task<PagedPermissionsResponse<Client.Core.Models.Permissions.PersonPermission>>
         SearchGrantedPersonPermissionsInCurrentContextAsync(
             string accessToken,
             bool includeInactive,
             int pageOffset,
             int pageSize)
     {
-        PersonPermissionsQueryRequest query = new PersonPermissionsQueryRequest
+        PersonPermissionsQueryRequest query = new()
         {
             QueryType = PersonQueryType.PermissionsGrantedInCurrentContext,
             PermissionState = includeInactive
@@ -214,12 +221,12 @@ public class IndirectPermissionE2ETests : TestBase
                 : PersonPermissionState.Active
         };
 
-        PagedPermissionsResponse<PersonPermission> pagedPermissionsResponse = await KsefClient.SearchGrantedPersonPermissionsAsync(
+        PagedPermissionsResponse<Client.Core.Models.Permissions.PersonPermission> pagedPermissionsResponse = await KsefClient.SearchGrantedPersonPermissionsAsync(
             query,
             accessToken,
             pageOffset: pageOffset,
             pageSize: pageSize,
-            CancellationToken);
+            CancellationToken).ConfigureAwait(false);
         return pagedPermissionsResponse;
     }
 
@@ -227,27 +234,25 @@ public class IndirectPermissionE2ETests : TestBase
     /// Cofnięcie wszystkich przekazanych uprawnień i zwrócenie statusów operacji.
     /// </summary>
     private async Task<List<PermissionsOperationStatusResponse>> RevokePermissionsAsync(
-        IEnumerable<PersonPermission> permissions,
+        IEnumerable<Client.Core.Models.Permissions.PersonPermission> permissions,
         string accessToken)
     {
-        List<OperationResponse> revokeResponses = new List<OperationResponse>();
+        List<OperationResponse> revokeResponses = [];
 
         // Uruchomienie operacji cofania
-        foreach (PersonPermission permission in permissions)
+        foreach (Client.Core.Models.Permissions.PersonPermission permission in permissions)
         {
-            OperationResponse response = await KsefClient.RevokeCommonPermissionAsync(permission.Id, accessToken, CancellationToken.None);
+            OperationResponse response = await KsefClient.RevokeCommonPermissionAsync(permission.Id, accessToken, CancellationToken.None).ConfigureAwait(false);
             revokeResponses.Add(response);
         }
 
         // Poll statusów wszystkich operacji (równolegle)
-        Task<PermissionsOperationStatusResponse>[] revokeStatusTasks = revokeResponses
-            .Select(r => WaitForOperationSuccessAsync(r.ReferenceNumber, accessToken))
-            .ToArray();
+        Task<PermissionsOperationStatusResponse>[] revokeStatusTasks = [.. revokeResponses.Select(r => WaitForOperationSuccessAsync(r.ReferenceNumber, accessToken))];
 
         PermissionsOperationStatusResponse[] revokeStatusResults =
-            await Task.WhenAll(revokeStatusTasks);
+            await Task.WhenAll(revokeStatusTasks).ConfigureAwait(false);
 
-        return revokeStatusResults.ToList();
+        return [.. revokeStatusResults];
     }
 
     /// <summary>

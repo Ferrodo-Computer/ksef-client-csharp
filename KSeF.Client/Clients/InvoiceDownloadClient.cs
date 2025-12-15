@@ -20,7 +20,7 @@ public class InvoiceDownloadClient(IRestClient restClient, IRouteBuilder routeBu
 
         string endpoint = Routes.Invoices.ByKsefNumber(Uri.EscapeDataString(ksefNumber));
 
-        Dictionary<string, string> headers = new Dictionary<string, string>
+        Dictionary<string, string> headers = new()
         {
             ["Accept"] = "application/xml"
         };
@@ -52,31 +52,32 @@ public class InvoiceDownloadClient(IRestClient restClient, IRouteBuilder routeBu
 
     /// <inheritdoc />
     public Task<OperationResponse> ExportInvoicesAsync(
+    InvoiceExportRequest requestPayload,
+    string accessToken,
+    bool includeMetadata = true,
+    CancellationToken cancellationToken = default)
+    {
+        return ExportInvoicesAsync(requestPayload, accessToken, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResponse> ExportInvoicesAsync(
         InvoiceExportRequest requestPayload,
         string accessToken,
-        CancellationToken cancellationToken = default,
-        bool includeMetadata = true)
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(requestPayload);
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
 
         string endpoint = Routes.Invoices.Exports;
 
-        Dictionary<string, string> headers = null;
-        if (includeMetadata)
-        {
-            headers = new Dictionary<string, string>
-            {
-                ["x-ksef-feature"] = "include-metadata"
-            };
-        }
 
-        return ExecuteAsync<OperationResponse, InvoiceExportRequest>(
+        return await ExecuteAsync<OperationResponse, InvoiceExportRequest>(
             endpoint,
             requestPayload,
             accessToken,
-            headers,
-            cancellationToken);
+            cancellationToken
+        ).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

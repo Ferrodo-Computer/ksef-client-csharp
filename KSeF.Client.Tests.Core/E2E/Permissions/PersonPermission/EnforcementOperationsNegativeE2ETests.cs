@@ -7,7 +7,7 @@ using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Tests.Utils;
 
-namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermissions;
+namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermission;
 
 /// <summary>
 /// Nadawanie uprawnień do wykonywania operacji komorniczych w kontekście, który na to NIE zezwala.
@@ -22,14 +22,14 @@ public class EnforcementOperationsNegativeE2ETests : TestBase
     private const string PermissionDescription = "E2E negative grant EnforcementOperations";
 
     [Fact]
-    public async Task GrantEnforcementOperations_InNotAllowedContext_E2E_FailsAndNotVisible()
+    public async Task GrantEnforcementOperationsInNotAllowedContextE2EFailsAndNotVisible()
     {
         // Arrange: zwykły kontekst NIP (brak roli EnforcementAuthority lub CourtBailiff)
         string ownerNip = MiscellaneousUtils.GetRandomNip();
         string granteeNip = MiscellaneousUtils.GetRandomNip();
 
         AuthenticationOperationStatusResponse authorizationInfo = await AuthenticationUtils
-            .AuthenticateAsync(AuthorizationClient, SignatureService, ownerNip);
+            .AuthenticateAsync(AuthorizationClient, ownerNip);
 
         string accessToken = authorizationInfo.AccessToken.Token;
 
@@ -64,17 +64,17 @@ public class EnforcementOperationsNegativeE2ETests : TestBase
         Assert.NotEqual(OperationStatusCodeResponse.Success, grantStatus.Status.Code);
 
         // Potwierdzenie, że uprawnienie nie zostało nadane (nie występuje w wyszukiwaniu)
-        PersonPermissionsQueryRequest query = new PersonPermissionsQueryRequest
+        PersonPermissionsQueryRequest query = new()
         {
-            PermissionTypes = new List<PersonPermissionType>
-            {
+            PermissionTypes =
+            [
                 PersonPermissionType.EnforcementOperations
-            }
+            ]
         };
 
         // Potwierdzenie braku wpisów z opisem
         await Task.Delay(SleepTime);
-        PagedPermissionsResponse<PersonPermission> search = await KsefClient.SearchGrantedPersonPermissionsAsync(
+        PagedPermissionsResponse<Client.Core.Models.Permissions.PersonPermission> search = await KsefClient.SearchGrantedPersonPermissionsAsync(
             query, accessToken, pageOffset: 0, pageSize: 10, CancellationToken);
 
         Assert.True(search?.Permissions is null ||

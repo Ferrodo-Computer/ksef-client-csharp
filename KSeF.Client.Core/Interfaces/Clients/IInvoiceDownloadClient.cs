@@ -2,6 +2,7 @@
 using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Invoices;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,24 +18,45 @@ namespace KSeF.Client.Core.Interfaces.Clients
         /// </summary>
         /// <param name="ksefNumber">Numer KSeF faktury</param>
         /// <param name="accessToken">Access token</param>
-        /// <param name="cancellationToken">Cancellation token./param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>Faktura w formie XML.</returns>
-        /// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
-        /// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
+        /// <exception> cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
+        /// <exception> cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
         Task<string> GetInvoiceAsync(string ksefNumber, string accessToken, CancellationToken cancellationToken = default);
 
+		/// <summary>
+		/// Zwraca listę metadanych faktur spełniające podane kryteria wyszukiwania.
+		/// </summary>
+		/// <param name="requestPayload"><see cref="InvoiceQueryFilters"/>zestaw filtrów</param>
+		/// <param name="accessToken">Access token.</param>
+		/// <param name="pageOffset">Numer strony wyników.</param>
+		/// <param name="pageSize">Rozmiar strony wyników.</param>
+		/// <param name="sortOrder">Kolejność sortowania.</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
+		/// <returns><see cref="PagedInvoiceResponse"/></returns>
+		/// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
+		/// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
+		Task<PagedInvoiceResponse> QueryInvoiceMetadataAsync(InvoiceQueryFilters requestPayload, string accessToken, int? pageOffset = null, int? pageSize = null, SortOrder sortOrder = SortOrder.Asc, CancellationToken cancellationToken = default);
+
         /// <summary>
-        /// Zwraca listę metadanych faktur spełniające podane kryteria wyszukiwania.
+        /// Inicjuje eksport paczki faktur zgodnie z podanymi filtrami.
         /// </summary>
-        /// <param name="requestPayload"><see cref="InvoiceQueryFilters"/>zestaw filtrów</param>
+        /// <param name="requestPayload">Żądanie eksportu faktur (filtry + szyfrowanie).</param>
         /// <param name="accessToken">Access token.</param>
-        /// <param name="pageOffset">Numer strony wyników.</param>
-        /// <param name="pageSize">Rozmiar strony wyników.</param>
-        /// <param name="cancellationToken">Cancellation token./param>
-        /// <returns><see cref="PagedInvoiceResponse"/></returns>
+        /// <param name="includeMetadata">
+        /// (Przestarzałe) Określa czy rezultat ma zawierać metadane. 
+        /// Od 2025-10-27 parametr jest ignorowany – plik _metadata.json generuje się zawsze.
+        /// </param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns><see cref="OperationResponse"/> zawierający numer referencyjny operacji.</returns>
         /// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
         /// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
-        Task<PagedInvoiceResponse> QueryInvoiceMetadataAsync(InvoiceQueryFilters requestPayload, string accessToken, int? pageOffset = null, int? pageSize = null, SortOrder sortOrder = SortOrder.Asc, CancellationToken cancellationToken = default);
+        [Obsolete("Od 2025-10-27 parametr includeMetadata jest ignorowany – plik _metadata.json generuje się zawsze.")]
+        Task<OperationResponse> ExportInvoicesAsync(
+            InvoiceExportRequest requestPayload,
+            string accessToken,            
+            bool includeMetadata = true,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Inicjuje eksport paczki faktur zgodnie z podanymi filtrami.
@@ -48,8 +70,7 @@ namespace KSeF.Client.Core.Interfaces.Clients
         Task<OperationResponse> ExportInvoicesAsync(
             InvoiceExportRequest requestPayload,
             string accessToken,
-            CancellationToken cancellationToken = default,
-            bool includeMetadata = true);
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Pobiera status operacji eksportu paczki faktur.

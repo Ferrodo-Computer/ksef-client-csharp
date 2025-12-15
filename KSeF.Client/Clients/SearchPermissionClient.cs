@@ -17,7 +17,7 @@ public class SearchPermissionClient(IRestClient restClient, IRouteBuilder routeB
 {
     private static string WithPagination(string endpoint, int? pageOffset, int? pageSize)
     {
-        StringBuilder sb = new StringBuilder(endpoint);
+        StringBuilder sb = new(endpoint);
         PaginationHelper.AppendPagination(pageOffset, pageSize, sb);
         return sb.ToString();
     }

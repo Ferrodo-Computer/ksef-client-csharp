@@ -6,9 +6,9 @@ using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Tests.Utils;
 
-namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermissions;
+namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermission;
 
-public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedPesel_E2ETests : TestBase
+public class PersonPermissionsOwnerNipGrantedFilterAuthorizedPeselE2ETests : TestBase
 {
 
     /// <summary>
@@ -23,7 +23,7 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedPesel_E2ETests :
     /// </list>
     /// </remarks>
     [Fact]
-    public async Task Search_Granted_AsOwnerNip_FilterByAuthorizedPesel_ShouldReturnMatch()
+    public async Task SearchGrantedAsOwnerNipFilterByAuthorizedPeselShouldReturnMatch()
     {
         #region Arrange
         string ownerNip = MiscellaneousUtils.GetRandomNip();
@@ -31,21 +31,21 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedPesel_E2ETests :
 
         // owner (nadawca == owner)
         AuthenticationOperationStatusResponse ownerAuth =
-            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, ownerNip);
+            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip);
         string ownerAccessToken = ownerAuth.AccessToken.Token;
 
-        // GRANT — nadajemy np. InvoiceRead osobie o PESEL
-        GrantPermissionsPersonRequest grantRequest = new GrantPermissionsPersonRequest
+        // GRANT — nadajemy np. InvoiceRead osobie po PESELu
+        GrantPermissionsPersonRequest grantRequest = new()
         {
             SubjectIdentifier = new GrantPermissionsPersonSubjectIdentifier
             {
                 Type = GrantPermissionsPersonSubjectIdentifierType.Pesel,
                 Value = authorizedPesel
             },
-            Permissions = new PersonPermissionType[]
-            {
+            Permissions =
+            [
                 PersonPermissionType.InvoiceRead
-            },
+            ],
             Description = $"E2E-Grant-Read-PESEL-{authorizedPesel}"
         };
 
@@ -62,7 +62,7 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedPesel_E2ETests :
                 cancellationToken: CancellationToken);
 
         // Query: nadane (owner) + filtr po PESEL
-        PersonPermissionsQueryRequest queryRequest = new PersonPermissionsQueryRequest
+        PersonPermissionsQueryRequest queryRequest = new()
         {
             ContextIdentifier = new PersonPermissionsContextIdentifier
             {
@@ -85,7 +85,7 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedPesel_E2ETests :
         #endregion
 
         #region Act
-        PagedPermissionsResponse<PersonPermission> page =
+        PagedPermissionsResponse<Client.Core.Models.Permissions.PersonPermission> page =
             await AsyncPollingUtils.PollAsync(
                 () => KsefClient.SearchGrantedPersonPermissionsAsync(
                     queryRequest, ownerAccessToken, pageOffset: 0, pageSize: 50, cancellationToken: CancellationToken),
@@ -95,7 +95,7 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedPesel_E2ETests :
                 maxAttempts: 30,
                 cancellationToken: CancellationToken);
 
-        PersonPermission? matching = page.Permissions.FirstOrDefault(p =>
+        Client.Core.Models.Permissions.PersonPermission matching = page.Permissions.First(p =>
             p is not null
             && p.AuthorizedIdentifier is not null
             && p.AuthorizedIdentifier.Type == PersonPermissionAuthorizedIdentifierType.Pesel

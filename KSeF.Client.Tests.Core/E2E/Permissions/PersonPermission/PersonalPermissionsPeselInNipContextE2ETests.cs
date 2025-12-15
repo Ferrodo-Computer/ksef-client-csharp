@@ -6,7 +6,7 @@ using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Tests.Utils;
 
-namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermissions;
+namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermission;
 
 public class PersonalPermissionsPeselInNipContextE2ETests : TestBase
 {
@@ -19,7 +19,7 @@ public class PersonalPermissionsPeselInNipContextE2ETests : TestBase
     /// w oczekiwanym kontekście (z użyciem mechanizmu pollingu na wypadek opóźnionej spójności).
     /// </summary>
     [Fact]
-    public async Task PersonalPermissions_ByPesel_InNipContext_ShouldReturnPermissionsInContext()
+    public async Task PersonalPermissionsByPeselInNipContextShouldReturnPermissionsInContext()
     {
         // Arrange
         string contextNip = MiscellaneousUtils.GetRandomNip();
@@ -27,10 +27,10 @@ public class PersonalPermissionsPeselInNipContextE2ETests : TestBase
 
         // Właściciel uwierzytelnia się we własnym kontekście
         AuthenticationOperationStatusResponse ownerAuth =
-            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, contextNip);
+            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, contextNip);
 
-        // Nadaj uprawnienia dla osoby (PESEL) w kontekście NIP właściciela
-        GrantPermissionsPersonSubjectIdentifier subject = new GrantPermissionsPersonSubjectIdentifier
+        // Nadaj uprawnienia osobie (PESEL) w kontekście NIPu właściciela
+        GrantPermissionsPersonSubjectIdentifier subject = new()
         {
             Type = GrantPermissionsPersonSubjectIdentifierType.Pesel,
             Value = pesel
@@ -42,11 +42,10 @@ public class PersonalPermissionsPeselInNipContextE2ETests : TestBase
             KsefClient,
             ownerAuth.AccessToken.Token,
             subject,
-            new[]
-            {
+            [
                 PersonPermissionType.InvoiceRead,
                 PersonPermissionType.InvoiceWrite
-            },
+            ],
             description);
 
         Assert.NotNull(grantResponse);
@@ -63,13 +62,12 @@ public class PersonalPermissionsPeselInNipContextE2ETests : TestBase
 
        AuthenticationOperationStatusResponse personAuth = await AuthenticationUtils.AuthenticateAsync(
             AuthorizationClient,
-            SignatureService,
             contextNip,
             AuthenticationTokenContextIdentifierType.Nip,
             personalCertificate);
 
         // Act: pobierz moje uprawnienia dla osoby w bieżącym kontekście NIP, filtrując po kontekście na poziomie zapytania
-        PersonalPermissionsQueryRequest query = new PersonalPermissionsQueryRequest
+        PersonalPermissionsQueryRequest query = new()
         {
             ContextIdentifier = new PersonalPermissionsContextIdentifier
             {

@@ -3,17 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models;
 
-namespace WebApplication.Controllers;
+namespace KSeF.DemoWebApp.Controllers;
 [Route("[controller]")]
 [ApiController]
-public class InvoicesController : ControllerBase
+public class InvoicesController(IKSeFClient ksefClient) : ControllerBase
 {
-    private readonly IKSeFClient ksefClient;
-
-    public InvoicesController(IKSeFClient ksefClient)
-    {
-        this.ksefClient = ksefClient;
-    }
+    private readonly IKSeFClient ksefClient = ksefClient;
 
     /// <summary>
     /// Pobranie faktury po numerze referencyjnym.
@@ -21,7 +16,7 @@ public class InvoicesController : ControllerBase
     [HttpGet("single")]
     public async Task<ActionResult<string>> GetInvoiceAsync([FromQuery] string ksefReferenceNumber, [FromQuery] string accessToken, CancellationToken cancellationToken)
     {
-        return await ksefClient.GetInvoiceAsync(ksefReferenceNumber, accessToken, cancellationToken);
+        return await ksefClient.GetInvoiceAsync(ksefReferenceNumber, accessToken, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -35,7 +30,7 @@ public class InvoicesController : ControllerBase
         [FromQuery] int? pageSize,
         CancellationToken cancellationToken)
     {
-        return await ksefClient.QueryInvoiceMetadataAsync(body, accessToken, pageOffset, pageSize, SortOrder.Asc, cancellationToken);
+        return await ksefClient.QueryInvoiceMetadataAsync(body, accessToken, pageOffset, pageSize, SortOrder.Asc, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -46,11 +41,9 @@ public class InvoicesController : ControllerBase
     public async Task<ActionResult<OperationResponse>> ExportInvoices(
         [FromBody] InvoiceExportRequest request,
         [FromHeader(Name = "Authorization")] string accessToken,
-        [FromQuery] int? pageOffset,
-        [FromQuery] int? pageSize,
         CancellationToken cancellationToken)
     {
-        OperationResponse result = await ksefClient.ExportInvoicesAsync(request, accessToken, cancellationToken);
+        OperationResponse result = await ksefClient.ExportInvoicesAsync(request, accessToken, cancellationToken:cancellationToken).ConfigureAwait(false);
         return Ok(result);
     }
 
@@ -64,7 +57,7 @@ public class InvoicesController : ControllerBase
         [FromHeader(Name = "Authorization")] string accessToken,
         CancellationToken cancellationToken)
     {
-        InvoiceExportStatusResponse result = await ksefClient.GetInvoiceExportStatusAsync(operationReferenceNumber, accessToken, cancellationToken);
+        InvoiceExportStatusResponse result = await ksefClient.GetInvoiceExportStatusAsync(operationReferenceNumber, accessToken, cancellationToken).ConfigureAwait(false);
         return Ok(result);
     }
 }

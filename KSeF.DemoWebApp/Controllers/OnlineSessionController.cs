@@ -3,23 +3,18 @@ using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
+using KSeF.Client.Api.Builders.Online;
 
 
-namespace WebApplication.Controllers;
+namespace KSeF.DemoWebApp.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class OnlineSessionController : ControllerBase
+public class OnlineSessionController(IKSeFClient ksefClient, ICryptographyService cryptographyService) : ControllerBase
 {
-    private readonly ICryptographyService cryptographyService;
+    private readonly ICryptographyService cryptographyService = cryptographyService;
     private static EncryptionData? encryptionData;
-    private readonly IKSeFClient ksefClient;
-
-    public OnlineSessionController(IKSeFClient ksefClient, ICryptographyService cryptographyService)
-    {
-        this.cryptographyService = cryptographyService;
-        this.ksefClient = ksefClient;
-    }
+    private readonly IKSeFClient ksefClient = ksefClient;
 
     [HttpPost("open-session")]
     public async Task<ActionResult<OpenOnlineSessionResponse>> OpenOnlineSessionAsync(string accessToken, CancellationToken cancellationToken)
@@ -33,7 +28,7 @@ public class OnlineSessionController : ControllerBase
              initializationVector: encryptionData.EncryptionInfo.InitializationVector)
          .Build();
 
-        OpenOnlineSessionResponse openSessionResponse = await ksefClient.OpenOnlineSessionAsync(request, accessToken, cancellationToken);
+        OpenOnlineSessionResponse openSessionResponse = await ksefClient.OpenOnlineSessionAsync(request, accessToken, cancellationToken: cancellationToken).ConfigureAwait(false);
         return Ok(openSessionResponse);
     }
 

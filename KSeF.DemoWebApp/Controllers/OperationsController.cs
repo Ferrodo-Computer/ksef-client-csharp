@@ -6,15 +6,8 @@ namespace KSeF.DemoWebApp.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class OperationsController : ControllerBase
-    {
-        private readonly IKSeFClient _client;
-
-        public OperationsController(IKSeFClient client)
-        {
-            _client = client;
-        }
-
+    public class OperationsController(IKSeFClient client) : ControllerBase
+    {        
         /// <summary>
         /// Sprawdzenie statusu zgody na wystawianie faktur z załącznikiem.
         /// </summary>
@@ -24,7 +17,7 @@ namespace KSeF.DemoWebApp.Controllers
             [FromHeader(Name = "Authorization")] string accessToken,
             CancellationToken cancellationToken)
         {
-            PermissionsAttachmentAllowedResponse result = await _client.GetAttachmentPermissionStatusAsync(accessToken, cancellationToken);
+            PermissionsAttachmentAllowedResponse result = await client.GetAttachmentPermissionStatusAsync(accessToken, cancellationToken).ConfigureAwait(false);
             return Ok(result);
         }
     }

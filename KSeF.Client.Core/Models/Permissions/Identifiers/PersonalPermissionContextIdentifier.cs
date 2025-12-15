@@ -1,4 +1,4 @@
-namespace KSeF.Client.Core.Models.Permissions
+namespace KSeF.Client.Core.Models.Permissions.Identifiers
 {
     public class PersonalPermissionContextIdentifier
     {

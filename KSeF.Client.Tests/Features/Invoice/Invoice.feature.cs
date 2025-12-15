@@ -1,6 +1,9 @@
 using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Models.ApiResponses;
+using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Invoices;
+using KSeF.Client.Core.Models.Sessions;
+using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using KSeF.Client.Tests.Utils;
 
 namespace KSeF.Client.Tests.Features
@@ -16,7 +19,7 @@ namespace KSeF.Client.Tests.Features
         public InvoiceTests()
         {
             nip = MiscellaneousUtils.GetRandomNip();
-            Core.Models.Authorization.AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, nip).GetAwaiter().GetResult();
+            Core.Models.Authorization.AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(AuthorizationClient, nip).GetAwaiter().GetResult();
             authToken = authInfo.AccessToken.Token;
         }
 
@@ -24,7 +27,7 @@ namespace KSeF.Client.Tests.Features
         [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
         [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
         [Trait("Scenario", "Posiadając uprawnienie właścicielskie pytamy o fakturę wysłaną")]
-        public async Task GivenNewInvoice_SendedToKsef_ThenReturnsNewKsefNumber(SystemCode systemCode, string invoiceTemplatePath)
+        public async Task GivenNewInvoiceSendedToKsefThenReturnsNewKsefNumber(SystemCode systemCode, string invoiceTemplatePath)
         {
             // authenticated in constructor
             Assert.NotNull(authToken);
@@ -88,7 +91,7 @@ namespace KSeF.Client.Tests.Features
         [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
         [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
         [Trait("Scenario", "Posiadając uprawnienie właścicielskie wysyłamy szyfrowaną fakturę z nieprawidłowym numerem NIP sprzedawcy")]
-        public async Task GivenInvalidNewInvoice_SendedToKsef_ThenReturnsErrorInvalidKsefNumber(SystemCode systemCode, string invoiceTemplatePath)
+        public async Task GivenInvalidNewInvoiceSendedToKsefThenReturnsErrorInvalidKsefNumber(SystemCode systemCode, string invoiceTemplatePath)
         {
             string wrongNIP = MiscellaneousUtils.GetRandomNip();
 
@@ -113,15 +116,24 @@ namespace KSeF.Client.Tests.Features
             invoiceTemplatePath,
             encryptionData,
             CryptographyService);
-        Assert.NotNull(sendInvoiceResponse);
-        Assert.NotNull(sendInvoiceResponse.ReferenceNumber);
+            Assert.NotNull(sendInvoiceResponse);
+            Assert.NotNull(sendInvoiceResponse.ReferenceNumber);
 
             try
             {
-                Core.Models.Sessions.SessionInvoice sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
+                Core.Models.Sessions.SessionInvoice sendInvoiceStatus;
+
+                do
+                {
+                    sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
                     openSessionRequest.ReferenceNumber,
                     sendInvoiceResponse.ReferenceNumber,
                     authToken);
+
+                    await Task.Delay(SleepTime);
+                }
+                while (sendInvoiceStatus.Status.Code == 150);
+
                 Assert.NotNull(sendInvoiceStatus);
                 Assert.Equal(InvoiceInSessionStatusCodeResponse.InvalidPermissions, sendInvoiceStatus.Status.Code); // CODE 410, Insufficient permissions
             }
@@ -137,10 +149,10 @@ namespace KSeF.Client.Tests.Features
         [Trait("Field", "DataWytworzeniaFa")]
         [Trait("Condition", "< 2025-09-01")]
         [Trait("Scenario", "Invoice rejected when DataWytworzeniaFa < 2025-09-01")]
-        public async Task GivenInvoice_WithDataWytworzeniaFa_BeforeCutoff_ShouldFail(
+        public async Task GivenInvoiceWithDataWytworzeniaFaBeforeCutoffShouldFail(
             SystemCode systemCode, string templatePath)
         {
-            DateTime cutoffUtc = new DateTime(2025, 8, 31);
+            DateTime cutoffUtc = new(2025, 8, 31);
 
             Core.Models.Sessions.EncryptionData encryptionData = CryptographyService.GetEncryptionData();
 
@@ -152,16 +164,24 @@ namespace KSeF.Client.Tests.Features
             string invalidXml = InvoiceHelpers.SetElementValue(
                 template, "DataWytworzeniaFa", InvoiceHelpers.SetDateForElement("DataWytworzeniaFa", cutoffUtc));
 
-        try
-        {
+            try
+            {
                 Core.Models.Sessions.OnlineSession.SendInvoiceResponse sendInvoiceResponse = await OnlineSessionUtils.SendInvoiceFromXmlAsync(
                 KsefClient, openSessionRequest.ReferenceNumber, authToken, invalidXml, encryptionData, CryptographyService);
-            Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse?.ReferenceNumber));
+                Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse?.ReferenceNumber));
 
-                Core.Models.Sessions.SessionInvoice sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
+                Core.Models.Sessions.SessionInvoice sendInvoiceStatus;
+                int attemtp = 0;
+                do
+                {
+                    sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
                     openSessionRequest.ReferenceNumber,
                     sendInvoiceResponse.ReferenceNumber,
                     authToken);
+                    attemtp++;
+                    await Task.Delay(SleepTime);
+                } while (sendInvoiceStatus.Status.Code != 450 || attemtp < 5);
+                
                 Assert.NotNull(sendInvoiceStatus);
                 Assert.Equal(InvoiceInSessionStatusCodeResponse.InvoiceSemanticValidationError, sendInvoiceStatus.Status.Code); // CODE 450, Semantic validation error of the invoice document
             }
@@ -178,7 +198,7 @@ namespace KSeF.Client.Tests.Features
         [Trait("Field", "P_1")]
         [Trait("Condition", "> today")]
         [Trait("Scenario", "Invoice rejected when P_1 is set to a future date")]
-        public async Task GivenInvoice_WithP1_InFuture_ShouldFail(
+        public async Task GivenInvoiceWithP1InFutureShouldFail(
             SystemCode systemCode, string templatePath)
         {
             Core.Models.Sessions.EncryptionData encryptionData = CryptographyService.GetEncryptionData();
@@ -192,16 +212,25 @@ namespace KSeF.Client.Tests.Features
             DateTime tomorrowUtc = DateTime.UtcNow.Date.AddDays(1);
             string invalidXml = InvoiceHelpers.SetElementValue(template, "P_1", InvoiceHelpers.SetDateForElement("P_1", tomorrowUtc));
 
-        try
-        {
+            try
+            {
                 Core.Models.Sessions.OnlineSession.SendInvoiceResponse sendInvoiceResponse = await OnlineSessionUtils.SendInvoiceFromXmlAsync(
                 KsefClient, openSessionRequest.ReferenceNumber, authToken, invalidXml, encryptionData, CryptographyService);
-            Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse?.ReferenceNumber));
+                Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse?.ReferenceNumber));
 
-                Core.Models.Sessions.SessionInvoice sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
+                Core.Models.Sessions.SessionInvoice sendInvoiceStatus;
+
+                do
+                {
+                    sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
                     openSessionRequest.ReferenceNumber,
                     sendInvoiceResponse.ReferenceNumber,
                     authToken);
+
+                    await Task.Delay(SleepTime);
+                }
+                while (sendInvoiceStatus.Status.Code == 150);
+
                 Assert.NotNull(sendInvoiceStatus);
                 Assert.Equal(InvoiceInSessionStatusCodeResponse.InvoiceSemanticValidationError, sendInvoiceStatus.Status.Code); // CODE 450, Semantic validation error of the invoice document
             }
@@ -220,12 +249,12 @@ namespace KSeF.Client.Tests.Features
         [Trait("Field", "pageSize")]
         [Trait("Condition", "outside 10-250")]
         [Trait("Scenario", "QueryInvoiceMetadataAsync throws when pageSize is out of allowed range")]
-        public async Task GivenInvoiceMetadataQuery_WithInvalidPageSize_ShouldThrowError(int pageSize)
+        public async Task GivenInvoiceMetadataQueryWithInvalidPageSizeShouldThrowError(int pageSize)
         {
             // authenticated in constructor
             Assert.NotNull(authToken);
 
-            InvoiceQueryFilters invoiceMetadataQueryRequest = new InvoiceQueryFilters
+            InvoiceQueryFilters invoiceMetadataQueryRequest = new()
             {
                 SubjectType = InvoiceSubjectType.Subject1,
                 DateRange = new DateRange
@@ -243,6 +272,87 @@ namespace KSeF.Client.Tests.Features
                     cancellationToken: CancellationToken.None,
                     pageOffset: 0,
                     pageSize: pageSize));
+        }
+
+        [Fact]
+        [Trait("Scenario", "Podmiot 3 może wyszukać fakturę, w której został wskazany jako ThirdSubject")]
+        public async Task GivenNewInvoiceWithP3_SendedToKsef_ThenP3ShouldFoundInvoice()
+        {
+            // Arrange
+            EncryptionData encryptionData = CryptographyService.GetEncryptionData();
+            string invoiceCreatorNip = MiscellaneousUtils.GetRandomNip();
+            string thirdSubjectIdentifier = MiscellaneousUtils.GetRandomNip();
+
+            // Wystawienie faktury przez wykonawcę dla jednostki podrzędnej identyfikującej sie numerem NIP  ---
+            string invoiceCreatorAuthToken = (await AuthenticationUtils.AuthenticateAsync(
+                AuthorizationClient, invoiceCreatorNip)).AccessToken.Token;
+
+            OpenOnlineSessionResponse openSessionResponse = await OnlineSessionUtils.OpenOnlineSessionAsync(
+                KsefClient,
+                encryptionData,
+                invoiceCreatorAuthToken,
+                SystemCode.FA3);
+
+            Assert.NotNull(openSessionResponse?.ReferenceNumber);
+
+            SendInvoiceResponse sendInvoiceResponse = await OnlineSessionUtils.SendInvoiceAsync(
+                KsefClient,
+                openSessionResponse.ReferenceNumber,
+                invoiceCreatorAuthToken,
+                invoiceCreatorNip,
+                thirdSubjectIdentifier,
+                "invoice-template-fa-3-with-custom-Subject3.xml",
+                encryptionData,
+                CryptographyService);
+
+            Assert.NotNull(sendInvoiceResponse);
+
+            SessionStatusResponse sessionStatus = await AsyncPollingUtils.PollAsync(
+                async () => await OnlineSessionUtils.GetOnlineSessionStatusAsync(
+                    KsefClient,
+                    openSessionResponse.ReferenceNumber,
+                    invoiceCreatorAuthToken).ConfigureAwait(false),
+                result => result is not null && result.InvoiceCount == result.SuccessfulInvoiceCount,
+                delay: TimeSpan.FromMilliseconds(2 * SleepTime),
+                maxAttempts: 60);
+
+            Assert.NotNull(sessionStatus);
+            Assert.Equal(sessionStatus.InvoiceCount, sessionStatus.SuccessfulInvoiceCount);
+
+            SessionInvoicesResponse invoices = await KsefClient.GetSessionInvoicesAsync(
+                openSessionResponse.ReferenceNumber,
+                invoiceCreatorAuthToken,
+                pageSize: 10);
+
+            Assert.NotEmpty(invoices.Invoices);
+
+            // wyszukiwanie faktury jako podmiot3---
+            AuthenticationOperationStatusResponse autResult = await AuthenticationUtils.AuthenticateAsOrganizationAsync(KsefClient, thirdSubjectIdentifier, AuthenticationTokenContextIdentifierType.Nip, EncryptionMethodEnum.ECDsa);
+            string thirdSubjectToken = autResult.AccessToken.Token;
+
+            await Task.Delay(10 * SleepTime);
+
+            InvoiceQueryFilters invoiceQuery = new()
+            {
+                SubjectType = InvoiceSubjectType.Subject3,
+                DateRange = new DateRange
+                {
+                    From = DateTime.UtcNow.AddMonths(-2),
+                    To = DateTime.UtcNow.AddMonths(1),
+                    DateType = DateType.PermanentStorage
+                }
+            };
+
+
+            PagedInvoiceResponse invoiceQueryResponse = await KsefClient.QueryInvoiceMetadataAsync(
+                requestPayload: invoiceQuery,
+                accessToken: thirdSubjectToken,
+                cancellationToken: CancellationToken.None,
+                pageOffset: 0,
+                pageSize: 30);
+
+            // Assert
+            Assert.Contains(invoiceQueryResponse.Invoices, x => x.ThirdSubjects.Any(y => y.Identifier.Value == thirdSubjectIdentifier));
         }
     }
 }

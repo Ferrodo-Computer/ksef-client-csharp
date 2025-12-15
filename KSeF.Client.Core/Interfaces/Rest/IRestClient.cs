@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace KSeF.Client.Core.Interfaces.Rest
 {
+    /// <summary>
+    /// Klient REST obsługujący żądania GET, POST i DELETE z opcjonalną autoryzacją,
+    /// serializacją/deserializacją treści oraz strukturalną obsługą błędów.
+    /// </summary>
     public interface IRestClient
     {
         /// <summary>
@@ -21,7 +25,7 @@ namespace KSeF.Client.Core.Interfaces.Rest
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <param name="additionalHeaders">Dodatkowe nagłówki HTTP (opcjonalne).</param>
         /// <returns>Obiekt typu TResponse</returns>
-        Task<TResponse> SendAsync<TResponse, TRequest>(HttpMethod method, string url, TRequest requestBody = default, string token = null, string contentType = "application/json", CancellationToken cancellationToken = default, Dictionary<string, string> additionalHeaders = null);
+        Task<TResponse> SendAsync<TResponse, TRequest>(HttpMethod method, string url, TRequest requestBody = default, string token = null, string contentType = "application/json", Dictionary<string, string> additionalHeaders = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Wysyła żądanie HTTP z podanym HttpContent, bez serializacji obiektów.
@@ -39,6 +43,19 @@ namespace KSeF.Client.Core.Interfaces.Rest
             HttpContent content,
             IDictionary<string, string> additionalHeaders = null,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Wysyła żądanie HTTP z podanym HttpContent, bez serializacji obiektów.
+        /// Przeznaczone do ręcznego przesyłania danych binarnych (np. plików, strumieni).
+        /// Nie modyfikuje zawartości ani nie zmienia nagłówków.
+        /// </summary>
+        /// <param name="method">Metoda HTTP (np. PUT, POST).</param>
+        /// <param name="url">Adres URL żądania.</param>
+        /// <param name="requestBody"></param>
+        /// <param name="token"></param>
+        /// <param name="contentType"></param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        Task<TResponse> SendAsync<TResponse, TRequest>(HttpMethod method, string url, TRequest requestBody = default, string token = null, string contentType = "application/json", CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Wysyła żądanie HTTP bez oczekiwania na odpowiedź w postaci obiektu.
@@ -89,8 +106,9 @@ namespace KSeF.Client.Core.Interfaces.Rest
         /// </summary>
         Task ExecuteAsync(RestRequest request, CancellationToken cancellationToken = default);
 
+        /// <inheritdoc/>
         Task<TResponse> ExecuteAsync<TResponse, TRequest>(
-            RestRequest<TRequest> req, 
+            RestRequest<TRequest> request, 
             CancellationToken 
             cancellationToken = default);
     }

@@ -5,7 +5,7 @@ using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Core.Models.Token;
 using KSeF.Client.Tests.Utils;
 
-namespace KSeF.Client.Tests.Features
+namespace KSeF.Client.Tests.Features.Credentials
 {
     [Collection("CredentialsGrantScenario")]
     [Trait("Category", "Features")]
@@ -16,15 +16,15 @@ namespace KSeF.Client.Tests.Features
         [InlineData("90091309123", new[] { PersonPermissionType.InvoiceWrite, PersonPermissionType.InvoiceRead, PersonPermissionType.Introspection, PersonPermissionType.CredentialsRead, PersonPermissionType.CredentialsManage })]
         [InlineData("6651887777", new[] { PersonPermissionType.InvoiceWrite, PersonPermissionType.InvoiceRead, PersonPermissionType.Introspection, PersonPermissionType.CredentialsRead, PersonPermissionType.CredentialsManage })]
         [Trait("Scenario", "Nadanie uprawnienia wystawianie faktur")]
-        public async Task GivenOwnerIsAuthenticated_WhenGrantInvoiceIssuingPermissionToEntity_ThenPermissionIsConfirmed(string identyficator, PersonPermissionType[] permissions)
+        public async Task GivenOwnerIsAuthenticatedWhenGrantInvoiceIssuingPermissionToEntityThenPermissionIsConfirmed(string identyficator, PersonPermissionType[] permissions)
         {
             string ownerNip = MiscellaneousUtils.GetRandomNip();
 
-            string authToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, ownerNip)).AccessToken.Token;
+            string authToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip)).AccessToken.Token;
 
             bool isNIP = identyficator.Length == 10; //zmienna identifier obsługuje dwa typy podmiotów. nr. NIP oraz nr. PESEL. Zmienne rozróżniane są po długości.
 
-            GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new GrantPermissionsPersonSubjectIdentifier { Type = isNIP ? GrantPermissionsPersonSubjectIdentifierType.Nip : GrantPermissionsPersonSubjectIdentifierType.Pesel, Value = identyficator };
+            GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new() { Type = isNIP ? GrantPermissionsPersonSubjectIdentifierType.Nip : GrantPermissionsPersonSubjectIdentifierType.Pesel, Value = identyficator };
 
             OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
                     authToken,
@@ -32,7 +32,7 @@ namespace KSeF.Client.Tests.Features
                     permissions, "CredentialsGrantTests");
 
             PermissionsOperationStatusResponse operationStatus = await AsyncPollingUtils.PollAsync(
-                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, grantPermissionsResponse.ReferenceNumber, authToken),
+                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, grantPermissionsResponse.ReferenceNumber, authToken).ConfigureAwait(false),
                 status => status is not null &&
                          status.Status is not null &&
                          status.Status.Code == 200,
@@ -44,7 +44,7 @@ namespace KSeF.Client.Tests.Features
             Assert.True(grantedPermissions.Count == permissions.Length);
 
             //uwierzytelnienie w kontekście w którym otrzymano uprawnienia
-            Core.Models.Authorization.AuthenticationOperationStatusResponse authContext = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, identyficator, ownerNip);
+            Core.Models.Authorization.AuthenticationOperationStatusResponse authContext = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, identyficator, ownerNip);
             Assert.NotNull(authContext);
             PersonToken personToken = TokenService.MapFromJwt(authContext.AccessToken.Token);
             Assert.True(personToken.Permissions.Length == permissions.Length);
@@ -55,7 +55,7 @@ namespace KSeF.Client.Tests.Features
                 Assert.NotNull(revokeSuccessful);
 
                 PermissionsOperationStatusResponse revokePermissionsActionStatus = await AsyncPollingUtils.PollAsync(
-                    async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, revokeSuccessful.ReferenceNumber, authToken),
+                    async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, revokeSuccessful.ReferenceNumber, authToken).ConfigureAwait(false),
                     status => status is not null &&
                              status.Status is not null &&
                              status.Status.Code == 200,
@@ -77,28 +77,28 @@ namespace KSeF.Client.Tests.Features
             bool isNip = identifier.Length == 10; //zmienna identifier obsługuje dwa typy podmiotów. nr. NIP oraz nr. PESEL. Zmienne rozróżniane są po długości.
             //Arange
             string ownerNip = MiscellaneousUtils.GetRandomNip();
-            string authToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, ownerNip)).AccessToken.Token;
+            string authToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip)).AccessToken.Token;
 
             string delegateNip = MiscellaneousUtils.GetRandomNip();
 
             // nadanie uprawnień CredentialsManage
-            GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new GrantPermissionsPersonSubjectIdentifier { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip };
+            GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new() { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip };
             PersonPermissionType[] managePermission = new[] { PersonPermissionType.CredentialsManage };
             OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient, authToken, subjectIdentifier, managePermission);
 
             PermissionsOperationStatusResponse operationStatus = await AsyncPollingUtils.PollAsync(
-                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, operationResponse.ReferenceNumber, authToken),
+                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, operationResponse.ReferenceNumber, authToken).ConfigureAwait(false),
                 status => status is not null &&
                          status.Status is not null &&
                          status.Status.Code == 200,
-                delay: TimeSpan.FromSeconds(5),
+                delay: TimeSpan.FromMilliseconds(SleepTime),
                 maxAttempts: 60,
                 cancellationToken: CancellationToken.None);
 
             //Nadanie uprawnień jako menadżer uprawnień
-            string delegateAuthToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, delegateNip, ownerNip)).AccessToken.Token;
+            string delegateAuthToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, delegateNip, ownerNip)).AccessToken.Token;
 
-            GrantPermissionsPersonSubjectIdentifier grantPermissionsPersonSubjectIdentifier = new GrantPermissionsPersonSubjectIdentifier { Type = isNip ? GrantPermissionsPersonSubjectIdentifierType.Nip : GrantPermissionsPersonSubjectIdentifierType.Pesel, Value = identifier };
+            GrantPermissionsPersonSubjectIdentifier grantPermissionsPersonSubjectIdentifier = new() { Type = isNip ? GrantPermissionsPersonSubjectIdentifierType.Nip : GrantPermissionsPersonSubjectIdentifierType.Pesel, Value = identifier };
 
             OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
                     delegateAuthToken,
@@ -106,7 +106,7 @@ namespace KSeF.Client.Tests.Features
                     permissions, "CredentialsGrantTests");
 
             PermissionsOperationStatusResponse grantPermissionsActionStatus = await AsyncPollingUtils.PollAsync(
-                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, operationResponse.ReferenceNumber, delegateAuthToken),
+                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, operationResponse.ReferenceNumber, delegateAuthToken).ConfigureAwait(false),
                 status => status is not null &&
                          status.Status is not null &&
                          status.Status.Code == 200,
@@ -118,7 +118,7 @@ namespace KSeF.Client.Tests.Features
             Assert.True(grantedPermissions.Count(x=> x.AuthorizedIdentifier.Value == identifier) == permissions.Length);
 
             //uwierzytelnienie w kontekście w którym otrzymano uprawnienia
-            Core.Models.Authorization.AuthenticationOperationStatusResponse authContext = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, identifier, ownerNip);
+            Core.Models.Authorization.AuthenticationOperationStatusResponse authContext = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, identifier, ownerNip);
             Assert.NotNull(authContext);
             PersonToken personToken = TokenService.MapFromJwt(authContext.AccessToken.Token);
             Assert.True(personToken.Permissions.Length == permissions.Length);
@@ -129,11 +129,11 @@ namespace KSeF.Client.Tests.Features
                 Assert.NotNull(revokeSuccessful);
 
                 PermissionsOperationStatusResponse revokePermissionsActionStatus = await AsyncPollingUtils.PollAsync(
-                    async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, revokeSuccessful.ReferenceNumber, authToken),
+                    async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, revokeSuccessful.ReferenceNumber, authToken).ConfigureAwait(false),
                     status => status is not null &&
                              status.Status is not null &&
                              status.Status.Code == 200,
-                    delay: TimeSpan.FromSeconds(2),
+                    delay: TimeSpan.FromMilliseconds(SleepTime),
                     maxAttempts: 60,
                     cancellationToken: CancellationToken.None);
             }

@@ -8,11 +8,6 @@ namespace KSeF.Client.Core.Models.Permissions.EuEntityRepresentative
         public EuEntityRepresentativeSubjectIdentifier SubjectIdentifier { get; set; }
         public ICollection<EuEntityRepresentativeStandardPermissionType> Permissions { get; set; }
         public string Description { get; set; }
-    }
-
-    public enum EuEntityRepresentativeStandardPermissionType
-    {
-        InvoiceRead,
-        InvoiceWrite,
+        public EuEntityRepresentativeSubjectDetails SubjectDetails { get; set; }
     }
 }

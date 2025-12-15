@@ -5,7 +5,7 @@ using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Permissions.Identifiers;
 
-namespace WebApplication.Controllers;
+namespace KSeF.DemoWebApp.Controllers;
 
 [ApiController]
 [Route("[controller]")]
@@ -21,7 +21,7 @@ public class PersonPermissionController(IKSeFClient ksefClient) : ControllerBase
             .WithDescription("Access for quarterly review")
             .Build();
 
-        return await ksefClient.GrantsPermissionPersonAsync(request,  accessToken, cancellationToken);
+        return await ksefClient.GrantsPermissionPersonAsync(request,  accessToken, cancellationToken).ConfigureAwait(false);
     }
 
     [HttpPost("revoke-permissions-for-person")]
@@ -30,6 +30,6 @@ public class PersonPermissionController(IKSeFClient ksefClient) : ControllerBase
     string permissionId,
     CancellationToken cancellationToken)
     {
-        return await ksefClient.RevokeCommonPermissionAsync(permissionId, accessToken, cancellationToken);
+        return await ksefClient.RevokeCommonPermissionAsync(permissionId, accessToken, cancellationToken).ConfigureAwait(false);
     }
 }

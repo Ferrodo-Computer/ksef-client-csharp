@@ -2,7 +2,7 @@
 {
     public class SessionLimitsInCurrentContextResponse
     {
-        public TestDataSessionLimitsBase OnlineSession { get; set; }
-        public TestDataSessionLimitsBase BatchSession { get; set; }
+        public SessionLimits OnlineSession { get; set; }
+        public SessionLimits BatchSession { get; set; }
     }
 }

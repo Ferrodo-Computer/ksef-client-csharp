@@ -66,7 +66,7 @@ public class CertificateClient(IRestClient restClient, IRouteBuilder routeBuilde
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new StringBuilder(Routes.Certificates.Query);
+        StringBuilder urlBuilder = new(Routes.Certificates.Query);
         PaginationHelper.AppendPagination(pageOffset, pageSize, urlBuilder);
         string endpoint = urlBuilder.ToString();
 

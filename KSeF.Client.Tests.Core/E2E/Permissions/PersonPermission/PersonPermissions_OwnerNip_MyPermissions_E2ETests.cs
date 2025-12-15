@@ -5,13 +5,12 @@ using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Core.Models.Token;
 using KSeF.Client.Tests.Utils;
-using Microsoft.Extensions.DependencyInjection;
 
-namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermissions;
+namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermission;
 
-public class PersonPermissions_OwnerNip_MyPermissions_E2ETests : TestBase
+public class PersonPermissionsOwnerNipMyPermissionsE2ETests : TestBase
 {
-    private IPersonTokenService _tokenService => _scope.ServiceProvider.GetRequiredService<IPersonTokenService>();
+    private IPersonTokenService _tokenService => Get<IPersonTokenService>();
 
     /// <summary>
     /// E2E: „Moje uprawnienia” właściciela w kontekście NIP.
@@ -25,16 +24,16 @@ public class PersonPermissions_OwnerNip_MyPermissions_E2ETests : TestBase
     /// </list>
     /// </remarks>
     [Fact]
-    public async Task Search_MyPermissions_AsOwnerNip_InCurrentContext_ShouldReturnPage_AndTokenShouldContainOwner()
+    public async Task SearchMyPermissionsAsOwnerNipInCurrentContextShouldReturnPageAndTokenShouldContainOwner()
     {
         #region Arrange
         string ownerNip = MiscellaneousUtils.GetRandomNip();
 
         AuthenticationOperationStatusResponse ownerAuth =
-            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, ownerNip);
+            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip);
         string ownerAccessToken = ownerAuth.AccessToken.Token;
 
-        PersonPermissionsQueryRequest request = new PersonPermissionsQueryRequest
+        PersonPermissionsQueryRequest request = new()
         {
             ContextIdentifier = new PersonPermissionsContextIdentifier
             {
@@ -53,7 +52,7 @@ public class PersonPermissions_OwnerNip_MyPermissions_E2ETests : TestBase
 
         #region Act
         // 1) Wynik może być pusty i to jest OK dla Ownera
-        PagedPermissionsResponse<PersonPermission> page =
+        PagedPermissionsResponse<Client.Core.Models.Permissions.PersonPermission> page =
             await KsefClient.SearchGrantedPersonPermissionsAsync(
                 request, ownerAccessToken, pageOffset: 0, pageSize: 50, cancellationToken: CancellationToken);
 

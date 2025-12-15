@@ -1,6 +1,7 @@
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Certificates;
 using KSeF.Client.Core.Models.Sessions;
+using KSeF.Client.Extensions;
 using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -80,7 +81,7 @@ public class CryptographyService : ICryptographyService, IDisposable
             return; // Nie wykonuj, jeśli zarządzane zewnętrznie
         }
 
-        await RefreshAsync(cancellationToken); // pobierz po raz pierwszy
+        await RefreshAsync(cancellationToken).ConfigureAwait(false); // pobierz po raz pierwszy
         ScheduleNextRefresh();  // ustaw czas następnego odświeżania
     }
 
@@ -92,7 +93,7 @@ public class CryptographyService : ICryptographyService, IDisposable
             return; // Nie wykonuj, jeśli zarządzane zewnętrznie
         }
 
-        await RefreshAsync(cancellationToken);
+        await RefreshAsync(cancellationToken).ConfigureAwait(false);
         ScheduleNextRefresh();
     }
 
@@ -118,7 +119,7 @@ public class CryptographyService : ICryptographyService, IDisposable
         byte[] iv = GenerateRandom16BytesIv();
 
         byte[] encryptedKey = EncryptWithRSAUsingPublicKey(key, RSAEncryptionPadding.OaepSHA256);
-        EncryptionInfo encryptionInfo = new EncryptionInfo()
+        EncryptionInfo encryptionInfo = new()
         {
             EncryptedSymmetricKey = Convert.ToBase64String(encryptedKey),
 
@@ -238,7 +239,7 @@ public class CryptographyService : ICryptographyService, IDisposable
 
         X500DistinguishedName subject = CreateSubjectDistinguishedName(certificateInfo);
 
-        CertificateRequest request = new CertificateRequest(subject, rsa, HashAlgorithmName.SHA256, padding);
+        CertificateRequest request = new(subject, rsa, HashAlgorithmName.SHA256, padding);
 
         byte[] csrDer = request.CreateSigningRequest();
         return (Convert.ToBase64String(csrDer), Convert.ToBase64String(privateKey));
@@ -291,7 +292,7 @@ public class CryptographyService : ICryptographyService, IDisposable
                 fileSize += read;
             }
         }
-        sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+        sha256.TransformFinalBlock([], 0, 0);
 
         string base64Hash = Convert.ToBase64String(sha256.Hash!);
 
@@ -390,11 +391,8 @@ public class CryptographyService : ICryptographyService, IDisposable
         aes.Encrypt(nonce, content, cipherText, tag);
 
         byte[] subjectPublicKeyInfo = ecdhEphemeral.PublicKey.ExportSubjectPublicKeyInfo();
-        return subjectPublicKeyInfo
-            .Concat(nonce)
-            .Concat(tag)
-            .Concat(cipherText)
-            .ToArray();
+        return [.. subjectPublicKeyInfo
+, .. nonce, .. tag, .. cipherText];
     }
     /// <summary>
     /// Zapewnia funkcjonalność do asynchronicznego pobierania kolekcji informacji o certyfikatach PEM.
@@ -402,11 +400,9 @@ public class CryptographyService : ICryptographyService, IDisposable
     /// <remarks>Ta klasa jest implementacją interfejsu <see cref="ICertificateFetcher"/>,
     /// zaprojektowaną do pobierania certyfikatów przy użyciu określonej funkcji asynchronicznej.
     /// Służy wyłącznie utrzymaniu kompatybilności wstecznej (użyciu konstruktora z delegatem)</remarks>
-    private sealed class CertificateFetcher : ICertificateFetcher
-    {
-        private readonly Func<CancellationToken, Task<ICollection<PemCertificateInfo>>> _func;
-        public CertificateFetcher(Func<CancellationToken, Task<ICollection<PemCertificateInfo>>> func) => _func = func;
-        public Task<ICollection<PemCertificateInfo>> GetCertificatesAsync(CancellationToken cancellationToken) => _func(cancellationToken);
+    private sealed class CertificateFetcher(Func<CancellationToken, Task<ICollection<PemCertificateInfo>>> func) : ICertificateFetcher
+    {   
+        public Task<ICollection<PemCertificateInfo>> GetCertificatesAsync(CancellationToken cancellationToken) => func(cancellationToken);
     }
 
     private static Aes CreateConfiguredAes(byte[] key, byte[] iv)
@@ -451,7 +447,7 @@ public class CryptographyService : ICryptographyService, IDisposable
         }
         else
         {
-            throw new Exception("Nie znaleziono klucza RSA.");
+            throw new InvalidOperationException("Nie znaleziono klucza RSA.");
         }
     }
 
@@ -467,7 +463,7 @@ public class CryptographyService : ICryptographyService, IDisposable
         }
         else
         {
-            throw new Exception("Nie znaleziono klucza ECDSA.");
+            throw new InvalidOperationException("Nie znaleziono klucza ECDSA.");
         }
     }
 
@@ -495,7 +491,7 @@ public class CryptographyService : ICryptographyService, IDisposable
             return;
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_isInitialized)
@@ -503,7 +499,7 @@ public class CryptographyService : ICryptographyService, IDisposable
                 return;
             }
 
-            ICollection<PemCertificateInfo> list = await _fetcher.GetCertificatesAsync(cancellationToken);
+            ICollection<PemCertificateInfo> list = await _fetcher.GetCertificatesAsync(cancellationToken).ConfigureAwait(false);
             CertificateMaterials certificateMaterials = BuildMaterials(list);
 
             Volatile.Write(ref _materials, certificateMaterials);
@@ -549,7 +545,7 @@ public class CryptographyService : ICryptographyService, IDisposable
             try
             {
                 _isInitialized = false;
-                await RefreshAsync(CancellationToken.None);
+                await RefreshAsync(CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {
@@ -572,11 +568,13 @@ public class CryptographyService : ICryptographyService, IDisposable
             .FirstOrDefault(c => c.Usage.Contains(PublicKeyCertificateUsage.KsefTokenEncryption))
             ?? throw new InvalidOperationException("Brak certyfikatu KsefTokenEncryption.");
 
-        X509Certificate2 sym = new X509Certificate2(Convert.FromBase64String(symmetricDto.Certificate));
-        X509Certificate2 tok = new X509Certificate2(Convert.FromBase64String(tokenDto.Certificate));
+        byte[] symetricBytes = Convert.FromBase64String(symmetricDto.Certificate);
+        X509Certificate2 sym = symetricBytes.LoadCertificate();
+        byte[] tokenBytes = Convert.FromBase64String(tokenDto.Certificate);
+        X509Certificate2 tok = tokenBytes.LoadCertificate();
 
         DateTime minNotAfterUtc = new[] { sym.NotAfter.ToUniversalTime(), tok.NotAfter.ToUniversalTime() }.Min();
-        DateTimeOffset expiresAt = new DateTimeOffset(minNotAfterUtc, TimeSpan.Zero);
+        DateTimeOffset expiresAt = new(minNotAfterUtc, TimeSpan.Zero);
 
         // odśwież przed wygaśnięciem lub najpóźniej za maxRevalidateInterval
         TimeSpan safetyMargin = TimeSpan.FromDays(1);
@@ -605,7 +603,7 @@ public class CryptographyService : ICryptographyService, IDisposable
         X500DistinguishedName subject = CreateSubjectDistinguishedName(certificateInfo);
 
         // Budowanie CSR
-        CertificateRequest request = new CertificateRequest(subject, ecdsa, HashAlgorithmName.SHA256);
+        CertificateRequest request = new(subject, ecdsa, HashAlgorithmName.SHA256);
 
         // Eksport CSR do formatu DER (bajtów)
         byte[] csrDer = request.CreateSigningRequest();
@@ -614,7 +612,7 @@ public class CryptographyService : ICryptographyService, IDisposable
 
     private static X500DistinguishedName CreateSubjectDistinguishedName(CertificateEnrollmentsInfoResponse certificateInfo)
     {
-        AsnWriter asnWriter = new AsnWriter(AsnEncodingRules.DER);
+        AsnWriter asnWriter = new(AsnEncodingRules.DER);
 
         void AddRdn(string oid, string value, UniversalTagNumber tag)
         {
@@ -675,4 +673,15 @@ public class CryptographyService : ICryptographyService, IDisposable
     X509Certificate2 KsefTokenCert,
     DateTimeOffset ExpiresAt,
     DateTimeOffset RefreshAt);
+
+    void IDisposable.Dispose()
+    {
+        _gate?.Dispose();
+
+        _refreshTimer?.Dispose();
+
+        _materials = null;
+
+        GC.SuppressFinalize(this);
+    }
 }

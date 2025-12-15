@@ -2,6 +2,6 @@
 {
     public class TestDataEnrollment
     {
-        public int MaxEnrollments { get; set; } = 0;
+        public int MaxEnrollments { get; set; }
     }
 }

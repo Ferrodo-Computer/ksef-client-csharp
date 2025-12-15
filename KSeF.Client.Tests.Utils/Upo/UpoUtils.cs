@@ -1,5 +1,6 @@
 using KSeF.Client.Core.Interfaces.Clients;
 using System.Xml.Serialization;
+using System.Xml;
 
 namespace KSeF.Client.Tests.Utils.Upo;
 
@@ -14,10 +15,16 @@ public static class UpoUtils
     /// <exception cref="InvalidOperationException">Gdy deserializacja się nie powiedzie (np. niezgodność elementów/namespaces).</exception>
     public static T UpoParse<T>(string xml) where T : IUpoParsable
     {
-        XmlSerializer serializer = new XmlSerializer(typeof(T));
-        using StringReader reader = new StringReader(xml);
+        XmlSerializer serializer = new(typeof(T));
+        using StringReader stringReader = new(xml);
+        XmlReaderSettings settings = new()
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null
+        };
+        using XmlReader xmlReader = XmlReader.Create(stringReader, settings);
 
-        return (T)serializer.Deserialize(reader)!;
+        return (T)serializer.Deserialize(xmlReader)!;
     }
 
     /// <summary>
@@ -25,7 +32,7 @@ public static class UpoUtils
     /// </summary>
     public static async Task<string> GetSessionInvoiceUpoAsync(IKSeFClient ksefClient, string sessionReferenceNumber, string ksefNumber, string accessToken)
     {
-        return await ksefClient.GetSessionInvoiceUpoByKsefNumberAsync(sessionReferenceNumber, ksefNumber, accessToken, CancellationToken.None);
+        return await ksefClient.GetSessionInvoiceUpoByKsefNumberAsync(sessionReferenceNumber, ksefNumber, accessToken, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -33,7 +40,7 @@ public static class UpoUtils
     /// </summary>
     public static async Task<string> GetSessionUpoAsync(IKSeFClient ksefClient, string sessionReferenceNumber, string upoReferenceNumber, string accessToken)
     {
-        return await ksefClient.GetSessionUpoAsync(sessionReferenceNumber, upoReferenceNumber, accessToken, CancellationToken.None);
+        return await ksefClient.GetSessionUpoAsync(sessionReferenceNumber, upoReferenceNumber, accessToken, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -41,6 +48,6 @@ public static class UpoUtils
     /// </summary>
     public static async Task<string> GetUpoAsync(IKSeFClient ksefClient, Uri uri)
     {
-        return await ksefClient.GetUpoAsync(uri, CancellationToken.None);
+        return await ksefClient.GetUpoAsync(uri, CancellationToken.None).ConfigureAwait(false);
     }
 }

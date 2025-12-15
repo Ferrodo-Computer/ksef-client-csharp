@@ -61,7 +61,7 @@
         public const int ArchivePartDecryptionError = 435;
 
         /// <summary>
-        /// Kod 440 — Sesja anulowana, przekroczono czas wysyłki.
+        /// Kod 440 — Sesja anulowana, przekroczono czas wysyłki lub nie wysłano faktur.
         /// </summary>
         public const int SessionTimeoutCancelled = 440;
 

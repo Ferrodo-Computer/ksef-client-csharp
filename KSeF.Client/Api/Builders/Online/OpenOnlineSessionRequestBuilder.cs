@@ -1,73 +1,133 @@
-using KSeF.Client.Core.Models.Sessions.OnlineSession;
-using KSeF.Client.Core.Models.Sessions;
-
-public interface IOpenOnlineSessionRequestBuilder
+namespace KSeF.Client.Api.Builders.Online
 {
-    IOpenOnlineSessionRequestBuilderWithFormCode WithFormCode(string systemCode, string schemaVersion, string value);
-}
+    using KSeF.Client.Core.Models.Sessions.OnlineSession;
+    using KSeF.Client.Core.Models.Sessions;
 
-public interface IOpenOnlineSessionRequestBuilderWithFormCode
-{
-    IOpenOnlineSessionRequestBuilderWithEncryption WithEncryption(string encryptedSymmetricKey, string initializationVector);
-}
-
-public interface IOpenOnlineSessionRequestBuilderWithEncryption
-{
-    OpenOnlineSessionRequest Build();
-}
-
-internal class OpenOnlineSessionRequestBuilderImpl
-    : IOpenOnlineSessionRequestBuilder
-    , IOpenOnlineSessionRequestBuilderWithFormCode
-    , IOpenOnlineSessionRequestBuilderWithEncryption
-{
-    private FormCode _formCode;
-    private EncryptionInfo _encryption = new();
-
-    private OpenOnlineSessionRequestBuilderImpl() { }
-
-    public static IOpenOnlineSessionRequestBuilder Create() => new OpenOnlineSessionRequestBuilderImpl();
-
-    public IOpenOnlineSessionRequestBuilderWithFormCode WithFormCode(string systemCode, string schemaVersion, string value)
+    /// <summary>
+    /// Buduje żądanie otwarcia sesji online w KSeF.
+    /// </summary>
+    public interface IOpenOnlineSessionRequestBuilder
     {
-        if (string.IsNullOrWhiteSpace(systemCode) || string.IsNullOrWhiteSpace(schemaVersion) || string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Parametry FormCode nie mogą być puste ani null.");
+        /// <summary>
+        /// Ustawia kod formularza, który będzie używany w sesji online.
+        /// </summary>
+        /// <param name="systemCode">Kod systemowy formularza zgodny ze specyfikacją KSeF.</param>
+        /// <param name="schemaVersion">Wersja schematu formularza.</param>
+        /// <param name="value">Wartość identyfikująca formularz.</param>
+        /// <returns>
+        /// Interfejs pozwalający ustawić dane szyfrowania.
+        /// </returns>
+        IOpenOnlineSessionRequestBuilderWithFormCode WithFormCode(string systemCode, string schemaVersion, string value);
+    }
 
-        _formCode = new FormCode
+    /// <summary>
+    /// Etap budowy żądania, w którym ustawiono już kod formularza.
+    /// </summary>
+    public interface IOpenOnlineSessionRequestBuilderWithFormCode
+    {
+        /// <summary>
+        /// Ustawia dane szyfrowania używane dla sesji online.
+        /// </summary>
+        /// <param name="encryptedSymmetricKey">Zaszyfrowany klucz symetryczny użyty do szyfrowania danych.</param>
+        /// <param name="initializationVector">Wektor inicjalizujący użyty przy szyfrowaniu.</param>
+        /// <returns>
+        /// Interfejs pozwalający zbudować finalne żądanie.
+        /// </returns>
+        IOpenOnlineSessionRequestBuilderWithEncryption WithEncryption(string encryptedSymmetricKey, string initializationVector);
+    }
+
+    /// <summary>
+    /// Ostatni etap budowy żądania otwarcia sesji online.
+    /// </summary>
+    public interface IOpenOnlineSessionRequestBuilderWithEncryption
+    {
+        /// <summary>
+        /// Tworzy obiekt żądania otwarcia sesji online w KSeF.
+        /// </summary>
+        /// <returns>
+        /// Obiekt <see cref="OpenOnlineSessionRequest"/> gotowy do wysłania do KSeF.
+        /// </returns>
+        OpenOnlineSessionRequest Build();
+    }
+
+    /// <inheritdoc />
+    internal sealed class OpenOnlineSessionRequestBuilderImpl
+        : IOpenOnlineSessionRequestBuilder
+        , IOpenOnlineSessionRequestBuilderWithFormCode
+        , IOpenOnlineSessionRequestBuilderWithEncryption
+    {
+        private FormCode _formCode;
+        private readonly EncryptionInfo _encryption = new();
+
+        private OpenOnlineSessionRequestBuilderImpl() { }
+
+        /// <summary>
+        /// Tworzy nową implementację buildera sesji online.
+        /// </summary>
+        /// <returns>Interfejs startowy buildera.</returns>
+        public static IOpenOnlineSessionRequestBuilder Create() => new OpenOnlineSessionRequestBuilderImpl();
+
+        /// <inheritdoc />
+        public IOpenOnlineSessionRequestBuilderWithFormCode WithFormCode(string systemCode, string schemaVersion, string value)
         {
-            SystemCode = systemCode,
-            SchemaVersion = schemaVersion,
-            Value = value
-        };
-        return this;
-    }
+            if (string.IsNullOrWhiteSpace(systemCode) || string.IsNullOrWhiteSpace(schemaVersion) || string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException("Parametry FormCode nie mogą być puste ani null.");
+            }
 
-    public IOpenOnlineSessionRequestBuilderWithEncryption WithEncryption(string encryptedSymmetricKey, string initializationVector)
-    {
-        if (string.IsNullOrWhiteSpace(encryptedSymmetricKey) || string.IsNullOrWhiteSpace(initializationVector))
-            throw new ArgumentException("Parametry szyfrowania nie mogą być puste ani null.");
+            _formCode = new FormCode
+            {
+                SystemCode = systemCode,
+                SchemaVersion = schemaVersion,
+                Value = value
+            };
+            return this;
+        }
 
-        _encryption.EncryptedSymmetricKey = encryptedSymmetricKey;
-        _encryption.InitializationVector = initializationVector;
-        return this;
-    }
-
-    public OpenOnlineSessionRequest Build()
-    {
-        if (_formCode == null) throw new InvalidOperationException("FormCode jest wymagany.");
-        if (string.IsNullOrWhiteSpace(_encryption.EncryptedSymmetricKey) || string.IsNullOrWhiteSpace(_encryption.InitializationVector))
-            throw new InvalidOperationException("Konfiguracja szyfrowania jest niekompletna.");
-
-        return new OpenOnlineSessionRequest
+        /// <inheritdoc />
+        public IOpenOnlineSessionRequestBuilderWithEncryption WithEncryption(string encryptedSymmetricKey, string initializationVector)
         {
-            FormCode = _formCode,
-            Encryption = _encryption
-        };
-    }
-}
+            if (string.IsNullOrWhiteSpace(encryptedSymmetricKey) || string.IsNullOrWhiteSpace(initializationVector))
+            {
+                throw new ArgumentException("Parametry szyfrowania nie mogą być puste ani null.");
+            }
 
-public static class OpenOnlineSessionRequestBuilder
-{
-    public static IOpenOnlineSessionRequestBuilder Create() =>
-        OpenOnlineSessionRequestBuilderImpl.Create();
+            _encryption.EncryptedSymmetricKey = encryptedSymmetricKey;
+            _encryption.InitializationVector = initializationVector;
+            return this;
+        }
+
+        /// <inheritdoc />
+        public OpenOnlineSessionRequest Build()
+        {
+            if (_formCode == null)
+            {
+                throw new InvalidOperationException("FormCode jest wymagany.");
+            }
+
+            if (string.IsNullOrWhiteSpace(_encryption.EncryptedSymmetricKey) || string.IsNullOrWhiteSpace(_encryption.InitializationVector))
+            {
+                throw new InvalidOperationException("Konfiguracja szyfrowania jest niekompletna.");
+            }
+
+            return new OpenOnlineSessionRequest
+            {
+                FormCode = _formCode,
+                Encryption = _encryption
+            };
+        }
+    }
+
+    /// <summary>
+    /// Udostępnia metodę pomocniczą do tworzenia buildera żądania otwarcia sesji online.
+    /// </summary>
+    public static class OpenOnlineSessionRequestBuilder
+    {
+        /// <summary>
+        /// Tworzy nowy builder żądania otwarcia sesji online.
+        /// </summary>
+        /// <returns>Interfejs startowy buildera.</returns>
+        public static IOpenOnlineSessionRequestBuilder Create() =>
+            OpenOnlineSessionRequestBuilderImpl.Create();
+    }
 }

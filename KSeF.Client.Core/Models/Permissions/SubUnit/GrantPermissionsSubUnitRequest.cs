@@ -8,5 +8,7 @@ namespace KSeF.Client.Core.Models.Permissions.SubUnit
         public SubunitContextIdentifier ContextIdentifier { get; set; }
         public string Description { get; set; }
         public string SubunitName { get; set; }
+        public SubunitSubjectDetails SubjectDetails { get; set; }
     }
+
 }

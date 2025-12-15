@@ -9,11 +9,6 @@ namespace KSeF.Client.Core.Models.Permissions.IndirectEntity
         public IndirectEntityTargetIdentifier TargetIdentifier { get; set; }
         public ICollection<IndirectEntityStandardPermissionType> Permissions { get; set; }
         public string Description { get; set; }
-    }
-
-    public enum IndirectEntityStandardPermissionType
-    {
-        InvoiceRead,
-        InvoiceWrite,
+        public PermissionsIndirectEntitySubjectDetails SubjectDetails { get; set; }
     }
 }

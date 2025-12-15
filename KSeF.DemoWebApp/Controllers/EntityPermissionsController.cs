@@ -12,19 +12,9 @@ namespace KSeF.DemoWebApp.Controllers;
 public class EntityPermissionsController(IKSeFClient ksefClient) : ControllerBase
 {
     [HttpPost("grant-permissions-for-Entity")]
-    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, GrantPermissionsEntitySubjectIdentifier subjectIdentifier, CancellationToken cancellationToken)
+    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, GrantPermissionsEntityRequest request, CancellationToken cancellationToken)
     {
-        GrantPermissionsEntityRequest request = GrantEntityPermissionsRequestBuilder
-            .Create()
-            .WithSubject(subjectIdentifier)
-            .WithPermissions(
-                EntityPermission.New(EntityStandardPermissionType.InvoiceRead, true),
-                EntityPermission.New(EntityStandardPermissionType.InvoiceRead, false)
-                )
-            .WithDescription("Access for quarterly review")
-            .Build();
-
-        return await ksefClient.GrantsPermissionEntityAsync(request, accessToken, cancellationToken);
+        return await ksefClient.GrantsPermissionEntityAsync(request, accessToken, cancellationToken).ConfigureAwait(false);
     }
 
     [HttpPost("revoke-permissions-for-Entity")]
@@ -34,6 +24,6 @@ public class EntityPermissionsController(IKSeFClient ksefClient) : ControllerBas
     CancellationToken cancellationToken)
     {
  
-        return await ksefClient.RevokeCommonPermissionAsync(permissionId, accessToken, cancellationToken);
+        return await ksefClient.RevokeCommonPermissionAsync(permissionId, accessToken, cancellationToken).ConfigureAwait(false);
     }
 }

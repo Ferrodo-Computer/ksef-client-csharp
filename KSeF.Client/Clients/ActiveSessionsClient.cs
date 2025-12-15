@@ -16,7 +16,7 @@ public class ActiveSessionsClient(IRestClient restClient, IRouteBuilder routeBui
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new StringBuilder(Routes.ActiveSessions.Session);
+        StringBuilder urlBuilder = new(Routes.ActiveSessions.Session);
 
         PaginationHelper.AppendPagination(null, pageSize, urlBuilder);
 

@@ -7,9 +7,9 @@ using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Tests.Utils;
 using System.Security.Cryptography.X509Certificates;
 
-namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermissions;
+namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermission;
 
-public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedFingerprint_E2ETests : TestBase
+public class PersonPermissionsOwnerNipGrantedFilterAuthorizedFingerprintE2ETests : TestBase
 {
 
     /// <summary>
@@ -24,7 +24,7 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedFingerprint_E2ET
     /// </list>
     /// </remarks>
     [Fact]
-    public async Task Search_Granted_AsOwnerNip_FilterByAuthorizedFingerprint_ShouldReturnMatch()
+    public async Task SearchGrantedAsOwnerNipFilterByAuthorizedFingerprintShouldReturnMatch()
     {
         #region Arrange
         string ownerNip = MiscellaneousUtils.GetRandomNip();
@@ -40,10 +40,10 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedFingerprint_E2ET
 
         // owner (nadawca == owner)
         AuthenticationOperationStatusResponse ownerAuth =
-            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, ownerNip);
+            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip);
         string ownerAccessToken = ownerAuth.AccessToken.Token;
 
-        // GRANT → nadaj np. InvoiceRead dla fingerprintu
+        // GRANT → nadaj np. InvoiceRead fingerprintowi
         GrantPermissionsPersonRequest grantRequest = new GrantPermissionsPersonRequest
         {
             SubjectIdentifier = new GrantPermissionsPersonSubjectIdentifier
@@ -51,10 +51,10 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedFingerprint_E2ET
                 Type = GrantPermissionsPersonSubjectIdentifierType.Fingerprint,
                 Value = authorizedFingerprint
             },
-            Permissions = new PersonPermissionType[]
-            {
+            Permissions =
+            [
                 PersonPermissionType.InvoiceRead
-            },
+            ],
             Description = $"E2E-Grant-Read-FP-{authorizedFingerprint[..8]}"
         };
 
@@ -71,7 +71,7 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedFingerprint_E2ET
                 cancellationToken: CancellationToken);
 
         // Zapytanie: nadane uprawnienia (owner) z filtrem po Fingerprint
-        PersonPermissionsQueryRequest queryRequest = new PersonPermissionsQueryRequest
+        PersonPermissionsQueryRequest queryRequest = new()
         {
             ContextIdentifier = new PersonPermissionsContextIdentifier
             {
@@ -95,7 +95,7 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedFingerprint_E2ET
 
         #region Act
         // Polling aż pojawi się wpis Z TYM fingerprintem
-        PagedPermissionsResponse<PersonPermission> page =
+        PagedPermissionsResponse<Client.Core.Models.Permissions.PersonPermission> page =
             await AsyncPollingUtils.PollAsync(
                 action: () => KsefClient.SearchGrantedPersonPermissionsAsync(
                     queryRequest, ownerAccessToken, pageOffset: 0, pageSize: 50, cancellationToken: CancellationToken),
@@ -108,7 +108,7 @@ public class PersonPermissions_OwnerNip_Granted_FilterAuthorizedFingerprint_E2ET
                 maxAttempts: 30,
                 cancellationToken: CancellationToken);
 
-        PersonPermission? matching = page.Permissions.FirstOrDefault(p =>
+        Client.Core.Models.Permissions.PersonPermission matching = page.Permissions.First(p =>
             p is not null
             && p.AuthorizedIdentifier is not null
             && p.AuthorizedIdentifier.Type == PersonPermissionAuthorizedIdentifierType.Fingerprint

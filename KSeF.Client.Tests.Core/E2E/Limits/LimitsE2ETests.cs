@@ -17,7 +17,6 @@ public class LimitsE2ETests : TestBase
         AuthenticationOperationStatusResponse authorizationInfo =
             await AuthenticationUtils.AuthenticateAsync(
                 AuthorizationClient,
-                SignatureService,
                 MiscellaneousUtils.GetRandomNip());
         string accessToken = authorizationInfo.AccessToken.Token;
 
@@ -39,16 +38,16 @@ public class LimitsE2ETests : TestBase
 
         // 4. Zmiana limitów dla bieżącego kontekstu sesji
         Client.Core.Models.TestData.ChangeSessionLimitsInCurrentContextRequest newLimits =
-            new Client.Core.Models.TestData.ChangeSessionLimitsInCurrentContextRequest
+            new()
             {
-                OnlineSession = new Client.Core.Models.TestData.TestDataSessionLimitsBase
+                OnlineSession = new Client.Core.Models.TestData.SessionLimits
                 {
                     MaxInvoices = limitsForContext.OnlineSession.MaxInvoices + LimitsChangeValue,
                     MaxInvoiceSizeInMB = limitsForContext.OnlineSession.MaxInvoiceSizeInMB + LimitsChangeValue,
                     MaxInvoiceWithAttachmentSizeInMB = limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB + LimitsChangeValue,
                 },
 
-                BatchSession = new Client.Core.Models.TestData.TestDataSessionLimitsBase
+                BatchSession = new Client.Core.Models.TestData.SessionLimits
                 {
                     MaxInvoices = limitsForContext.BatchSession.MaxInvoices + LimitsChangeValue,
                     MaxInvoiceSizeInMB = limitsForContext.BatchSession.MaxInvoiceSizeInMB + LimitsChangeValue,
@@ -69,6 +68,7 @@ public class LimitsE2ETests : TestBase
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoices, newLimits.OnlineSession.MaxInvoices);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceSizeInMB, newLimits.OnlineSession.MaxInvoiceSizeInMB);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMB);
+        Assert.NotNull(limitsForContext.BatchSession);
 
         // 6. Przywrócenie oryginalnych limitów dla bieżącego kontekstu sesji
         await TestDataClient.RestoreDefaultSessionLimitsInCurrentContextAsync(
@@ -83,6 +83,7 @@ public class LimitsE2ETests : TestBase
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoices, newLimits.OnlineSession.MaxInvoices - LimitsChangeValue);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceSizeInMB, newLimits.OnlineSession.MaxInvoiceSizeInMB - LimitsChangeValue);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMB - LimitsChangeValue);
+        Assert.NotNull(limitsForContext.BatchSession);
     }
 
     /// <summary>
@@ -97,7 +98,6 @@ public class LimitsE2ETests : TestBase
         AuthenticationOperationStatusResponse authorizationInfo =
             await AuthenticationUtils.AuthenticateAsync(
                 AuthorizationClient,
-                SignatureService,
                 MiscellaneousUtils.GetRandomNip());
         string accessToken = authorizationInfo.AccessToken.Token;
 
@@ -112,7 +112,7 @@ public class LimitsE2ETests : TestBase
         Assert.True(limitsForSubject.Enrollment.MaxEnrollments > 0);
 
         // 3. Zmiana limitów
-        Client.Core.Models.TestData.ChangeCertificatesLimitInCurrentSubjectRequest newCertificateLimitsForSubject = new Client.Core.Models.TestData.ChangeCertificatesLimitInCurrentSubjectRequest
+        Client.Core.Models.TestData.ChangeCertificatesLimitInCurrentSubjectRequest newCertificateLimitsForSubject = new()
         {
             SubjectIdentifierType = Client.Core.Models.TestData.TestDataSubjectIdentifierType.Nip,
             Certificate = new Client.Core.Models.TestData.TestDataCertificate

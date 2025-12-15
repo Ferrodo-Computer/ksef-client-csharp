@@ -8,6 +8,7 @@
     public enum PersonPermissionTargetIdentifierType
     {
         Nip,
-        AllPartners
+        AllPartners,
+        InternalId
     }
 }

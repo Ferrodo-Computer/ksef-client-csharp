@@ -1,4 +1,4 @@
-﻿namespace KSeF.Client.Core.Configuration
+﻿namespace KSeF.Client.DI
 {
     /// <summary>
     /// Konfiguracja API KSeF

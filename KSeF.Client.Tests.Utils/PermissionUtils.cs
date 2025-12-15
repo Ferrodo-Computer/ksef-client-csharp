@@ -31,13 +31,13 @@ public static class PermissionsUtils
         PersonPermissionState state,
         int pageOffset = 0, int pageSize = 10)
     {
-        PersonPermissionsQueryRequest query = new PersonPermissionsQueryRequest
+        PersonPermissionsQueryRequest query = new()
         {
             QueryType = queryType,
             PermissionState = state
         };
 
-        PagedPermissionsResponse<PersonPermission> searchResult = await ksefClient.SearchGrantedPersonPermissionsAsync(query, accessToken, pageOffset: pageOffset, pageSize: pageSize);
+        PagedPermissionsResponse<PersonPermission> searchResult = await ksefClient.SearchGrantedPersonPermissionsAsync(query, accessToken, pageOffset: pageOffset, pageSize: pageSize).ConfigureAwait(false);
         return searchResult?.Permissions ?? [];
     }
 
@@ -50,7 +50,7 @@ public static class PermissionsUtils
     /// <returns>Odpowiedź ze statusem operacji.</returns>
     public static async Task<PermissionsOperationStatusResponse> GetPermissionsOperationStatusAsync(
         IKSeFClient ksefClient, string operationReferenceNumber, string accessToken)
-        => await ksefClient.OperationsStatusAsync(operationReferenceNumber, accessToken);
+        => await ksefClient.OperationsStatusAsync(operationReferenceNumber, accessToken).ConfigureAwait(false);
 
     /// <summary>
     /// Wycofuje (odwołuje) istniejące uprawnienie osoby.
@@ -61,7 +61,7 @@ public static class PermissionsUtils
     /// <returns>Odpowiedź operacji.</returns>
     public static async Task<OperationResponse> RevokePersonPermissionAsync(
         IKSeFClient ksefClient, string accessToken, string permissionId)
-        => await ksefClient.RevokeCommonPermissionAsync(permissionId, accessToken);
+        => await ksefClient.RevokeCommonPermissionAsync(permissionId, accessToken).ConfigureAwait(false);
 
     /// <summary>
     /// Nadaje osobie wskazane uprawnienia.
@@ -77,16 +77,16 @@ public static class PermissionsUtils
         string accessToken,
         GrantPermissionsPersonSubjectIdentifier subject,
         PersonPermissionType[] permissions,
-        string? description = null)
+        string description = "")
     {
         GrantPermissionsPersonRequest request = GrantPersonPermissionsRequestBuilder
             .Create()
             .WithSubject(subject)
             .WithPermissions(permissions)
-            .WithDescription(description ?? $"Grant {string.Join(", ", permissions)} to {subject.Type}:{subject.Value}")
+            .WithDescription(!string.IsNullOrEmpty(description) ? description : $"Grant {string.Join(", ", permissions)} to {subject.Type}:{subject.Value}")
             .Build();
 
-        return await client.GrantsPermissionPersonAsync(request, accessToken);
+        return await client.GrantsPermissionPersonAsync(request, accessToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -105,17 +105,24 @@ public static class PermissionsUtils
         IndirectEntitySubjectIdentifier subject,
         IndirectEntityTargetIdentifier context,
         IndirectEntityStandardPermissionType[] permissions,
-        string? description = null)
+        string description = "")
     {
         GrantPermissionsIndirectEntityRequest request = GrantIndirectEntityPermissionsRequestBuilder
             .Create()
             .WithSubject(subject)
             .WithContext(context)
             .WithPermissions(permissions)
-            .WithDescription(description ?? $"Grant {string.Join(", ", permissions)} to {subject.Type}:{subject.Value} @ {context.Value}")
+            .WithDescription(!string.IsNullOrEmpty(description) ? description : $"Grant {string.Join(", ", permissions)} to {subject.Type}:{subject.Value} @ {context.Value}")
+            .WithSubjectDetails(
+                new PermissionsIndirectEntitySubjectDetails
+                {
+                    SubjectDetailsType = PermissionsIndirectEntitySubjectDetailsType.PersonByIdentifier,
+                    PersonById = new PermissionsIndirectEntityPersonByIdentifier { FirstName = "Jan", LastName = "Kowalski" }
+                }
+            )
             .Build();
 
-        return await client.GrantsPermissionIndirectEntityAsync(request, accessToken);
+        return await client.GrantsPermissionIndirectEntityAsync(request, accessToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -127,7 +134,7 @@ public static class PermissionsUtils
     /// <returns>Lista uprawnień osoby.</returns>a
     public static async Task<IReadOnlyList<PersonPermission>> SearchPersonPermissionsAsync(
         IKSeFClient client, string accessToken, PersonPermissionState state)
-        => await SearchPersonPermissionsAsync(client, accessToken, PersonQueryType.PermissionsGrantedInCurrentContext, state);
+        => await SearchPersonPermissionsAsync(client, accessToken, PersonQueryType.PermissionsGrantedInCurrentContext, state).ConfigureAwait(false);
 
     /// <summary>
     /// Sprawdza, czy operacja zakończyła się sukcesem, oczekując na wynik jej statusu.
@@ -140,11 +147,13 @@ public static class PermissionsUtils
         IKSeFClient client, OperationResponse operationResponse, string accessToken)
     {
         if (string.IsNullOrWhiteSpace(operationResponse?.ReferenceNumber))
+        {
             return false;
+        }
 
-        await Task.Delay(2000);
+        await Task.Delay(2000).ConfigureAwait(false);
 
-        PermissionsOperationStatusResponse status = await GetPermissionsOperationStatusAsync(client, operationResponse.ReferenceNumber!, accessToken);
+        PermissionsOperationStatusResponse status = await GetPermissionsOperationStatusAsync(client, operationResponse.ReferenceNumber!, accessToken).ConfigureAwait(false);
         return status?.Status?.Code == 200;
     }
 }

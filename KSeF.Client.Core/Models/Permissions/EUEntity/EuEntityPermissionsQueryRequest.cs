@@ -6,10 +6,10 @@ namespace KSeF.Client.Core.Models.Permissions.EUEntity
     {
         public string VatUeIdentifier { get; set; }
         public string AuthorizedFingerprintIdentifier { get; set; }
-        public List<EuEntityPermissionsQueryPermissionType> PermissionTypes { get; set; }
+        public List<EuEntityPermissionType> PermissionTypes { get; set; }
     }
 
-    public enum EuEntityPermissionsQueryPermissionType
+    public enum EuEntityPermissionType
     {
         VatUeManage,
         InvoiceWrite,

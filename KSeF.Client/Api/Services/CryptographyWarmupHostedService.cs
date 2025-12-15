@@ -3,22 +3,13 @@ using Microsoft.Extensions.Hosting;
 
 namespace KSeF.Client.Api.Services;
 
-public sealed partial class CryptographyWarmupHostedService : IHostedService
+public sealed partial class CryptographyWarmupHostedService(
+    ICryptographyService cryptographyService,
+    CryptographyServiceWarmupMode warmupMode = CryptographyServiceWarmupMode.Blocking) : IHostedService
 {
-    private readonly ICryptographyService _cryptographyService;
-    private readonly CryptographyServiceWarmupMode _warmupMode;
-
-    public CryptographyWarmupHostedService(
-        ICryptographyService cryptographyService,
-        CryptographyServiceWarmupMode warmupMode = CryptographyServiceWarmupMode.Blocking)
-    {
-        _cryptographyService = cryptographyService;
-        _warmupMode = warmupMode;
-    }
-
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        switch (_warmupMode)
+        switch (warmupMode)
         {
             case CryptographyServiceWarmupMode.Disabled:
                 return Task.CompletedTask;
@@ -38,11 +29,11 @@ public sealed partial class CryptographyWarmupHostedService : IHostedService
     {
         try
         {
-            await _cryptographyService.WarmupAsync(cancellationToken);
+            await cryptographyService.WarmupAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception)
         {
-            if (_warmupMode == CryptographyServiceWarmupMode.Blocking)
+            if (warmupMode == CryptographyServiceWarmupMode.Blocking)
             {
                 throw;
             }

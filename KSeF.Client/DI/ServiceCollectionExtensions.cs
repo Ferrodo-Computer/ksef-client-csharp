@@ -54,7 +54,7 @@ public static class ServiceCollectionExtensions
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
-                HttpClientHandler handler = new HttpClientHandler();
+                HttpClientHandler handler = new();
                 if (options.WebProxy != null)
                 {
                     handler.Proxy = options.WebProxy;
@@ -74,8 +74,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IActiveSessionsClient, ActiveSessionsClient>();
         services.AddScoped<IAuthorizationClient, AuthorizationClient>();
 
-        services.AddScoped<ISignatureService, SignatureService>();
-        services.AddScoped<IQrCodeService, QrCodeService>();
         services.AddSingleton<IPersonTokenService, PersonTokenService>();
         services.AddScoped<IVerificationLinkService, VerificationLinkService>();
 
@@ -92,12 +90,12 @@ public static class ServiceCollectionExtensions
                 {
                     localizationOptions.SetDefaultCulture(options.DefaultCulture);
 
-                    if (options.SupportedCultures != null && options.SupportedCultures.Any())
+                    if (options.SupportedCultures != null && options.SupportedCultures.Length > 0)
                     {
                         localizationOptions.AddSupportedCultures(options.SupportedCultures);
                     }
 
-                    if (options.SupportedUICultures != null && options.SupportedUICultures.Any())
+                    if (options.SupportedUICultures != null && options.SupportedUICultures.Length > 0)
                     {
                         localizationOptions.AddSupportedUICultures(options.SupportedUICultures);
                     }

@@ -23,7 +23,7 @@ public static class BatchPartsSender
             throw new InvalidOperationException("Brak informacji o częściach paczki do wysłania.");
         }
 
-        List<string> errors = new List<string>();
+        List<string> errors = new();
 
         foreach (PackagePartSignatureInitResponseType part in parts)
         {
@@ -64,7 +64,7 @@ public static class BatchPartsSender
         {
             throw new AggregateException(
                 "Wystąpiły błędy podczas wysyłania części paczki.",
-                errors.Select(e => new Exception(e))
+                errors.Select(e => new InvalidOperationException(e))
             );
         }
     }

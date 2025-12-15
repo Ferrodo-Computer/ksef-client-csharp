@@ -21,7 +21,7 @@ Console.WriteLine("KSeF.Client.Tests.CertTestApp – demonstracja procesu uwierz
 Console.WriteLine($"Tryb wyjścia: {outputMode}");
 
 // 0) DI i konfiguracja klienta
-ServiceCollection services = new ServiceCollection();
+ServiceCollection services = new();
 services.AddKSeFClient(options =>
 {
     options.BaseUrl = KsefEnvironmentsUris.TEST;
@@ -45,19 +45,18 @@ scope.ServiceProvider.GetRequiredService<CryptographyWarmupHostedService>()
 
 IKSeFClient ksefClient = provider.GetRequiredService<IKSeFClient>();
 IAuthorizationClient authorizationClient = provider.GetRequiredService<IAuthorizationClient>();
-ISignatureService signatureService = provider.GetRequiredService<ISignatureService>();
 
 try
 {
     // 1) NIP (z parametru lub losowy)
     Console.WriteLine("[1] Przygotowanie NIP...");
-    string? nipArg = ParseNip(args);
+    string nipArg = ParseNip(args);
     string nip = string.IsNullOrWhiteSpace(nipArg) ? MiscellaneousUtils.GetRandomNip() : nipArg.Trim();
     Console.WriteLine($"    NIP: {nip} {(string.IsNullOrWhiteSpace(nipArg) ? "(losowy)" : "(z parametru)")}");
 
     // 2) Challenge
     Console.WriteLine("[2] Pobieranie wyzwania (challenge) z KSeF...");
-    AuthenticationChallengeResponse challengeResponse = await authorizationClient.GetAuthChallengeAsync();
+    AuthenticationChallengeResponse challengeResponse = await authorizationClient.GetAuthChallengeAsync().ConfigureAwait(false);
     Console.WriteLine($"    Challenge: {challengeResponse.Challenge}");
 
     // 3) Budowa AuthTokenRequest
@@ -81,7 +80,7 @@ try
 
     // (5a) Zapis certyfikatu gdy tryb file
     // Eksportowanie: PFX (z kluczem prywatnym) oraz CER (część publiczna)
-    string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+    string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
     if (outputMode.Equals("file", StringComparison.OrdinalIgnoreCase))
     {
         string certPfxPath = Path.Combine(Environment.CurrentDirectory, $"cert-{timestamp}.pfx");
@@ -90,8 +89,8 @@ try
         byte[] pfxBytes = certificate.Export(X509ContentType.Pfx, string.Empty);
         byte[] cerBytes = certificate.Export(X509ContentType.Cert);
 
-        await File.WriteAllBytesAsync(certPfxPath, pfxBytes);
-        await File.WriteAllBytesAsync(certCerPath, cerBytes);
+        await File.WriteAllBytesAsync(certPfxPath, pfxBytes).ConfigureAwait(false);
+        await File.WriteAllBytesAsync(certCerPath, cerBytes).ConfigureAwait(false);
 
         Console.WriteLine($"    Zapisano certyfikat PFX: {certPfxPath}");
         Console.WriteLine($"    Zapisano certyfikat CER: {certCerPath}");
@@ -99,7 +98,7 @@ try
 
     // 6) Podpis XAdES
     Console.WriteLine("[6] Podpisywanie XML (XAdES)...");
-    string signedXml = signatureService.Sign(unsignedXml, certificate);
+    string signedXml = SignatureService.Sign(unsignedXml, certificate);
 
     // Tryb wyjścia:
     // - file: zapis do pliku (bez wyświetlania XML w konsoli)
@@ -107,7 +106,7 @@ try
     if (outputMode.Equals("file", StringComparison.OrdinalIgnoreCase))
     {
         string filePath = Path.Combine(Environment.CurrentDirectory, $"signed-auth-{timestamp}.xml");
-        await File.WriteAllTextAsync(filePath, signedXml, Encoding.UTF8);
+        await File.WriteAllTextAsync(filePath, signedXml, Encoding.UTF8).ConfigureAwait(false);
         Console.WriteLine($"Zapisano podpisany XML: {filePath}");
     }
     else
@@ -117,7 +116,7 @@ try
 
     // 7) Przesłanie podpisanego XML do KSeF
     Console.WriteLine("[7] Wysyłanie podpisanego XML do KSeF...");
-    SignatureResponse submission = await authorizationClient.SubmitXadesAuthRequestAsync(signedXml, verifyCertificateChain: false);
+    SignatureResponse submission = await authorizationClient.SubmitXadesAuthRequestAsync(signedXml, verifyCertificateChain: false).ConfigureAwait(false);
     Console.WriteLine($"    ReferenceNumber: {submission.ReferenceNumber}");
 
     // 8) Odpytanie o status
@@ -127,11 +126,11 @@ try
     AuthStatus status;
     do
     {
-        status = await authorizationClient.GetAuthStatusAsync(submission.ReferenceNumber, submission.AuthenticationToken.Token);
+        status = await authorizationClient.GetAuthStatusAsync(submission.ReferenceNumber, submission.AuthenticationToken.Token).ConfigureAwait(false);
         Console.WriteLine($"      Status: {status.Status.Code} - {status.Status.Description} | upłynęło: {DateTime.UtcNow - startTime:mm\\:ss}");
         if (status.Status.Code != 200)
         {
-            await Task.Delay(TimeSpan.FromSeconds(1));
+            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
         }
     }
     while (status.Status.Code == 100 && (DateTime.UtcNow - startTime) < timeout);
@@ -145,7 +144,7 @@ try
 
     // 9) Pobranie access token
     Console.WriteLine("[9] Pobieranie access token...");
-    AuthenticationOperationStatusResponse tokenResponse = await authorizationClient.GetAccessTokenAsync(submission.AuthenticationToken.Token);
+    AuthenticationOperationStatusResponse tokenResponse = await authorizationClient.GetAccessTokenAsync(submission.AuthenticationToken.Token).ConfigureAwait(false);
 
     string accessToken = tokenResponse.AccessToken?.Token ?? string.Empty;
     string refreshToken = tokenResponse.RefreshToken?.Token ?? string.Empty;
@@ -175,15 +174,19 @@ static string ParseOutputMode(string[] args)
     {
         if (string.Equals(args[i], "--output", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
         {
-            string val = args[i + 1].Trim();
-            if (val.Equals("file", StringComparison.OrdinalIgnoreCase)) return "file";
+            string value = args[i + 1].Trim();
+            if (value.Equals("file", StringComparison.OrdinalIgnoreCase))
+            {
+                return "file";
+            }
+
             return "screen";
         }
     }
     return "screen";
 }
 
-static string? ParseNip(string[] args)
+static string ParseNip(string[] args)
 {
     // akceptowane: --nip 1111111111
     for (int i = 0; i < args.Length; i++)
@@ -193,5 +196,5 @@ static string? ParseNip(string[] args)
             return args[i + 1].Trim();
         }
     }
-    return null;
+    return string.Empty;
 }

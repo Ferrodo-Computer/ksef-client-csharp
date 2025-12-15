@@ -1,4 +1,3 @@
-using KSeF.Client.Core.Interfaces.Services;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Graphics.Skia;
 using QRCoder;
@@ -6,32 +5,47 @@ using SkiaSharp;
 
 namespace KSeF.Client.Api.Services;
 
-public class QrCodeService : IQrCodeService
+public static class QrCodeService
 {
-    public byte[] GenerateQrCode(string payloadUrl, int pixelsPerModule = 20, int qrCodeSize = 300)
+
+    /// <summary>
+    /// Generuje kod QR jako tablicę bajtów PNG.
+    /// </summary>
+    /// <param name="payloadUrl">URL/link do zakodowania.</param>
+    /// <param name="pixelsPerModule">Rozmiar modułu w pikselach (domyślnie 20).</param>
+    /// <param name="qrCodeResolutionInPx"></param>
+    public static byte[] GenerateQrCode(string payloadUrl, int pixelsPerModule = 20, int qrCodeResolutionInPx = 300)
     {
-        using QRCodeGenerator gen = new QRCodeGenerator();
+        using QRCodeGenerator gen = new();
         using QRCodeData qrData = gen.CreateQrCode(payloadUrl, QRCodeGenerator.ECCLevel.Default);
 
         int modules = qrData.ModuleMatrix.Count;
-        float cellSize = qrCodeSize / (float)modules;
+        float cellSize = qrCodeResolutionInPx / (float)modules;
 
-        SKImageInfo info = new SKImageInfo(qrCodeSize, qrCodeSize);
+        SKImageInfo info = new(qrCodeResolutionInPx, qrCodeResolutionInPx);
         using SKSurface surface = SKSurface.Create(info);
         SKCanvas skCanvas = surface.Canvas;
 
-        SkiaCanvas canvas = new SkiaCanvas();
-        canvas.Canvas = skCanvas;
+        SkiaCanvas canvas = new()
+        {
+            Canvas = skCanvas
+        };
         canvas.SetDisplayScale(1f);
 
         canvas.FillColor = Colors.White;
-        canvas.FillRectangle(0, 0, qrCodeSize, qrCodeSize);
+        canvas.FillRectangle(0, 0, qrCodeResolutionInPx, qrCodeResolutionInPx);
 
         canvas.FillColor = Colors.Black;
         for (int y = 0; y < modules; y++)
+        {
             for (int x = 0; x < modules; x++)
+            {
                 if (qrData.ModuleMatrix[y][x])
+                {
                     canvas.FillRectangle(x * cellSize, y * cellSize, cellSize, cellSize);
+                }
+            }
+        }
 
         // Eksport PNG
         using SKImage img = surface.Snapshot();
@@ -39,12 +53,13 @@ public class QrCodeService : IQrCodeService
         return data.ToArray();
     }
 
-    public byte[] ResizePng(byte[] pngBytes, int targetWidth, int targetHeight)
+    /// <inheritdoc/>
+    public static byte[] ResizePng(byte[] pngBytes, int targetWidth, int targetHeight)
     {
         using SKBitmap skBitmap = SKBitmap.Decode(pngBytes);
-        SKImageInfo info = new SKImageInfo(targetWidth, targetHeight);
+        SKImageInfo info = new(targetWidth, targetHeight);
         using SKSurface surface = SKSurface.Create(info);
-        SkiaCanvas canvas = new SkiaCanvas() { Canvas = surface.Canvas };
+        SkiaCanvas canvas = new() { Canvas = surface.Canvas };
         canvas.SetDisplayScale(1f);
 
         IImage image = new SkiaImage(skBitmap);
@@ -55,17 +70,18 @@ public class QrCodeService : IQrCodeService
         return encoded.ToArray();
     }
 
-    public byte[] AddLabelToQrCode(byte[] qrPng, string label, int fontSizePx = 14)
+    /// <summary>Dokleja podpis (label) pod istniejącym PNG z kodem QR.</summary>
+    public static byte[] AddLabelToQrCode(byte[] qrCodePng, string label, int fontSizePx = 14)
     {
-        using SKBitmap skBitmap = SKBitmap.Decode(qrPng);
+        using SKBitmap skBitmap = SKBitmap.Decode(qrCodePng);
         IImage qrImage = new SkiaImage(skBitmap);
         int width = skBitmap.Width;
         int height = skBitmap.Height;
 
-        Font font = new Font("Arial", fontSizePx);
+        Font font = new("Arial", fontSizePx);
 
         // Pomiar tekstu
-        SkiaCanvas measureCanvas = new SkiaCanvas() { Canvas = SKSurface.Create(new SKImageInfo(1, 1)).Canvas };
+        SkiaCanvas measureCanvas = new() { Canvas = SKSurface.Create(new SKImageInfo(1, 1)).Canvas };
         measureCanvas.SetDisplayScale(1f);
         measureCanvas.Font = font;
         measureCanvas.FontSize = fontSizePx;
@@ -73,9 +89,9 @@ public class QrCodeService : IQrCodeService
         float labelHeight = textSize.Height + 4;
 
         // Nowa powierzchnia dla połączonego obrazu
-        SKImageInfo info = new SKImageInfo(width, height + (int)labelHeight);
+        SKImageInfo info = new(width, height + (int)labelHeight);
         using SKSurface surface = SKSurface.Create(info);
-        SkiaCanvas canvas = new SkiaCanvas() { Canvas = surface.Canvas };
+        SkiaCanvas canvas = new() { Canvas = surface.Canvas };
         canvas.SetDisplayScale(1f);
 
         // Tło
@@ -89,7 +105,7 @@ public class QrCodeService : IQrCodeService
         canvas.Font = font;
         canvas.FontSize = fontSizePx;
         canvas.FontColor = Colors.Black;
-        RectF rect = new RectF(0, height, width, labelHeight);
+        RectF rect = new(0, height, width, labelHeight);
         canvas.DrawString(label, rect, HorizontalAlignment.Center, VerticalAlignment.Center);
 
         // Eksport PNG

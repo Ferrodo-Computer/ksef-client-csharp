@@ -3,29 +3,24 @@ using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 
 
-namespace WebApplication.Controllers;
+namespace KSeF.DemoWebApp.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class SessionController : ControllerBase
+public class SessionController(IKSeFClient ksefClient) : ControllerBase
 {
 
-    private readonly IKSeFClient ksefClient;
-
-    public SessionController(IKSeFClient ksefClient)
-    {
-        this.ksefClient = ksefClient;
-    }
+    private readonly IKSeFClient ksefClient = ksefClient;
 
     [HttpGet("online-sessions")]
     public async Task<ActionResult<ICollection<Session>>> GetOnlineSessionsAsync([FromForm] string accessToken, [FromForm] SessionsFilter sessionsFilter, CancellationToken cancellationToken)
     {
-        List<Session> sessions = new List<Session>();
+        List<Session> sessions = [];
         const int pageSize = 20;
-        string? continuationToken = null;
+        string continuationToken = string.Empty;
         do
         {
-            SessionsListResponse response = await ksefClient.GetSessionsAsync(SessionType.Online, accessToken, pageSize, continuationToken, sessionsFilter, cancellationToken);
+            SessionsListResponse response = await ksefClient.GetSessionsAsync(SessionType.Online, accessToken, pageSize, continuationToken, sessionsFilter, cancellationToken).ConfigureAwait(false);
             continuationToken = response.ContinuationToken;
             sessions.AddRange(response.Sessions);
         } while (!string.IsNullOrEmpty(continuationToken));
@@ -36,12 +31,12 @@ public class SessionController : ControllerBase
     [HttpGet("batch-sessions")]
     public async Task<ActionResult<ICollection<Session>>> GetbatchSessionsAsync([FromForm] string accessToken, [FromForm] SessionsFilter sessionsFilter, CancellationToken cancellationToken)
     {
-        List<Session> sessions = new List<Session>();
+        List<Session> sessions = [];
         const int pageSize = 20;
-        string? continuationToken = null;
+        string continuationToken = string.Empty;
         do
         {
-            SessionsListResponse response = await ksefClient.GetSessionsAsync(SessionType.Batch, accessToken, pageSize, continuationToken, sessionsFilter, cancellationToken);
+            SessionsListResponse response = await ksefClient.GetSessionsAsync(SessionType.Batch, accessToken, pageSize, continuationToken, sessionsFilter, cancellationToken).ConfigureAwait(false);
             continuationToken = response.ContinuationToken;
             sessions.AddRange(response.Sessions);
         } while (!string.IsNullOrEmpty(continuationToken));
@@ -77,14 +72,14 @@ public class SessionController : ControllerBase
     [HttpGet("session-documents")]
     public async Task<ActionResult<SessionInvoicesResponse>> GetSessionDocumentsAsync(string accessToken, string sessionReferenceNumber, CancellationToken cancellationToken)
     {
-        SessionInvoicesResponse sessionDocuments = await ksefClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken, null, null, cancellationToken);
+        SessionInvoicesResponse sessionDocuments = await ksefClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken, null, null, cancellationToken).ConfigureAwait(false);
         return Ok(sessionDocuments);
     }
 
     [HttpGet("failed-invoices")]
     public async Task<ActionResult<SessionInvoicesResponse>> GetFailedInvoicesAsync(string accessToken, string sessionReferenceNumber, CancellationToken cancellationToken)
     {
-        SessionInvoicesResponse failedInvoices = await ksefClient.GetSessionFailedInvoicesAsync(sessionReferenceNumber, accessToken, null, null, cancellationToken);
+        SessionInvoicesResponse failedInvoices = await ksefClient.GetSessionFailedInvoicesAsync(sessionReferenceNumber, accessToken, null, null, cancellationToken).ConfigureAwait(false);
         return Ok(failedInvoices);
     }
 

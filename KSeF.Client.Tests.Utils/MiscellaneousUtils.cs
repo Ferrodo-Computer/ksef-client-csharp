@@ -1,15 +1,16 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace KSeF.Client.Tests.Utils;
 
-public static class MiscellaneousUtils
+public static partial class MiscellaneousUtils
 {
     private static readonly Random Random = new();
 
     // Wagi dla pozycji 1..9
-    private static readonly int[] Weights = { 6, 5, 7, 2, 3, 4, 5, 6, 7 };
+    private static readonly int[] Weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];
 
     /// <summary>
     /// Generuje losowy poprawny NIP (10 cyfr).
@@ -27,14 +28,21 @@ public static class MiscellaneousUtils
             if (prefixTwoNumbers.Length == 1)
             {
                 first = ParseDigit(prefixTwoNumbers[0]);
-                if (first == 0) throw new ArgumentException("Wartość musi być większa od 0");
+                if (first == 0)
+                {
+                    throw new ArgumentException("Wartość musi być większa od 0");
+                }
+
                 second = rng.Next(0, 10);
             }
             else if (prefixTwoNumbers.Length == 2)
             {
                 first = ParseDigit(prefixTwoNumbers[0]);
                 second = ParseDigit(prefixTwoNumbers[1]);
-                if (first == 0) throw new ArgumentException("Pierwsza cyfra musi być > 0");
+                if (first == 0)
+                {
+                    throw new ArgumentException("Pierwsza cyfra musi być > 0");
+                }
             }
             else if (prefixTwoNumbers.Length == 0)
             {
@@ -48,7 +56,10 @@ public static class MiscellaneousUtils
 
             int third = rng.Next(0, 10);
             // regex wymaga, żeby para (druga, trzecia) nie była "00"
-            if (second == 0 && third == 0) third = rng.Next(1, 10);
+            if (second == 0 && third == 0)
+            {
+                third = rng.Next(1, 10);
+            }
 
             // zbuduj pierwsze 9 cyfr (po 3-cyfrowym prefiksie jeszcze 6 losowych)
             int[] digits = new int[10];
@@ -57,12 +68,16 @@ public static class MiscellaneousUtils
             digits[2] = third;
 
             for (int i = 3; i < 9; i++)
+            {
                 digits[i] = rng.Next(0, 10);
+            }
 
             // policz cyfrę kontrolną
             int sum = 0;
             for (int i = 0; i < 9; i++)
+            {
                 sum += digits[i] * Weights[i];
+            }
 
             int check = sum % 11;
 
@@ -71,7 +86,7 @@ public static class MiscellaneousUtils
             if (check != 10)
             {
                 digits[9] = check;
-                return string.Concat(digits.Select(d => d.ToString()));
+                return string.Concat(digits.Select(d => d.ToString(CultureInfo.InvariantCulture)));
             }            
         }
     }
@@ -79,14 +94,23 @@ public static class MiscellaneousUtils
     /// <summary>Walidacja NIP (10 cyfr + checksum mod 11).</summary>
     public static bool IsValidNip(string nip)
     {
-        if (string.IsNullOrWhiteSpace(nip)) return false;
-        string digitsOnly = new string(nip.Where(char.IsDigit).ToArray());
-        if (digitsOnly.Length != 10) return false;
+        if (string.IsNullOrWhiteSpace(nip))
+        {
+            return false;
+        }
 
-        int[] digits = digitsOnly.Select(ch => ch - '0').ToArray();
+        string digitsOnly = new([.. nip.Where(char.IsDigit)]);
+        if (digitsOnly.Length != 10)
+        {
+            return false;
+        }
+
+        int[] digits = [.. digitsOnly.Select(ch => ch - '0')];
         int sum = 0;
         for (int i = 0; i < 9; i++)
+        {
             sum += digits[i] * Weights[i];
+        }
 
         int check = sum % 11;
         return check != 10 && check == digits[9];
@@ -94,7 +118,11 @@ public static class MiscellaneousUtils
 
     private static int ParseDigit(char c)
     {
-        if (c < '0' || c > '9') throw new ArgumentException("Prefiks musi zawierać cyfry 0-9.");
+        if (c < '0' || c > '9')
+        {
+            throw new ArgumentException("Prefiks musi zawierać cyfry 0-9.");
+        }
+
         return c - '0';
     }
 
@@ -113,11 +141,11 @@ public static class MiscellaneousUtils
         int encodedMonth = month + (year / 100 - 19) * 20;
 
         string datePart = $"{year % 100:D2}{encodedMonth:D2}{day:D2}";
-        string serial = Random.Next(1000, 9999).ToString("D4");
+        string serial = Random.Next(1000, 9999).ToString("D4",CultureInfo.InvariantCulture);
 
         // suma kontrolna
         string basePesel = datePart + serial;
-        int[] weights = { 1, 3, 7, 9, 1, 3, 7, 9, 1, 3 };
+        int[] weights = [1, 3, 7, 9, 1, 3, 7, 9, 1, 3];
         int sum = basePesel.Select((c, i) => (c - '0') * weights[i]).Sum();
         int control = (10 - (sum % 10)) % 10;
 
@@ -129,45 +157,46 @@ public static class MiscellaneousUtils
     /// Wyrażenie regularne używane do walidacji:
     /// ^(?&lt;nip&gt;[1-9](\d[1-9]|[1-9]\d)\d{7})-(?&lt;vat&gt;((AT)(U\d{8})|(BE)([01]{1}\d{9})|(BG)(\d{9,10})|(CY)(\d{8}[A-Z])|(CZ)(\d{8,10})|(DE)(\d{9})|(DK)(\d{8})|(EE)(\d{9})|(EL)(\d{9})|(ES)([A-Z]\d{8}|\d{8}[A-Z]|[A-Z]\d{7}[A-Z])|(FI)(\d{8})|(FR)[A-Z0-9]{2}\d{9}|(HR)(\d{11})|(HU)(\d{8})|(IE)(\d{7}[A-Z]{2}|\d[A-Z0-9+*]\d{5}[A-Z])|(IT)(\d{11})|(LT)(\d{9}|\d{12})|(LU)(\d{8})|(LV)(\d{11})|(MT)(\d{8})|(NL)([A-Z0-9+*]{12})|(PT)(\d{9})|(RO)(\d{2,10})|(SE)(\d{12})|(SI)(\d{8})|(SK)(\d{10})|(XI)((\d{9}|(\d{12}))|(GD|HA)(\d{3}))))$
     /// </summary>
-    public static string GetRandomNipVatEU(string countryCode = "ES")
+    public static string GetRandomNipVatEU(CountryCode countryCode = CountryCode.ES)
     {
         string nip = GetRandomNip();
 
         string vatPart = countryCode switch
         {
-            "AT" => "U" + Random.Next(10000000, 99999999),
-            "BE" => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
-            "BG" => Random.Next(0, 2) == 0
+            CountryCode.AT => "U" + Random.Next(10000000, 99999999),
+            CountryCode.BE => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
+            CountryCode.BG => Random.Next(0, 2) == 0
                 ? $"{Random.Next(100000000, 999999999)}"
                 : $"{Random.NextInt64(1000000000, 9999999999)}",
-            "CY" => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
-            "CZ" => Random.Next(0, 2) == 0
+            CountryCode.CY => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
+            CountryCode.CZ => Random.Next(0, 2) == 0
                 ? $"{Random.Next(10000000, 99999999)}"
                 : $"{Random.NextInt64(1000000000, 9999999999)}",
-            "DE" => $"{Random.Next(100000000, 999999999)}",
-            "DK" => $"{Random.Next(10000000, 99999999)}",
-            "EE" => $"{Random.Next(100000000, 999999999)}",
-            "EL" => $"{Random.Next(100000000, 999999999)}",
-            "ES" => GenerateEsVat(),
-            "FI" => $"{Random.Next(10000000, 99999999)}",
-            "FR" => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
-            "HR" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "HU" => $"{Random.Next(10000000, 99999999)}",
-            "IE" => GenerateIeVat(),
-            "IT" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "LT" => Random.Next(0, 2) == 0
+            CountryCode.DE => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.DK => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.EE => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.EL => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.ES => GenerateEsVat(),
+            CountryCode.FI => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.FR => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
+            CountryCode.HR => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.HU => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.IE => GenerateIeVat(),
+            CountryCode.IT => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.LT => Random.Next(0, 2) == 0
                 ? $"{Random.Next(100000000, 999999999)}"
                 : $"{Random.NextInt64(100000000000, 999999999999)}",
-            "LU" => $"{Random.Next(10000000, 99999999)}",
-            "LV" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "MT" => $"{Random.Next(10000000, 99999999)}",
-            "NL" => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
-            "PT" => $"{Random.Next(100000000, 999999999)}",
-            "RO" => $"{Random.NextInt64(10, 9999999999)}",
-            "SE" => $"{Random.NextInt64(100000000000, 999999999999)}",
-            "SI" => $"{Random.Next(10000000, 99999999)}",
-            "SK" => $"{Random.NextInt64(1000000000, 9999999999)}",
-            "XI" => GenerateXiVat(),
+            CountryCode.LU => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.LV => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.MT => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.NL => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
+            CountryCode.PT => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.RO => $"{Random.NextInt64(10, 9999999999)}",
+            CountryCode.SE => $"{Random.NextInt64(100000000000, 999999999999)}",
+            CountryCode.SI => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.SK => $"{Random.NextInt64(1000000000, 9999999999)}",
+            CountryCode.XI => GenerateXiVat(),
+            CountryCode.PL => GetRandomNip(),
             _ => throw new ArgumentException($"Niewspierany kod kraju {countryCode}")
         };
 
@@ -175,47 +204,159 @@ public static class MiscellaneousUtils
     }
 
     /// <summary>
+    /// Zwraca VAT UE (prefiks kraju + numer) na podstawie lokalnego identyfikatora.
+    /// </summary>
+    /// <remarks>
+    /// Zasady:
+    /// - jeśli wejście MA już prefiks (2 litery, np. PL/DE) → zwracamy znormalizowane,
+    /// - rozpoznajemy jednoznaczne wzorce z literami: AT (U########), NL (#########B##), CY (########L),
+    ///   IE, FR, ES; Polska: poprawny NIP (10 cyfr z sumą) → PL+NIP,
+    /// - 12 cyfr (LT/SE) traktujemy domyślnie jako SE (zob. <see cref="GuessSeOrLtFor12Digits"/>),
+    /// - dla czysto cyfrowych, niejednoznacznych długości (8/9/10/11) rzucamy wyjątek (bez zgadywania).
+    /// </remarks>
+    public static string ToVatEuFromDomestic(string localId)
+    {
+        if (string.IsNullOrWhiteSpace(localId))
+        {
+            throw new ArgumentException("Wartość nie może być pusta ani składać się wyłącznie z białych znaków.", nameof(localId));
+        }
+
+        string raw = Normalize(localId);
+
+        // 0) prefiks kraju już obecny
+        if (raw.Length >= 3 && char.IsLetter(raw[0]) && char.IsLetter(raw[1]))
+        {
+            return raw;
+        }
+
+        // 1) wzorce jednoznaczne z literami
+        if (AtPattern().IsMatch(raw))                        // AT: U########
+        {
+            return "AT" + raw;
+        }
+
+        if (NlPattern().IsMatch(raw))                        // NL: #########B##
+        {
+            return "NL" + raw.ToUpperInvariant();
+        }
+
+        if (CyPattern().IsMatch(raw))                        // CY: ########L
+        {
+            return "CY" + raw.ToUpperInvariant();
+        }
+
+        if (IePattern().IsMatch(raw))                        // IE
+        {
+            return "IE" + raw.ToUpperInvariant();
+        }
+
+        if (FrPattern().IsMatch(raw))                        // FR
+        {
+            return "FR" + raw.ToUpperInvariant();
+        }
+
+        if (EsPattern().IsMatch(raw))                        // ES
+        {
+            return "ES" + raw.ToUpperInvariant();
+        }
+
+        // 2) unikalne długości (12 cyfr – LT/SE)
+        if (Digits12().IsMatch(raw))
+        {
+            return GuessSeOrLtFor12Digits(raw);
+        }
+
+        // 3) Polska (10 cyfr + suma kontrolna) – UŻYJ istniejącej walidacji
+        if (IsValidNip(raw))
+        {
+            return "PL" + raw;
+        }
+
+        // 4) długości niejednoznaczne – nie zgadujemy
+        if (Digits8().IsMatch(raw))
+        {
+            throw new ArgumentException("Nie można jednoznacznie określić kraju dla 8 cyfr (DK/FI/HU/LU/MT). Podaj prefiks kraju.");
+        }
+
+        if (Digits9().IsMatch(raw))
+        {
+            throw new ArgumentException("Nie można jednoznacznie określić kraju dla 9 cyfr (DE/PT/EE/EL/LT). Podaj prefiks kraju.");
+        }
+
+        if (Digits10().IsMatch(raw))
+        {
+            throw new ArgumentException("Nie można jednoznacznie określić kraju dla 10 cyfr (BE/CZ/SK/… lub PL z błędną sumą). Podaj prefiks kraju.");
+        }
+
+        if (Digits11().IsMatch(raw))
+        {
+            throw new ArgumentException("Nie można jednoznacznie określić kraju dla 11 cyfr (IT/HR/LV). Podaj prefiks kraju.");
+        }
+
+        // 5) brak dopasowania
+        throw new ArgumentException("Nieznany lub nieobsługiwany format lokalnego identyfikatora VAT. Podaj prefiks kraju.");
+    }
+
+
+    private static string Normalize(string s) =>
+        new(s.Trim()
+                    .Replace(" ", "")
+                    .Replace("-", "")
+                    .Replace(".", "")
+                    .ToUpperInvariant()
+                    .ToCharArray());
+
+    private static string GuessSeOrLtFor12Digits(string digits12)
+    {
+        // Status quo: bez dodatkowych reguł kontrolnych nie da się pewnie odróżnić SE (12) od LT (12).
+        // Przyjmujemy: 12 cyfr -> SE (najbardziej powszechny pattern), chyba że użytkownik poda LT jawnie.
+        // Jeżeli w Twoim przypadku 12 cyfr częściej oznacza LT – odwróć preferencję.
+        return "SE" + digits12;
+    }
+
+    /// <summary>
     /// Generuje losowy poprawny identyfikator NIP-VAT UE.
     /// Wyrażenie regularne używane do walidacji:
     /// ^(?&lt;nip&gt;[1-9](\d[1-9]|[1-9]\d)\d{7})-(?&lt;vat&gt;((AT)(U\d{8})|(BE)([01]{1}\d{9})|(BG)(\d{9,10})|(CY)(\d{8}[A-Z])|(CZ)(\d{8,10})|(DE)(\d{9})|(DK)(\d{8})|(EE)(\d{9})|(EL)(\d{9})|(ES)([A-Z]\d{8}|\d{8}[A-Z]|[A-Z]\d{7}[A-Z])|(FI)(\d{8})|(FR)[A-Z0-9]{2}\d{9}|(HR)(\d{11})|(HU)(\d{8})|(IE)(\d{7}[A-Z]{2}|\d[A-Z0-9+*]\d{5}[A-Z])|(IT)(\d{11})|(LT)(\d{9}|\d{12})|(LU)(\d{8})|(LV)(\d{11})|(MT)(\d{8})|(NL)([A-Z0-9+*]{12})|(PT)(\d{9})|(RO)(\d{2,10})|(SE)(\d{12})|(SI)(\d{8})|(SK)(\d{10})|(XI)((\d{9}|(\d{12}))|(GD|HA)(\d{3}))))$
     /// </summary>
-    public static string GetRandomNipVatEU(string nip, string countryCode = "ES")
+    public static string GetRandomNipVatEU(string nip, CountryCode countryCode = CountryCode.ES)
     {
         string vatPart = countryCode switch
         {
-            "AT" => "U" + Random.Next(10000000, 99999999),
-            "BE" => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
-            "BG" => Random.Next(0, 2) == 0
+            CountryCode.AT => "U" + Random.Next(10000000, 99999999),
+            CountryCode.BE => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
+            CountryCode.BG => Random.Next(0, 2) == 0
                 ? $"{Random.Next(100000000, 999999999)}"
                 : $"{Random.NextInt64(1000000000, 9999999999)}",
-            "CY" => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
-            "CZ" => Random.Next(0, 2) == 0
+            CountryCode.CY => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
+            CountryCode.CZ => Random.Next(0, 2) == 0
                 ? $"{Random.Next(10000000, 99999999)}"
                 : $"{Random.NextInt64(1000000000, 9999999999)}",
-            "DE" => $"{Random.Next(100000000, 999999999)}",
-            "DK" => $"{Random.Next(10000000, 99999999)}",
-            "EE" => $"{Random.Next(100000000, 999999999)}",
-            "EL" => $"{Random.Next(100000000, 999999999)}",
-            "ES" => GenerateEsVat(),
-            "FI" => $"{Random.Next(10000000, 99999999)}",
-            "FR" => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
-            "HR" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "HU" => $"{Random.Next(10000000, 99999999)}",
-            "IE" => GenerateIeVat(),
-            "IT" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "LT" => Random.Next(0, 2) == 0
+            CountryCode.DE => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.DK => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.EE => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.EL => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.ES => GenerateEsVat(),
+            CountryCode.FI => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.FR => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
+            CountryCode.HR => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.HU => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.IE => GenerateIeVat(),
+            CountryCode.IT => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.LT => Random.Next(0, 2) == 0
                 ? $"{Random.Next(100000000, 999999999)}"
                 : $"{Random.NextInt64(100000000000, 999999999999)}",
-            "LU" => $"{Random.Next(10000000, 99999999)}",
-            "LV" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "MT" => $"{Random.Next(10000000, 99999999)}",
-            "NL" => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
-            "PT" => $"{Random.Next(100000000, 999999999)}",
-            "RO" => $"{Random.NextInt64(10, 9999999999)}",
-            "SE" => $"{Random.NextInt64(100000000000, 999999999999)}",
-            "SI" => $"{Random.Next(10000000, 99999999)}",
-            "SK" => $"{Random.NextInt64(1000000000, 9999999999)}",
-            "XI" => GenerateXiVat(),
+            CountryCode.LU => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.LV => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.MT => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.NL => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
+            CountryCode.PT => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.RO => $"{Random.NextInt64(10, 9999999999)}",
+            CountryCode.SE => $"{Random.NextInt64(100000000000, 999999999999)}",
+            CountryCode.SI => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.SK => $"{Random.NextInt64(1000000000, 9999999999)}",
+            CountryCode.XI => GenerateXiVat(),
+            CountryCode.PL => GetRandomNip(),
             _ => throw new ArgumentException($"Niewspierany kod kraju {countryCode}")
         };
 
@@ -225,43 +366,44 @@ public static class MiscellaneousUtils
     /// <summary>
     /// Generuje losowy, poprawny identyfikator VAT UE.
     /// </summary>
-    public static string GetRandomVatEU(string nip, string countryCode = "ES")
+    public static string GetRandomVatEU(CountryCode countryCode = CountryCode.ES)
     {
         string vatPart = countryCode switch
         {
-            "AT" => "U" + Random.Next(10000000, 99999999),
-            "BE" => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
-            "BG" => Random.Next(0, 2) == 0
+            CountryCode.AT => "U" + Random.Next(10000000, 99999999),
+            CountryCode.BE => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
+            CountryCode.BG => Random.Next(0, 2) == 0
                 ? $"{Random.Next(100000000, 999999999)}"
                 : $"{Random.NextInt64(1000000000, 9999999999)}",
-            "CY" => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
-            "CZ" => Random.Next(0, 2) == 0
+            CountryCode.CY => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
+            CountryCode.CZ => Random.Next(0, 2) == 0
                 ? $"{Random.Next(10000000, 99999999)}"
                 : $"{Random.NextInt64(1000000000, 9999999999)}",
-            "DE" => $"{Random.Next(100000000, 999999999)}",
-            "DK" => $"{Random.Next(10000000, 99999999)}",
-            "EE" => $"{Random.Next(100000000, 999999999)}",
-            "EL" => $"{Random.Next(100000000, 999999999)}",
-            "ES" => GenerateEsVat(),
-            "FI" => $"{Random.Next(10000000, 99999999)}",
-            "FR" => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
-            "HR" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "HU" => $"{Random.Next(10000000, 99999999)}",
-            "IE" => GenerateIeVat(),
-            "IT" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "LT" => Random.Next(0, 2) == 0
+            CountryCode.DE => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.DK => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.EE => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.EL => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.ES => GenerateEsVat(),
+            CountryCode.FI => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.FR => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
+            CountryCode.HR => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.HU => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.IE => GenerateIeVat(),
+            CountryCode.IT => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.LT => Random.Next(0, 2) == 0
                 ? $"{Random.Next(100000000, 999999999)}"
                 : $"{Random.NextInt64(100000000000, 999999999999)}",
-            "LU" => $"{Random.Next(10000000, 99999999)}",
-            "LV" => $"{Random.NextInt64(10000000000, 99999999999)}",
-            "MT" => $"{Random.Next(10000000, 99999999)}",
-            "NL" => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
-            "PT" => $"{Random.Next(100000000, 999999999)}",
-            "RO" => $"{Random.NextInt64(10, 9999999999)}",
-            "SE" => $"{Random.NextInt64(100000000000, 999999999999)}",
-            "SI" => $"{Random.Next(10000000, 99999999)}",
-            "SK" => $"{Random.NextInt64(1000000000, 9999999999)}",
-            "XI" => GenerateXiVat(),
+            CountryCode.LU => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.LV => $"{Random.NextInt64(10000000000, 99999999999)}",
+            CountryCode.MT => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.NL => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
+            CountryCode.PT => $"{Random.Next(100000000, 999999999)}",
+            CountryCode.RO => $"{Random.NextInt64(10, 9999999999)}",
+            CountryCode.SE => $"{Random.NextInt64(100000000000, 999999999999)}",
+            CountryCode.SI => $"{Random.Next(10000000, 99999999)}",
+            CountryCode.SK => $"{Random.NextInt64(1000000000, 9999999999)}",
+            CountryCode.XI => GenerateXiVat(),
+            CountryCode.PL => GetRandomNip(),
             _ => throw new ArgumentException($"Niewspierany kod kraju {countryCode}")
         };
 
@@ -275,7 +417,7 @@ public static class MiscellaneousUtils
 
     // --- metody pomocnicze ---
     private static string RandomString(string chars, int length) =>
-        new string(Enumerable.Repeat(chars, length).Select(s => s[Random.Next(s.Length)]).ToArray());
+        new([.. Enumerable.Repeat(chars, length).Select(s => s[Random.Next(s.Length)])]);
 
     private static string GenerateEsVat()
     {
@@ -312,12 +454,11 @@ public static class MiscellaneousUtils
     /// </summary>
     /// <param name="bankBranch8">8 cyfr bank/oddział; null → losowe.</param>
     /// <param name="account16">16 cyfr rachunku; null → losowe.</param>
-    /// <returns>IBAN w formacie: PLkkBBBBBBBBAAAAAAAAAAAAAAAA.</returns>
-
-    public static string GeneratePolishIban(string bankBranch8 = null, string account16 = null)
+    /// <returns>IBAN w formacie: PLkkBBBBBBBBAAAAAAAAAAAAAAAA.</returns>    
+    public static string GeneratePolishIban(string bankBranch8 = "", string account16 = "")
     {
         // Zbuduj 26-cyfrowy BBAN (NRB): 8 cyfr bank/oddział + 16 cyfr numeru rachunku
-        string bban = (bankBranch8 ?? RandomDigits(8)) + (account16 ?? RandomDigits(16));
+        string bban = (!string.IsNullOrEmpty(bankBranch8) ? bankBranch8 : RandomDigits(8)) + (!string.IsNullOrEmpty(account16) ? account16 : RandomDigits(16));
 
         // IBAN check digits: policz dla "PL00" + BBAN → przenieś "PL00" na koniec → mod 97
         string rearranged = bban + LettersToDigits("PL") + "00";
@@ -329,7 +470,7 @@ public static class MiscellaneousUtils
 
         static string RandomDigits(int len)
         {
-            StringBuilder sb = new StringBuilder(len);
+            StringBuilder sb = new(len);
             Span<byte> buf = stackalloc byte[1];
             for (int i = 0; i < len; i++)
             {
@@ -342,7 +483,7 @@ public static class MiscellaneousUtils
 
         static string LettersToDigits(string s)
         {
-            StringBuilder sb = new StringBuilder(s.Length * 2);
+            StringBuilder sb = new(s.Length * 2);
             foreach (char ch in s.ToUpperInvariant())
             {
                 int val = ch - 'A' + 10; // A=10 ... Z=35
@@ -360,11 +501,48 @@ public static class MiscellaneousUtils
             while (start < numeric.Length)
             {
                 int take = Math.Min(chunkSize, numeric.Length - start);
-                string part = rem.ToString(CultureInfo.InvariantCulture) + numeric.Substring(start, take);
+                string part = string.Concat(rem.ToString(CultureInfo.InvariantCulture), numeric.AsSpan(start, take));
                 rem = (int)(ulong.Parse(part, CultureInfo.InvariantCulture) % 97UL);
                 start += take;
             }
             return rem;
         }
     }
+
+    [GeneratedRegex(@"^U\d{8}$")]
+    private static partial Regex MyRegex();
+
+    [GeneratedRegex(@"^U\d{8}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex AtPattern();
+
+    [GeneratedRegex(@"^\d{9}B\d{2}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex NlPattern();
+
+    [GeneratedRegex(@"^\d{8}[A-Z]$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex CyPattern();
+
+    [GeneratedRegex(@"^(\d{7}[A-Z]{1,2}|\d[A-Z]\d{5}[A-Z])$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex IePattern();
+
+    [GeneratedRegex(@"^[0-9A-HJ-NP-Z]{2}\d{9}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex FrPattern();
+
+    [GeneratedRegex(@"^[A-Z]\d{7}[A-Z0-9]$|^\d{8}[A-Z]$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex EsPattern();
+
+    [GeneratedRegex(@"^\d{12}$", RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex Digits12();
+
+    [GeneratedRegex(@"^\d{8}$", RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex Digits8();
+
+    [GeneratedRegex(@"^\d{9}$", RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex Digits9();
+
+    [GeneratedRegex(@"^\d{10}$", RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex Digits10();
+
+    [GeneratedRegex(@"^\d{11}$", RegexOptions.CultureInvariant | RegexOptions.Compiled)]
+    private static partial Regex Digits11();
+
 }

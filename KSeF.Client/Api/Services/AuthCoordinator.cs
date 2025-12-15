@@ -10,16 +10,9 @@ using System.Text;
 namespace KSeF.Client.Api.Services;
 
 /// <inheritdoc />
-public class AuthCoordinator : IAuthCoordinator
+public class AuthCoordinator(
+    IAuthorizationClient authorizationClient) : IAuthCoordinator
 {
-    private readonly IAuthorizationClient _authorizationClient;
-
-    public AuthCoordinator(
-        IAuthorizationClient authorizationClient
-        )
-    {
-        _authorizationClient = authorizationClient;
-    }
 
     /// <inheritdoc />
     public async Task<AuthenticationOperationStatusResponse> AuthKsefTokenAsync(
@@ -28,14 +21,14 @@ public class AuthCoordinator : IAuthCoordinator
         string tokenKsef,
         ICryptographyService cryptographyService,
         EncryptionMethodEnum encryptionMethod = EncryptionMethodEnum.ECDsa,
-        AuthenticationTokenAuthorizationPolicy ipAddressPolicy = default,
+        AuthenticationTokenAuthorizationPolicy authorizationPolicy = default,
         CancellationToken cancellationToken = default)
     {
         // 1) Pobranie challenge i timestamp
-        AuthenticationChallengeResponse challengeResponse = await _authorizationClient
-            .GetAuthChallengeAsync(cancellationToken);
+        AuthenticationChallengeResponse challengeResponse = await authorizationClient
+            .GetAuthChallengeAsync(cancellationToken).ConfigureAwait(false);
 
-        string challenge = challengeResponse.Challenge;
+        string challenge = challengeResponse.Challenge;      
 
         long timestampMs = challengeResponse.Timestamp.ToUnixTimeMilliseconds();
 
@@ -54,29 +47,28 @@ public class AuthCoordinator : IAuthCoordinator
         string encryptedToken = Convert.ToBase64String(tokenEncryptedBytes);
 
         // 4) Budowa żądania
-        IAuthKsefTokenRequestBuilderWithEncryptedToken requestBuilder = AuthKsefTokenRequestBuilder
+        IAuthKsefTokenRequestBuilderWithEncryptedToken authKsefTokenRequest = AuthKsefTokenRequestBuilder
             .Create()
             .WithChallenge(challenge)
             .WithContext(contextIdentifierType, contextIdentifierValue)
             .WithEncryptedToken(encryptedToken);
 
-        if (ipAddressPolicy != null)
+        if (authorizationPolicy != null)
         {
-            requestBuilder = requestBuilder.WithAuthorizationPolicy(ipAddressPolicy);
+            authKsefTokenRequest = authKsefTokenRequest.WithAuthorizationPolicy(authorizationPolicy);
         }
 
-        AuthenticationKsefTokenRequest authKsefTokenRequest = requestBuilder.Build();
-
         // 5) Wysłanie do KSeF
-        SignatureResponse submissionResponse = await _authorizationClient
-            .SubmitKsefTokenAuthRequestAsync(authKsefTokenRequest, cancellationToken);
+        SignatureResponse submissionResponse = await authorizationClient
+            .SubmitKsefTokenAuthRequestAsync(authKsefTokenRequest.Build(), cancellationToken).ConfigureAwait(false);
 
         // 6) Odpytanie o gotowość tokenu
-        await WaitForAuthCompletionAsync(submissionResponse, cancellationToken);
+        await WaitForAuthCompletionAsync(submissionResponse, cancellationToken).ConfigureAwait(false);
 
-        AuthenticationOperationStatusResponse accessTokenResponse = await _authorizationClient.GetAccessTokenAsync(submissionResponse.AuthenticationToken.Token, cancellationToken);
+        // 7) Pobranie tokenu dostępowego
+        AuthenticationOperationStatusResponse accessTokenResponse = await authorizationClient.GetAccessTokenAsync(submissionResponse.AuthenticationToken.Token, cancellationToken).ConfigureAwait(false);       
 
-        // 7) Zwróć token            
+        // 8) Zwróć token            
         return accessTokenResponse;
     }
 
@@ -86,13 +78,13 @@ public class AuthCoordinator : IAuthCoordinator
         string contextIdentifierValue,
         AuthenticationTokenSubjectIdentifierTypeEnum identifierType,
         Func<string, Task<string>> xmlSigner,
-        AuthenticationTokenAuthorizationPolicy ipAddressPolicy = default,
-        CancellationToken cancellationToken = default,
-        bool verifyCertificateChain = false)
+        AuthenticationTokenAuthorizationPolicy authorizationPolicy = default,
+        bool verifyCertificateChain = false,
+        CancellationToken cancellationToken = default)
     {
         // 1) Challenge
-        AuthenticationChallengeResponse challengeResponse = await _authorizationClient
-            .GetAuthChallengeAsync(cancellationToken);
+        AuthenticationChallengeResponse challengeResponse = await authorizationClient
+            .GetAuthChallengeAsync(cancellationToken).ConfigureAwait(false);
 
         string challenge = challengeResponse.Challenge;
 
@@ -104,10 +96,10 @@ public class AuthCoordinator : IAuthCoordinator
             .WithContext(contextIdentifierType, contextIdentifierValue)
             .WithIdentifierType(identifierType);
 
-        if (ipAddressPolicy != null)
+        if (authorizationPolicy != null)
         {
             authTokenRequest = authTokenRequest
-            .WithAuthorizationPolicy(ipAddressPolicy);
+            .WithAuthorizationPolicy(authorizationPolicy);               
         }
 
         AuthenticationTokenRequest authorizeRequest = authTokenRequest.Build();
@@ -115,21 +107,22 @@ public class AuthCoordinator : IAuthCoordinator
         // 3) Serializacja do XML
         string unsignedXml = AuthenticationTokenRequestSerializer.SerializeToXmlString(authorizeRequest);
 
-        // 4) Wywołanie mechanizmu podpisującego XML
-        string signedXml = await xmlSigner.Invoke(unsignedXml);
+        // 4) wywołanie mechanizmu podpisującego XML
+        string signedXml = await xmlSigner.Invoke(unsignedXml).ConfigureAwait(false);
 
-        // 5) Przesłanie podpisanego XML do systemu KSeF
-        SignatureResponse authSubmission = await _authorizationClient
-            .SubmitXadesAuthRequestAsync(signedXml, false, cancellationToken);
+        // 5)// Przesłanie podpisanego XML do systemu KSeF
+        SignatureResponse authSubmission = await authorizationClient
+            .SubmitXadesAuthRequestAsync(signedXml, false, cancellationToken).ConfigureAwait(false);
 
         // 6) Odpytanie o gotowość tokenu
-        await WaitForAuthCompletionAsync(authSubmission, cancellationToken);
+        await WaitForAuthCompletionAsync(authSubmission, cancellationToken).ConfigureAwait(false);
 
-        AuthenticationOperationStatusResponse accessTokenResponse = await _authorizationClient.GetAccessTokenAsync(authSubmission.AuthenticationToken.Token, cancellationToken);
+        AuthenticationOperationStatusResponse accessTokenResponse = await authorizationClient.GetAccessTokenAsync(authSubmission.AuthenticationToken.Token, cancellationToken).ConfigureAwait(false);
 
         // 7) Zwrócenie tokena           
         return accessTokenResponse;
     }
+
 
     /// <summary>
     /// Oczekuje na zakończenie operacji uwierzytelnienia, sprawdzając status co sekundę.
@@ -145,19 +138,19 @@ public class AuthCoordinator : IAuthCoordinator
 
         do
         {
-            authStatus = await _authorizationClient.GetAuthStatusAsync(
+            authStatus = await authorizationClient.GetAuthStatusAsync(
                 authOperationInfo.ReferenceNumber,
                 authOperationInfo.AuthenticationToken.Token,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             // (4xx) - błąd po stronie danych/żądania
             if (authStatus.Status.Code >= AuthenticationStatusCodeResponse.BadRequest && authStatus.Status.Code < AuthenticationStatusCodeResponse.UnknownError)
             {
-                string details = authStatus.Status.Details != null && authStatus.Status.Details.Any()
+                string details = authStatus.Status.Details != null && authStatus.Status.Details?.Count > 0
                     ? string.Join(", ", authStatus.Status.Details)
                     : "brak szczegółów";
 
-                throw new Exception(
+                throw new InvalidOperationException(
                     $"Błąd autoryzacji KSeF. " +
                     $"Status: {authStatus.Status.Code}, " +
                     $"Opis: {authStatus.Status.Description}, " +
@@ -173,7 +166,7 @@ public class AuthCoordinator : IAuthCoordinator
             // Status 100 (Processing) lub inne - czekamy przed kolejną próbą
             if (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
             }
         }
         while (authStatus.Status.Code != AuthenticationStatusCodeResponse.AuthenticationSuccess
@@ -183,7 +176,7 @@ public class AuthCoordinator : IAuthCoordinator
         // Timeout lub nieoczekiwany status
         if (authStatus.Status.Code != AuthenticationStatusCodeResponse.AuthenticationSuccess)
         {
-            string details = authStatus.Status.Details != null && authStatus.Status.Details.Any()
+            string details = authStatus.Status.Details != null && authStatus.Status.Details.Count > 0
                 ? string.Join(", ", authStatus.Status.Details)
                 : "brak szczegółów";
 
@@ -197,6 +190,6 @@ public class AuthCoordinator : IAuthCoordinator
 
     /// <inheritdoc />
     public Task<TokenInfo> RefreshAccessTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
-        => _authorizationClient.RefreshAccessTokenAsync(refreshToken, cancellationToken)
+        => authorizationClient.RefreshAccessTokenAsync(refreshToken, cancellationToken)
                          .ContinueWith(t => t.Result.AccessToken, cancellationToken);
 }

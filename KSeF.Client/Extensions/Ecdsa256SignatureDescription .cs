@@ -16,7 +16,10 @@ public class Ecdsa256SignatureDescription : SignatureDescription
     public override AsymmetricSignatureFormatter CreateFormatter(AsymmetricAlgorithm key)
     {
         if (key is not ECDsa ecdsa)
+        {
             throw new InvalidOperationException("Wymagany klucz ECDSA");
+        }
+
         return new ECDsaSignatureFormatter(ecdsa);
     }
 
@@ -24,43 +27,46 @@ public class Ecdsa256SignatureDescription : SignatureDescription
     public override AsymmetricSignatureDeformatter CreateDeformatter(AsymmetricAlgorithm key)
     {
         if (key is not ECDsa ecdsa)
+        {
             throw new InvalidOperationException("Wymagany klucz ECDSA");
+        }
+
         return new ECDsaSignatureDeformatter(ecdsa);
     }
 }
 
-public class ECDsaSignatureFormatter : AsymmetricSignatureFormatter
+public class ECDsaSignatureFormatter(ECDsa key) : AsymmetricSignatureFormatter
 {
-    private ECDsa? _ecdsaKey;
+    private ECDsa ecdsaKey = key;
 
-    public ECDsaSignatureFormatter(ECDsa key) => _ecdsaKey = key;
-
-    public override void SetKey(AsymmetricAlgorithm key) => _ecdsaKey = key as ECDsa;
+    public override void SetKey(AsymmetricAlgorithm key) => ecdsaKey = key as ECDsa;
 
     public override void SetHashAlgorithm(string strName) { }
 
     public override byte[] CreateSignature(byte[] rgbHash)
     {
-        if (_ecdsaKey == null)
+        if (ecdsaKey == null)
+        {
             throw new CryptographicException("Brak klucza ECDSA");
-        return _ecdsaKey.SignHash(rgbHash);
+        }
+
+        return ecdsaKey.SignHash(rgbHash);
     }
 }
 
-public class ECDsaSignatureDeformatter : AsymmetricSignatureDeformatter
+public class ECDsaSignatureDeformatter(ECDsa ecdsaKey) : AsymmetricSignatureDeformatter
 {
-    private ECDsa? _ecdsaKey;
-
-    public ECDsaSignatureDeformatter(ECDsa key) => _ecdsaKey = key;
-
-    public override void SetKey(AsymmetricAlgorithm key) => _ecdsaKey = key as ECDsa;
+    public override void SetKey(AsymmetricAlgorithm key) => ecdsaKey = key as ECDsa;
 
     public override void SetHashAlgorithm(string strName) { }
 
     public override bool VerifySignature(byte[] rgbHash, byte[] rgbSignature)
     {
-        if (_ecdsaKey == null)
+        if (ecdsaKey == null)
+        {
             throw new CryptographicException("Brak klucza ECDSA");
-        return _ecdsaKey.VerifyHash(rgbHash, rgbSignature);
+        }
+
+        return ecdsaKey.VerifyHash(rgbHash, rgbSignature);
     }
 }

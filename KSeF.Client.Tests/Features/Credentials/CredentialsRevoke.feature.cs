@@ -11,15 +11,15 @@ public partial class CredentialsRevokeTests : KsefIntegrationTestBase
 {
     [Fact]
     [Trait("Scenario", "Właściciel nadaje CredentialsManage dla delegata, delegat nadaje 'InvoiceWrite' dla PESEL i następnie odbiera.")]
-    public async Task Delegate_GrantAndRevoke_InvoiceWrite_ForPesel_AsManager_LeavesNoActivePermission()
+    public async Task DelegateGrantAndRevokeInvoiceWriteForPeselAsManagerLeavesNoActivePermission()
     {
         // Arrange
         string nipOwner = MiscellaneousUtils.GetRandomNip();
         string nipDelegate = MiscellaneousUtils.GetRandomNip();
         string pesel = MiscellaneousUtils.GetRandomPesel();
 
-        string ownerToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, nipOwner)).AccessToken.Token;
-        string delegateToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, SignatureService, nipDelegate)).AccessToken.Token;
+        string ownerToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, nipOwner)).AccessToken.Token;
+        string delegateToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, nipDelegate)).AccessToken.Token;
 
         // Act
         // ========== Act: GRANT AS OWNER CredentialManage FOR DELEGATE ==========

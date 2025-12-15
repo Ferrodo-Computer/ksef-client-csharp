@@ -7,7 +7,6 @@ using KSeF.Client.DI;
 using KSeF.Client.Extensions;
 using KSeF.Client.Tests.Core.Config;
 using Microsoft.Extensions.DependencyInjection;
-using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace KSeF.Client.Tests.Core.E2E;
@@ -15,39 +14,46 @@ public abstract class TestBase : IDisposable
 {
     internal const int SleepTime = 2000;
 
-    protected IServiceScope _scope = default!;
-    private ServiceProvider _serviceProvider = default!;
+    private readonly IServiceScope _scope;
+    private readonly ServiceProvider _root;
+
+    protected IServiceProvider Services => _scope.ServiceProvider;
+    protected T Get<T>() where T : notnull => Services.GetRequiredService<T>();
+
+    private readonly ServiceProvider _serviceProvider = default!;
 
     protected static readonly CancellationToken CancellationToken = CancellationToken.None;
-    protected IKSeFClient KsefClient => _scope.ServiceProvider.GetRequiredService<IKSeFClient>();
-    protected IAuthorizationClient AuthorizationClient => _scope.ServiceProvider.GetRequiredService<IAuthorizationClient>();
-    protected IActiveSessionsClient ActiveSessionsClient => _scope.ServiceProvider.GetRequiredService<IActiveSessionsClient>();
-    protected ILimitsClient LimitsClient => _scope.ServiceProvider.GetRequiredService<ILimitsClient>();
-    protected ITestDataClient TestDataClient => _scope.ServiceProvider.GetRequiredService<ITestDataClient>();
+    protected IKSeFClient KsefClient => Get<IKSeFClient>();
+    protected IAuthorizationClient AuthorizationClient => Get<IAuthorizationClient>();
+    protected IActiveSessionsClient ActiveSessionsClient => Get<IActiveSessionsClient >();
+    protected ILimitsClient LimitsClient => Get<ILimitsClient>();
+    protected ITestDataClient TestDataClient => Get<ITestDataClient>();
 
-    protected ISignatureService SignatureService => _scope.ServiceProvider.GetRequiredService<ISignatureService>();
-    protected IPersonTokenService TokenService => _scope.ServiceProvider.GetRequiredService<IPersonTokenService>();
-    protected ICryptographyService CryptographyService => _scope.ServiceProvider.GetRequiredService<ICryptographyService>();
+    protected IPersonTokenService TokenService => Get<IPersonTokenService>();
+    protected ICryptographyService CryptographyService => Get<ICryptographyService>();
 
 
     public TestBase()
     {
         CryptographyConfigInitializer.EnsureInitialized();
+        ServiceCollection services = new();
 
-        ServiceCollection services = new ServiceCollection();
+        _root = services.BuildServiceProvider();
+        _scope = _root.CreateScope();
 
         ApiSettings apiSettings = TestConfig.GetApiSettings();
 
-        string? customHeadersFromSettings = TestConfig.Load()["ApiSettings:customHeaders"];
+        string customHeadersFromSettings = TestConfig.Load()["ApiSettings:customHeaders"] ?? string.Empty;
         if (!string.IsNullOrEmpty(customHeadersFromSettings))
         {
-            apiSettings.CustomHeaders = JsonSerializer.Deserialize<Dictionary<string, string>>(customHeadersFromSettings);
+            apiSettings.CustomHeaders = JsonSerializer.Deserialize<Dictionary<string, string>>(customHeadersFromSettings)
+                ?? [];
         }
 
         services.AddKSeFClient(options =>
         {
             options.BaseUrl = apiSettings.BaseUrl!;
-            options.CustomHeaders = apiSettings.CustomHeaders ?? new Dictionary<string, string>();
+            options.CustomHeaders = apiSettings.CustomHeaders ?? [];
         });
 
         // UWAGA! w testach nie używamy AddCryptographyClient tylko rejestrujemy ręcznie, bo on uruchamia HostedService w tle
@@ -71,11 +77,12 @@ public abstract class TestBase : IDisposable
                    .StartAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public Task DisposeAsync() => Task.Run(() => Dispose());
 
     public void Dispose()
     {
         _scope.Dispose();
-        _serviceProvider?.Dispose();
+        _serviceProvider.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

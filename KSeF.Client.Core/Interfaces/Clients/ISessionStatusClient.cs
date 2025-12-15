@@ -11,17 +11,19 @@ namespace KSeF.Client.Core.Interfaces.Clients
     /// </summary>
     public interface ISessionStatusClient
     {
-        /// <summary>
-        /// Zwraca listę sesji spełniających podane kryteria wyszukiwania.
-        /// </summary>
-        /// <param name="accessToken">Access token</param>
-        /// <param name="pageSize">Rozmiar strony wyników.</param>
-        /// <param name="continuationToken">Token kontynuacji, jeśli jest dostępny.</param>
-        /// <param name="cancellationToken">Cancellation token./param>
-        /// <returns><see cref="SessionsListResponse"/></returns>
-        /// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
-        /// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
-        Task<SessionsListResponse> GetSessionsAsync(SessionType sessionType, string accessToken, int? pageSize, string continuationToken, SessionsFilter sessionsFilter = null, CancellationToken cancellationToken = default);
+		/// <summary>
+		/// Zwraca listę sesji spełniających podane kryteria wyszukiwania.
+		/// </summary>
+		/// <param name="sessionType">Rodzaj sesji</param>
+		/// <param name="accessToken">Access token</param>
+		/// <param name="pageSize">Rozmiar strony wyników.</param>
+		/// <param name="continuationToken">Token kontynuacji, jeśli jest dostępny.</param>
+		/// <param name="sessionsFilter">Filtry sesji</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
+		/// <returns><see cref="SessionsListResponse"/></returns>
+		/// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
+		/// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
+		Task<SessionsListResponse> GetSessionsAsync(SessionType sessionType, string accessToken, int? pageSize, string continuationToken, SessionsFilter sessionsFilter = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Pobranie statusu sesji
@@ -43,11 +45,11 @@ namespace KSeF.Client.Core.Interfaces.Clients
         /// <remarks>
         /// Zwraca listę faktur przesłanych w sesji wraz z ich statusami, oraz informacje na temat ilości poprawnie i niepoprawnie przetworzonych faktur.
         /// </remarks>
-        /// <param name="sessionReferenceNumber\">Numer referencyjny sesji</param>
+        /// <param name="sessionReferenceNumber">Numer referencyjny sesji</param>
         /// <param name="accessToken">Access token.</param>
         /// <param name="pageSize">Rozmiar strony wyników.</param>
         /// <param name="continuationToken">Token kontynuacji, jeśli jest dostępny.</param>
-        /// <param name="cancellationToken">Cancellation token./param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns><see cref="SessionInvoicesResponse"/></returns>
         /// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
         /// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
@@ -61,7 +63,7 @@ namespace KSeF.Client.Core.Interfaces.Clients
         /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
         /// <param name="invoiceReferenceNumber">Numer referencyjny faktury.</param>
         /// <param name="accessToken">Access token.</param>
-        /// <param name="cancellationToken">Cancellation token./param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns><see cref="SessionInvoice"/></returns>
         /// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
         /// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
@@ -77,7 +79,7 @@ namespace KSeF.Client.Core.Interfaces.Clients
         /// <param name="accessToken">Access token</param>
         /// <param name="pageSize">Rozmiar strony wyników.</param>
         /// <param name="continuationToken">Token kontynuacji, jeśli jest dostępny.</param>
-        /// <param name="cancellationToken">Cancellation token./param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns><see cref="SessionInvoicesResponse"/></returns>
         /// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
         /// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
@@ -107,7 +109,7 @@ namespace KSeF.Client.Core.Interfaces.Clients
         /// <param name="sessionReferenceNumber">Numer referencyjny sesji</param>
         /// <param name="invoiceReferenceNumber">Numer referencyjny faktury</param>
         /// <param name="accessToken">Access token</param>
-        /// <param name="cancellationToken">Cancellation token./param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>UPO w formie XML</returns>
         /// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
         /// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
@@ -122,17 +124,17 @@ namespace KSeF.Client.Core.Interfaces.Clients
         /// <param name="sessionReferenceNumber">Numer referencyjny sesji</param>
         /// <param name="upoReferenceNumber">Numer referencyjny UPO</param>
         /// <param name="accessToken">Access token</param>
-        /// <param name="cancellationToken">Cancellation token./param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>Zbiorcze UPO w formie XML</returns>
         /// <exception cref="KsefApiException">Nieprawidłowe żądanie. (400 Bad request)</exception>
         /// <exception cref="KsefApiException">Brak autoryzacji. (401 Unauthorized)</exception>
         Task<string> GetSessionUpoAsync(string sessionReferenceNumber, string upoReferenceNumber, string accessToken, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Pobiera UPO z adresu Uri.
-        /// </summary>
-        /// <param name="url">Url do pobrania UPO.</param>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        Task<string> GetUpoAsync(Uri uri, CancellationToken cancellationToken = default);
+		/// <summary>
+		/// Pobiera UPO z adresu Uri.
+		/// </summary>
+		/// <param name="uri">Adres Uri.</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
+		Task<string> GetUpoAsync(Uri uri, CancellationToken cancellationToken = default);
     }
 }

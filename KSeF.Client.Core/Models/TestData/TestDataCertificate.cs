@@ -2,6 +2,6 @@
 {
     public class TestDataCertificate
     {
-        public int MaxCertificates { get; set; } = 0;
+        public int MaxCertificates { get; set; }
     }
 }

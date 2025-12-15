@@ -1,10 +1,8 @@
-﻿using KSeF.Client.Core.Interfaces.Clients;
-using KSeF.Client.Core.Models.Authorization;
+﻿using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Permissions;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Core.Models.TestData;
 using KSeF.Client.Tests.Utils;
-using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.X509Certificates;
 using static KSeF.Client.Core.Models.Permissions.PersonalPermission;
 
@@ -12,12 +10,6 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
 {
     public class TestDataE2ETests : TestBase
     {
-        protected ITestDataClient _testDataClient => _scope.ServiceProvider.GetRequiredService<ITestDataClient>();
-
-        private const string CourtBailiffRole = "CourtBailiff";
-        private const string VatGroupUnitRole = "VatGroupUnit";
-        private const string LocalGovernmentUnitRole = "LocalGovernmentUnit";
-        private const string EnforcementAuthorityRole = "EnforcementAuthority";
         private const int MaxPollingAttempts = 30;
 
         /// <summary>
@@ -30,40 +22,38 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
         /// 4. Weryfikacja usunięcia ról
         /// </summary>
         [Theory]
-        [InlineData(SubjectType.VatGroup, "Grupa VAT", VatGroupUnitRole)]
-        [InlineData(SubjectType.JST, "JST", LocalGovernmentUnitRole)]
+        [InlineData(SubjectType.VatGroup, "Grupa VAT", EntityRoleType.VatGroupUnit)]
+        [InlineData(SubjectType.JST, "JST", EntityRoleType.LocalGovernmentUnit)]
         public async Task CreateSubjectWithSubunit_VerifyRoles_ThenRemoveAndVerifyRolesRemoved(
             SubjectType subjectType,
             string subjectDescription,
-            string expectedRoleType)
+            EntityRoleType expectedRoleType)
         {
             // Arrange
             string subjectNip = MiscellaneousUtils.GetRandomNip();
             string subunitNip = MiscellaneousUtils.GetRandomNip();
 
             // Przygotowanie żądania utworzenia podmiotu głównego wraz z jednostką podrzędną
-            SubjectCreateRequest createRequest = new SubjectCreateRequest
+            SubjectCreateRequest createRequest = new()
             {
                 SubjectNip = subjectNip,
                 SubjectType = subjectType,
-                Subunits = new List<SubjectSubunit>
-                {
-                    new SubjectSubunit
-                    {
+                Subunits =
+                [
+                    new() {
                         SubjectNip = subunitNip,
                         Description = $"Jednostka podrzędna - {subjectDescription}"
                     }
-                },
+                ],
                 Description = $"{subjectDescription} testowy"
             };
 
             // Utworzenie testowego podmiotu w systemie
-            await _testDataClient.CreateSubjectAsync(createRequest);
+            await TestDataClient.CreateSubjectAsync(createRequest);
 
             // Uwierzytelnienie jako podmiot główny
             AuthenticationOperationStatusResponse authOperationStatusResponse = await AuthenticationUtils.AuthenticateAsync(
                 AuthorizationClient,
-                SignatureService,
                 subjectNip);
 
             // Pobranie ról przypisanych do podmiotu głównego
@@ -83,12 +73,12 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
                 $"Jednostka podrzędna powinna mieć przypisaną rolę {expectedRoleType}");
 
             // Usunięcie testowego podmiotu głównego (automatycznie usuwa jednostki podrzędne)
-            SubjectRemoveRequest removeRequest = new SubjectRemoveRequest
+            SubjectRemoveRequest removeRequest = new()
             {
                 SubjectNip = subjectNip
             };
 
-            await _testDataClient.RemoveSubjectAsync(removeRequest);
+            await TestDataClient.RemoveSubjectAsync(removeRequest);
 
             // Pobranie ról podmiotu głównego po usunięciu
             PagedRolesResponse<EntityRole> subjectRolesAfterRemoval = await AsyncPollingUtils.PollAsync(
@@ -102,6 +92,8 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
             // Assert - Weryfikacja usunięcia ról podmiotu głównego
             Assert.NotNull(subjectRolesAfterRemoval);
             Assert.NotNull(subjectRolesAfterRemoval.Roles);
+            Assert.True(subjectRolesAfterRemoval.Roles.All(x => x.ParentEntityIdentifier != null));
+            Assert.True(subjectRolesAfterRemoval.Roles.All(x => x.Description != null));
             Assert.False(subjectRolesAfterRemoval.Roles.Any(role => role.Role == expectedRoleType),
                 $"Rola {expectedRoleType} powinna zostać usunięta wraz z podmiotem głównym");
         }
@@ -116,13 +108,13 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
         /// 4. Weryfikacja usunięcia roli EnforcementAuthority
         /// </summary>
         [Fact]
-        public async Task CreateEnforcementAuthority_VerifyRole_ThenRemoveAndVerifyRoleRemoved()
+        public async Task CreateEnforcementAuthorityVerifyRoleThenRemoveAndVerifyRoleRemoved()
         {
             // Arrange
             string subjectNip = MiscellaneousUtils.GetRandomNip();
 
             // Przygotowanie żądania utworzenia organu egzekucyjnego (bez jednostek podrzędnych)
-            SubjectCreateRequest createRequest = new SubjectCreateRequest
+            SubjectCreateRequest createRequest = new()
             {
                 SubjectNip = subjectNip,
                 SubjectType = SubjectType.EnforcementAuthority,
@@ -130,12 +122,11 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
             };
 
             // Act - Utworzenie testowego podmiotu w systemie
-            await _testDataClient.CreateSubjectAsync(createRequest);
+            await TestDataClient.CreateSubjectAsync(createRequest);
 
             // Uwierzytelnienie jako organ egzekucyjny
             AuthenticationOperationStatusResponse authOperationStatusResponse = await AuthenticationUtils.AuthenticateAsync(
                 AuthorizationClient,
-                SignatureService,
                 subjectNip);
 
             // Act - Pobranie ról przypisanych do organu egzekucyjnego
@@ -143,7 +134,7 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
                 action: () => KsefClient.SearchEntityInvoiceRolesAsync(authOperationStatusResponse.AccessToken.Token),
                 condition: r => r is not null
                     && r.Roles is not null
-                    && r.Roles.Any(role => role.Role == EnforcementAuthorityRole),
+                    && r.Roles.Any(role => role.Role == EntityRoleType.EnforcementAuthority),
                 delay: TimeSpan.FromMilliseconds(SleepTime),
                 maxAttempts: MaxPollingAttempts,
                 cancellationToken: CancellationToken);
@@ -151,16 +142,16 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
             // Assert - Weryfikacja przypisania roli EnforcementAuthority po utworzeniu
             Assert.NotNull(rolesAfterCreation);
             Assert.NotNull(rolesAfterCreation.Roles);
-            Assert.True(rolesAfterCreation.Roles.Any(role => role.Role == EnforcementAuthorityRole),
+            Assert.True(rolesAfterCreation.Roles.Any(role => role.Role == EntityRoleType.EnforcementAuthority),
                 "Organ egzekucyjny powinien mieć przypisaną rolę EnforcementAuthority");
 
             // Act - Usunięcie testowego podmiotu
-            SubjectRemoveRequest removeRequest = new SubjectRemoveRequest
+            SubjectRemoveRequest removeRequest = new()
             {
                 SubjectNip = subjectNip
             };
 
-            await _testDataClient.RemoveSubjectAsync(removeRequest);
+            await TestDataClient.RemoveSubjectAsync(removeRequest);
 
             // Act - Pobranie ról po usunięciu organu egzekucyjnego
             PagedRolesResponse<EntityRole> rolesAfterRemoval = await AsyncPollingUtils.PollAsync(
@@ -174,7 +165,7 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
             // Assert - Weryfikacja usunięcia roli EnforcementAuthority
             Assert.NotNull(rolesAfterRemoval);
             Assert.NotNull(rolesAfterRemoval.Roles);
-            Assert.False(rolesAfterRemoval.Roles.Any(role => role.Role == EnforcementAuthorityRole),
+            Assert.False(rolesAfterRemoval.Roles.Any(role => role.Role == EntityRoleType.EnforcementAuthority),
                 "Rola EnforcementAuthority powinna zostać usunięta wraz z organem egzekucyjnym");
         }
 
@@ -187,14 +178,14 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
         /// 4. Weryfikacja usunięcia roli CourtBailiff
         /// </summary>
         [Fact]
-        public async Task CreatePersonWithBailiffFlag_VerifyCourtBailiffRole_ThenRemoveAndVerifyRoleRemoved()
+        public async Task CreatePersonWithBailiffFlagVerifyCourtBailiffRoleThenRemoveAndVerifyRoleRemoved()
         {
             // Arrange
             string personNip = MiscellaneousUtils.GetRandomNip();
             string personPesel = MiscellaneousUtils.GetRandomPesel();
 
             // Przygotowanie żądania utworzenia osoby fizycznej z flagą komornika
-            PersonCreateRequest createRequest = new PersonCreateRequest
+            PersonCreateRequest createRequest = new()
             {
                 Nip = personNip,
                 Pesel = personPesel,
@@ -203,12 +194,11 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
             };
 
             // Utworzenie testowej osoby fizycznej w systemie
-            await _testDataClient.CreatePersonAsync(createRequest);
+            await TestDataClient.CreatePersonAsync(createRequest);
 
             // Uwierzytelnienie jako utworzona osoba fizyczna
             AuthenticationOperationStatusResponse authOperationStatusResponse = await AuthenticationUtils.AuthenticateAsync(
                 AuthorizationClient,
-                SignatureService,
                 personNip);
 
             // Act - Pobranie ról przypisanych do osoby fizycznej
@@ -216,7 +206,7 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
                 action: () => KsefClient.SearchEntityInvoiceRolesAsync(authOperationStatusResponse.AccessToken.Token),
                 condition: r => r is not null
                     && r.Roles is not null
-                    && r.Roles.Any(role => role.Role == CourtBailiffRole),
+                    && r.Roles.Any(role => role.Role == EntityRoleType.CourtBailiff),
                 delay: TimeSpan.FromMilliseconds(SleepTime),
                 maxAttempts: MaxPollingAttempts,
                 cancellationToken: CancellationToken);
@@ -224,16 +214,16 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
             // Assert - Weryfikacja przypisania roli CourtBailiff po utworzeniu
             Assert.NotNull(rolesAfterCreation);
             Assert.NotNull(rolesAfterCreation.Roles);
-            Assert.True(rolesAfterCreation.Roles.Any(role => role.Role == CourtBailiffRole),
+            Assert.True(rolesAfterCreation.Roles.Any(role => role.Role == EntityRoleType.CourtBailiff),
                 "Osoba fizyczna z flagą IsBailiff powinna mieć przypisaną rolę CourtBailiff");
 
             // Act - Usunięcie testowej osoby fizycznej z systemu (usuwa powiązane role)
-            PersonRemoveRequest removeRequest = new PersonRemoveRequest
+            PersonRemoveRequest removeRequest = new()
             {
                 Nip = personNip
             };
 
-            await _testDataClient.RemovePersonAsync(removeRequest);
+            await TestDataClient.RemovePersonAsync(removeRequest);
 
             // Pobranie ról po usunięciu osoby
             PagedRolesResponse<EntityRole> rolesAfterRemoval = await AsyncPollingUtils.PollAsync(
@@ -247,7 +237,7 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
             // Assert - Weryfikacja usunięcia roli CourtBailiff wraz z osobą fizyczną
             Assert.NotNull(rolesAfterRemoval);
             Assert.NotNull(rolesAfterRemoval.Roles);
-            Assert.False(rolesAfterRemoval.Roles.Any(role => role.Role == CourtBailiffRole),
+            Assert.False(rolesAfterRemoval.Roles.Any(role => role.Role == EntityRoleType.CourtBailiff),
                 "Rola CourtBailiff powinna zostać usunięta wraz z osobą fizyczną");
         }
 
@@ -260,41 +250,39 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
         /// 4. Weryfikacja, że uprawnienia zostały usunięte
         /// </summary>
         [Fact]
-        public async Task GrantTestDataPermissions_VerifyGranted_ThenRevokeAndVerifyRemoved()
+        public async Task GrantTestDataPermissionsVerifyGrantedThenRevokeAndVerifyRemoved()
         {
             // Arrange
             string ownerNip = MiscellaneousUtils.GetRandomNip();
             string authorizedUserNip = MiscellaneousUtils.GetRandomNip();
 
             // Przygotowanie żądania nadania uprawnień testowych
-            TestDataPermissionsGrantRequest grantRequest = new TestDataPermissionsGrantRequest
+            TestDataPermissionsGrantRequest grantRequest = new()
             {
                 AuthorizedIdentifier = new AuthorizedIdentifier
                 {
                     Type = AuthorizedIdentifierType.Nip,
                     Value = authorizedUserNip
                 },
-                ContextIdentifier = new KSeF.Client.Core.Models.TestData.ContextIdentifier
+                ContextIdentifier = new Client.Core.Models.TestData.ContextIdentifier
                 {
                     Value = ownerNip
                 },
-                Permissions = new List<Permission>
-                {
-                    new Permission
-                    {
+                Permissions =
+                [
+                    new() {
                         PermissionType = PermissionType.InvoiceRead,
-                        Description = "Uprawnienie InvoiceRead dla podmiotu testowego"
+                        Description = "Uprawnienie InvoiceRead podmiotu testowego"
                     },
-                    new Permission
-                    {
+                    new() {
                         PermissionType = PermissionType.InvoiceWrite,
-                        Description = "Uprawnienie InvoiceWrite dla podmiotu testowego"
+                        Description = "Uprawnienie InvoiceWrite podmiotu testowego"
                     }
-                }
+                ]
             };
 
             // Nadanie uprawnień testowych
-            await _testDataClient.GrantPermissionsAsync(grantRequest);
+            await TestDataClient.GrantPermissionsAsync(grantRequest);
 
             // Przygotowanie certyfikatu uprawnionego podmiotu
             X509Certificate2 authorizedUserCertificate = CertificateUtils.GetPersonalCertificate(
@@ -312,10 +300,9 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
                     {
                         return await AuthenticationUtils.AuthenticateAsync(
                             AuthorizationClient,
-                            SignatureService,
                             ownerNip,
                             AuthenticationTokenContextIdentifierType.Nip,
-                            authorizedUserCertificate);
+                            authorizedUserCertificate).ConfigureAwait(false);
                     }
                     catch
                     {
@@ -328,7 +315,7 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
                 cancellationToken: CancellationToken);
 
             // Act - Pobranie wszystkich uprawnień uprawnionego podmiotu
-            PersonalPermissionsQueryRequest permissionsQuery = new PersonalPermissionsQueryRequest();
+            PersonalPermissionsQueryRequest permissionsQuery = new();
 
             PagedPermissionsResponse<PersonalPermission> grantedPermissions = await AsyncPollingUtils.PollAsync(
                 action: () => KsefClient.SearchGrantedPersonalPermissionsAsync(
@@ -350,20 +337,20 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
                 "Nie nadano uprawnienia InvoiceWrite");
 
             // Act - Cofnięcie uprawnień
-            TestDataPermissionsRevokeRequest revokeRequest = new TestDataPermissionsRevokeRequest
+            TestDataPermissionsRevokeRequest revokeRequest = new()
             {
                 AuthorizedIdentifier = new AuthorizedIdentifier
                 {
                     Type = AuthorizedIdentifierType.Nip,
                     Value = authorizedUserNip
                 },
-                ContextIdentifier = new KSeF.Client.Core.Models.TestData.ContextIdentifier
+                ContextIdentifier = new Client.Core.Models.TestData.ContextIdentifier
                 {
                     Value = ownerNip
                 }
             };
 
-            await _testDataClient.RevokePermissionsAsync(revokeRequest);
+            await TestDataClient.RevokePermissionsAsync(revokeRequest);
 
             // Pobranie uprawnień ponownie po cofnięciu
             PagedPermissionsResponse<PersonalPermission> revokedPermissions = await AsyncPollingUtils.PollAsync(
@@ -383,67 +370,73 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
                 "Uprawnienie InvoiceWrite powinno zostać usunięte po cofnięciu");
         }
 
-        /// <summary>
-        /// Weryfikacja poprawności nadawania i odbierania uprawnień do wysyłki faktur z załącznikami.
-        /// Scenariusz:
-        /// 1. Nadanie uprawnienia do załączników dla podmiotu
-        /// 2. Uwierzytelnienie i weryfikacja aktywnego uprawnienia
-        /// 3. Cofnięcie uprawnienia
-        /// 4. Weryfikacja usunięcia uprawnienia
-        /// </summary>
-        // [Fact]
-        public async Task GrantAttachmentPermission_VerifyEnabled_ThenRevokeAndVerifyDisabled()
-        {
-            // Arrange
-            string subjectNip = MiscellaneousUtils.GetRandomNip();
+		/// <summary>
+		/// Weryfikacja poprawności nadawania i odbierania uprawnień do wysyłki faktur z załącznikami.
+		/// Scenariusz:
+		/// 1. Nadanie uprawnienia do załączników dla podmiotu
+		/// 2. Uwierzytelnienie i weryfikacja aktywnego uprawnienia
+		/// 3. Cofnięcie uprawnienia - ustawienie daty wygaśnięcia (revokeDate)
+		/// 4. Weryfikacja ustawienia daty wygaśnięcia uprawnienia
+		/// </summary>
+		[Fact]
+		public async Task GrantAttachmentPermission_VerifyEnabled_ThenRevokeAndVerifyDisabled()
+		{
+			// Arrange
+			string subjectNip = MiscellaneousUtils.GetRandomNip();
+			DateTime revokeDate = DateTime.UtcNow.AddDays(1);
 
-            // Nadanie uprawnienia do wysyłki faktur z załącznikami
-            AttachmentPermissionGrantRequest grantRequest = new AttachmentPermissionGrantRequest
-            {
-                Nip = subjectNip
-            };
+			// Nadanie uprawnienia do wysyłki faktur z załącznikami
+			AttachmentPermissionGrantRequest grantRequest = new AttachmentPermissionGrantRequest
+			{
+				Nip = subjectNip
+			};
 
-            await _testDataClient.EnableAttachmentAsync(grantRequest);
+			await TestDataClient.EnableAttachmentAsync(grantRequest);
 
-            // Uwierzytelnienie podmiotu
-            AuthenticationOperationStatusResponse authOperationStatusResponse = await AuthenticationUtils.AuthenticateAsync(
-                AuthorizationClient,
-                SignatureService,
-                subjectNip);
+			// Uwierzytelnienie podmiotu
+			AuthenticationOperationStatusResponse authOperationStatusResponse = await AuthenticationUtils.AuthenticateAsync(
+				AuthorizationClient,
+				subjectNip);
 
-            // Act - Pobranie statusu uprawnienia do załączników z pollingiem
-            PermissionsAttachmentAllowedResponse grantedPermissionStatus = await AsyncPollingUtils.PollAsync(
-                action: () => KsefClient.GetAttachmentPermissionStatusAsync(authOperationStatusResponse.AccessToken.Token),
-                condition: r => r is not null && r.IsAttachmentAllowed == true,
-                delay: TimeSpan.FromMilliseconds(SleepTime),
-                maxAttempts: MaxPollingAttempts,
-                cancellationToken: CancellationToken);
+			// Act - Pobranie statusu uprawnienia do załączników z pollingiem
+			PermissionsAttachmentAllowedResponse grantedPermissionStatus = await AsyncPollingUtils.PollAsync(
+				action: () => KsefClient.GetAttachmentPermissionStatusAsync(authOperationStatusResponse.AccessToken.Token),
+				condition: r => r is not null && r.IsAttachmentAllowed == true,
+				delay: TimeSpan.FromMilliseconds(SleepTime),
+				maxAttempts: MaxPollingAttempts,
+				cancellationToken: CancellationToken);
 
-            // Assert - Weryfikacja nadania uprawnienia
-            Assert.NotNull(grantedPermissionStatus);
-            Assert.True(grantedPermissionStatus.IsAttachmentAllowed,
-                "Uprawnienie do wysyłki załączników powinno być aktywne po nadaniu");
+			// Assert - Weryfikacja nadania uprawnienia
+			Assert.NotNull(grantedPermissionStatus);
+			Assert.True(grantedPermissionStatus.IsAttachmentAllowed,
+				"Uprawnienie do wysyłki załączników powinno być aktywne po nadaniu");
 
-            // Act - Cofnięcie uprawnienia do wysyłki faktur z załącznikami
-            AttachmentPermissionRevokeRequest revokeRequest = new AttachmentPermissionRevokeRequest
-            {
-                Nip = subjectNip
-            };
+			// Act - Cofnięcie uprawnienia do wysyłki faktur z załącznikami
+			AttachmentPermissionRevokeRequest revokeRequest = new AttachmentPermissionRevokeRequest
+			{
+				Nip = subjectNip,
+				ExpectedEndDate = revokeDate
+			};
 
-            await _testDataClient.DisableAttachmentAsync(revokeRequest);
+			await TestDataClient.DisableAttachmentAsync(revokeRequest);
 
-            // Pobranie statusu uprawnienia po cofnięciu z pollingiem
-            PermissionsAttachmentAllowedResponse revokedPermissionStatus = await AsyncPollingUtils.PollAsync(
-                action: () => KsefClient.GetAttachmentPermissionStatusAsync(authOperationStatusResponse.AccessToken.Token),
-                condition: r => r is not null && r.IsAttachmentAllowed == false,
-                delay: TimeSpan.FromMilliseconds(SleepTime),
-                maxAttempts: MaxPollingAttempts,
-                cancellationToken: CancellationToken);
+			// Pobranie statusu uprawnienia po cofnięciu z pollingiem - weryfikacja ustawienia daty wygaśnięcia
+			PermissionsAttachmentAllowedResponse revokedPermissionStatus = await AsyncPollingUtils.PollAsync(
+				action: () => KsefClient.GetAttachmentPermissionStatusAsync(authOperationStatusResponse.AccessToken.Token),
+				condition: r => r is not null && r.RevokedDate.HasValue,
+				delay: TimeSpan.FromMilliseconds(SleepTime),
+				maxAttempts: MaxPollingAttempts,
+				cancellationToken: CancellationToken);
 
-            // Assert - Weryfikacja cofnięcia uprawnienia
-            Assert.NotNull(revokedPermissionStatus);
-            Assert.False(revokedPermissionStatus.IsAttachmentAllowed,
-                "Uprawnienie do wysyłki załączników powinno być nieaktywne po cofnięciu");
+			// Assert - Weryfikacja ustawienia daty wygaśnięcia uprawnienia
+			Assert.NotNull(revokedPermissionStatus);
+			Assert.True(revokedPermissionStatus.RevokedDate.HasValue,
+				"Data wygaśnięcia uprawnienia (revokeDate) powinna zostać ustawiona po cofnięciu uprawnienia");
+
+            DateOnly expectedDate = DateOnly.FromDateTime(revokeDate.ToUniversalTime());
+            DateOnly actualDate = DateOnly.FromDateTime(revokedPermissionStatus.RevokedDate.Value.ToUniversalTime());
+
+            Assert.Equal(expectedDate, actualDate);
         }
-    }
+	}
 }

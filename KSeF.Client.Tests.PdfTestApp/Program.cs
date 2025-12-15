@@ -36,7 +36,7 @@ internal sealed class Program
         if (!Directory.Exists(Path.Combine(generatorDir, "node_modules")))
         {
             Console.WriteLine("Instalowanie zależności npm...");
-            await RunCommand("npm", "install", generatorDir);
+            await RunCommand("npm", "install", generatorDir).ConfigureAwait(false);
         }
 
         string docType = documentType == DocumentType.Invoice ? "invoice" : "upo";
@@ -48,7 +48,7 @@ internal sealed class Program
             wrapperArgs += $" \"{escapedJson}\"";
         }
         
-        await RunCommand("node", wrapperArgs, projectDir);
+        await RunCommand("node", wrapperArgs, projectDir).ConfigureAwait(false);
     }
 
     private static bool TryParseArguments(string[] args, string projectDir, out DocumentType documentType, out string? xmlPath, out string? additionalData, out string? errorMessage)
@@ -147,9 +147,9 @@ internal sealed class Program
         };
 
         using Process? process = Process.Start(processStartInfo);
-        string output = await process!.StandardOutput.ReadToEndAsync();
-        string error = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
+        string output = await process!.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+        string error = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
+        await process.WaitForExitAsync().ConfigureAwait(false);
 
         if (!string.IsNullOrWhiteSpace(output))
         {

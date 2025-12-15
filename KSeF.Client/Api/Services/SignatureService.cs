@@ -1,30 +1,40 @@
+using System.Globalization;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Xml;
-using KSeF.Client.Core.Interfaces.Services;
 
 namespace KSeF.Client.Api.Services;
 
 /// <inheritdoc />
-public class SignatureService : ISignatureService
+public class SignatureService
 {
     private const string EcdsaSha256AlgorithmUrl = "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256";
     private const string XadesNsUrl = "http://uri.etsi.org/01903/v1.3.2#";
     private const string SignedPropertiesType = "http://uri.etsi.org/01903#SignedProperties";
     private static readonly TimeSpan CertificateTimeBuffer = TimeSpan.FromMinutes(-1);
 
-    /// <inheritdoc />
     /// <summary>
-    /// Podpisuje dokument XML przekazany jako ciąg znaków
+    /// Podpisuje wskazany dokument XML w formacie XAdES, 
+    /// używając dostarczonego certyfikatu z kluczem prywatnym.
     /// </summary>
-    public string Sign(string xml, X509Certificate2 certificate)
+    /// <param name="xml">
+    /// Dokument XML (AuthTokenRequest) w formie tekstowej.
+    /// </param>
+    /// <param name="certificate">
+    /// Certyfikat X.509 zawierający klucz prywatny, 
+    /// którym ma zostać złożony podpis.
+    /// </param>
+    /// <returns>
+    /// Dokument XML podpisany w formacie XAdES (string).
+    /// </returns>
+    public static string Sign(string xml, X509Certificate2 certificate)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(xml);
         ArgumentNullException.ThrowIfNull(certificate);
 
-        XmlDocument xmlDocument = new XmlDocument() { PreserveWhitespace = true };
+        XmlDocument xmlDocument = new() { PreserveWhitespace = true };
         xmlDocument.LoadXml(xml);
 
         Sign(xmlDocument, certificate);
@@ -33,29 +43,49 @@ public class SignatureService : ISignatureService
     }
 
     /// <summary>
-    /// Podpisuje dokument XML i zwraca podpisany dokument
+    /// Podpisuje wskazany dokument XML w formacie XAdES, 
+    /// używając dostarczonego certyfikatu z kluczem prywatnym.
+    /// Metoda modyfikuje przekazany dokument w miejscu, dodając element podpisu.
     /// </summary>
-    public XmlDocument Sign(XmlDocument xmlDocument, X509Certificate2 certificate)
+    /// <param name="xmlDocument">
+    /// Dokument XML do podpisania. Musi posiadać element główny.
+    /// Zalecane jest ustawienie PreserveWhitespace = true.
+    /// </param>
+    /// <param name="certificate">
+    /// Certyfikat X.509 zawierający klucz prywatny, 
+    /// którym ma zostać złożony podpis.
+    /// </param>
+    /// <returns>
+    /// Ten sam obiekt XmlDocument co przekazany w parametrze, 
+    /// zmodyfikowany przez dodanie elementu podpisu XAdES.
+    /// </returns>
+    public static XmlDocument Sign(XmlDocument xmlDocument, X509Certificate2 certificate)
     {
         ArgumentNullException.ThrowIfNull(xmlDocument);
         ArgumentNullException.ThrowIfNull(certificate);
 
         if (xmlDocument.DocumentElement == null)
+        {
             throw new ArgumentException("Dokument XML nie ma elementu głównego", nameof(xmlDocument));
+        }
 
         if (!certificate.HasPrivateKey)
+        {
             throw new InvalidOperationException("Certyfikat nie zawiera klucza prywatnego");
+        }
 
         RSA rsaKey = certificate.GetRSAPrivateKey();
         ECDsa ecdsaKey = certificate.GetECDsaPrivateKey();
 
         if (rsaKey == null && ecdsaKey == null)
+        {
             throw new InvalidOperationException("Nie można wyodrębnić klucza prywatnego");
+        }
 
         string signatureId = "Signature";
         string signedPropertiesId = "SignedProperties";
 
-        SignedXmlFixed signedXml = new SignedXmlFixed(xmlDocument);
+        SignedXmlFixed signedXml = new(xmlDocument);
 
         if (rsaKey != null)
         {
@@ -77,7 +107,7 @@ public class SignatureService : ISignatureService
              signatureId, signedPropertiesId,
              certificate, DateTimeOffset.UtcNow.Add(CertificateTimeBuffer));
 
-        DataObject dataObject = new DataObject { Data = qualifyingProperties };
+        DataObject dataObject = new() { Data = qualifyingProperties };
 
         signedXml.AddDataObject(dataObject);
         signedXml.ComputeSignature();
@@ -96,7 +126,7 @@ public class SignatureService : ISignatureService
 
     private static void AddRootReference(SignedXml signedXml)
     {
-        Reference rootReference = new Reference(string.Empty);
+        Reference rootReference = new(string.Empty);
         rootReference.AddTransform(new XmlDsigEnvelopedSignatureTransform());
         rootReference.AddTransform(new XmlDsigExcC14NTransform());
         signedXml.AddReference(rootReference);
@@ -104,7 +134,7 @@ public class SignatureService : ISignatureService
 
     private static void AddSignedPropertiesReference(SignedXml signedXml, string id)
     {
-        Reference xadesReference = new Reference("#" + id)
+        Reference xadesReference = new("#" + id)
         {
             Type = SignedPropertiesType
         };
@@ -118,9 +148,9 @@ public class SignatureService : ISignatureService
     {
         string certificateDigest = Convert.ToBase64String(signingCertificate.GetCertHash(HashAlgorithmName.SHA256));
         string certificateIssuerName = signingCertificate.Issuer;
-        string certificateSerialNumber = new BigInteger(signingCertificate.GetSerialNumber()).ToString();
+        string certificateSerialNumber = new BigInteger(signingCertificate.GetSerialNumber()).ToString(CultureInfo.InvariantCulture);
 
-        XmlDocument document = new XmlDocument();
+        XmlDocument document = new();
         document.LoadXml(
         $"""
         <xades:QualifyingProperties Target="#{signatureId}" xmlns:xades="{XadesNsUrl}" xmlns="{SignedXml.XmlDsigNamespaceUrl}">
@@ -147,7 +177,7 @@ public class SignatureService : ISignatureService
         return document.ChildNodes;
     }
 
-    class SignedXmlFixed(XmlDocument document) : SignedXml(document)
+    private class SignedXmlFixed(XmlDocument document) : SignedXml(document)
     {
         private readonly List<DataObject> _dataObjects = [];
 

@@ -11,7 +11,7 @@ internal static class RestRequestExtensions
         HttpClient httpClient)
     {
         string url = request.Path.WithQuery(request.Query, httpClient.BaseAddress);
-        HttpRequestMessage httpRequest = new HttpRequestMessage(request.Method, url);
+        HttpRequestMessage httpRequest = new(request.Method, url);
 
         ApplyHeadersAuthAccept(request.AccessToken, request.Accept, request.Headers, httpRequest);
         return httpRequest;
@@ -23,7 +23,7 @@ internal static class RestRequestExtensions
         string defaultContentType)
     {
         string url = request.Path.WithQuery(request.Query, httpClient.BaseAddress);
-        HttpRequestMessage httpRequest = new HttpRequestMessage(request.Method, url);
+        HttpRequestMessage httpRequest = new(request.Method, url);
 
         if (request.Body is not null && request.Method != HttpMethod.Get)
         {

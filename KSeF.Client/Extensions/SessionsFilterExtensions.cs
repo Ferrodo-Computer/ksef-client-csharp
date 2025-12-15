@@ -1,4 +1,5 @@
 using KSeF.Client.Core.Models.Sessions;
+using System.Globalization;
 using System.Text;
 
 namespace KSeF.Client.Extensions;
@@ -14,7 +15,7 @@ public static class SessionsFilterExtensions
     /// Dokleja niepuste właściwości obiektu <see cref="SessionsFilter"/> jako parametry zapytania
     /// do przekazanego <see cref="StringBuilder"/>.
     /// Zakłada, że bazowy adres URL ma już co najmniej jeden parametr (np. "?sessionType=...")
-    /// – dlatego kolejne parametry są poprzedzane znakiem '&'.
+    /// – dlatego kolejne parametry są poprzedzane znakiem '&amp;'.
     /// </summary>
     /// <param name="filter">Instancja filtra</param>
     /// <param name="builder">Obiekt do budowy adresu URL, do którego zostaną dopisane parametry.</param>
@@ -31,7 +32,7 @@ public static class SessionsFilterExtensions
         {
             if (!string.IsNullOrEmpty(value))
             {
-                builder.Append($"&{name}={Uri.EscapeDataString(value)}");
+                builder.Append(CultureInfo.InvariantCulture,$"&{name}={Uri.EscapeDataString(value)}");
             }
         }
 
@@ -39,35 +40,35 @@ public static class SessionsFilterExtensions
 
         if (filter.DateCreatedFrom.HasValue)
         {
-            Add("dateCreatedFrom", filter.DateCreatedFrom.Value.UtcDateTime.ToString(IsoInstantFormat));
+            Add("dateCreatedFrom", filter.DateCreatedFrom.Value.UtcDateTime.ToString(IsoInstantFormat, CultureInfo.InvariantCulture));
         }
 
         if (filter.DateCreatedTo.HasValue)
         {
-            Add("dateCreatedTo", filter.DateCreatedTo.Value.UtcDateTime.ToString(IsoInstantFormat));
+            Add("dateCreatedTo", filter.DateCreatedTo.Value.UtcDateTime.ToString(IsoInstantFormat, CultureInfo.InvariantCulture));
         }
 
         if (filter.DateClosedFrom.HasValue)
         {
-            Add("dateClosedFrom", filter.DateClosedFrom.Value.UtcDateTime.ToString(IsoInstantFormat));
+            Add("dateClosedFrom", filter.DateClosedFrom.Value.UtcDateTime.ToString(IsoInstantFormat, CultureInfo.InvariantCulture));
         }
 
         if (filter.DateClosedTo.HasValue)
         {
-            Add("dateClosedTo", filter.DateClosedTo.Value.UtcDateTime.ToString(IsoInstantFormat));
+            Add("dateClosedTo", filter.DateClosedTo.Value.UtcDateTime.ToString(IsoInstantFormat, CultureInfo.InvariantCulture));
         }
 
         if (filter.DateModifiedFrom.HasValue)
         {
-            Add("dateModifiedFrom", filter.DateModifiedFrom.Value.UtcDateTime.ToString(IsoInstantFormat));
+            Add("dateModifiedFrom", filter.DateModifiedFrom.Value.UtcDateTime.ToString(IsoInstantFormat, CultureInfo.InvariantCulture));
         }
 
         if (filter.DateModifiedTo.HasValue)
         {
-            Add("dateModifiedTo", filter.DateModifiedTo.Value.UtcDateTime.ToString(IsoInstantFormat));
+            Add("dateModifiedTo", filter.DateModifiedTo.Value.UtcDateTime.ToString(IsoInstantFormat, CultureInfo.InvariantCulture));
         }
 
-        if (filter.Statuses != null && filter.Statuses.Any())
+        if (filter.Statuses != null && filter.Statuses.Count > 0)
         {
             Add("statuses", string.Join(",", filter.Statuses));
         }

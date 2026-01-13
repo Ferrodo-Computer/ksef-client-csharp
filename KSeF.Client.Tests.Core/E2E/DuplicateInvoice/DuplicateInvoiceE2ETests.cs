@@ -193,10 +193,10 @@ public class DuplicateInvoiceE2ETests : TestBase
         return (onlineSession.ReferenceNumber, finalStatus);
     }
 
-    /// <summary>
-    /// Pobiera listę nieudanych faktur dla podanej sesji (polling aż dostępne).
-    /// </summary>
-    private async Task<SessionInvoicesResponse> GetFailedInvoicesAsync(string sessionRef)
+	/// <summary>
+	/// Pobiera listę nieudanych faktur podanej sesji (polling aż dostępne).
+	/// </summary>
+	private async Task<SessionInvoicesResponse> GetFailedInvoicesAsync(string sessionRef)
     {
         SessionInvoicesResponse failedInvoices = await AsyncPollingUtils.PollWithBackoffAsync(
             action: () => KsefClient.GetSessionFailedInvoicesAsync(

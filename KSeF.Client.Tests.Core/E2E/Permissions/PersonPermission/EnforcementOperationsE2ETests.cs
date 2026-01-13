@@ -237,6 +237,15 @@ public class EnforcementOperationsE2ETests : TestBase
             })
             .WithPermissions(PersonPermissionType.EnforcementOperations)
             .WithDescription(PermissionDescription)
+            .WithSubjectDetails(new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			})
             .Build();
 
         OperationResponse response = await KsefClient.GrantsPermissionPersonAsync(request, accessToken, CancellationToken).ConfigureAwait(false);

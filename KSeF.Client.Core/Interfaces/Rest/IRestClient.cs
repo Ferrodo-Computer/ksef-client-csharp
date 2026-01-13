@@ -111,5 +111,17 @@ namespace KSeF.Client.Core.Interfaces.Rest
             RestRequest<TRequest> request, 
             CancellationToken 
             cancellationToken = default);
+
+        /// <summary>
+        /// Wysyła żądanie HTTP i zwraca odpowiedź wraz z nagłówkami.
+        /// </summary>
+        Task<RestResponse<TResponse>> SendWithHeadersAsync<TResponse, TRequest>(
+            HttpMethod method,
+            string url,
+            TRequest requestBody = default,
+            string token = null,
+            string contentType = "application/json",
+            Dictionary<string, string> additionalHeaders = null,
+            CancellationToken cancellationToken = default);
     }
 }

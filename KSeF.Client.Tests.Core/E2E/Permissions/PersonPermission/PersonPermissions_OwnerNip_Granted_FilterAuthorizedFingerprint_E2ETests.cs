@@ -28,9 +28,10 @@ public class PersonPermissionsOwnerNipGrantedFilterAuthorizedFingerprintE2ETests
     {
         #region Arrange
         string ownerNip = MiscellaneousUtils.GetRandomNip();
+        string fingerprintNipIdentifier = MiscellaneousUtils.GetRandomNip();
 
-        // cert testowy → fingerprint (SHA256 HEX, uppercase)
-        X509Certificate2 personCert = CertificateUtils.GetPersonalCertificate(
+		// cert testowy → fingerprint (SHA256 HEX, uppercase)
+		X509Certificate2 personCert = CertificateUtils.GetPersonalCertificate(
             givenName: "PL",
             surname: "Person",
             serialNumberPrefix: "TINPL",
@@ -55,8 +56,22 @@ public class PersonPermissionsOwnerNipGrantedFilterAuthorizedFingerprintE2ETests
             [
                 PersonPermissionType.InvoiceRead
             ],
-            Description = $"E2E-Grant-Read-FP-{authorizedFingerprint[..8]}"
-        };
+            Description = $"E2E-Grant-Read-FP-{authorizedFingerprint[..8]}",
+            SubjectDetails =  new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByFingerprintWithIdentifier,
+				PersonByFpWithId = new PersonPermissionPersonByFingerprintWithId
+				{
+					FirstName = "Anna",
+					LastName = "Testowa",
+                    Identifier = new PersonPermissionPersonIdentifier
+                    {
+                        Type = PersonPermissionIdentifierType.Nip,
+						Value = fingerprintNipIdentifier
+					}
+				}
+			}
+		};
 
         OperationResponse grantOperation =
             await KsefClient.GrantsPermissionPersonAsync(grantRequest, ownerAccessToken, CancellationToken);

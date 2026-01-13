@@ -46,8 +46,17 @@ public class PersonPermissionsOwnerNipGrantedFilterAuthorizedPeselE2ETests : Tes
             [
                 PersonPermissionType.InvoiceRead
             ],
-            Description = $"E2E-Grant-Read-PESEL-{authorizedPesel}"
-        };
+            Description = $"E2E-Grant-Read-PESEL-{authorizedPesel}",
+            SubjectDetails =  new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			}
+		};
 
         OperationResponse grantOperation =
             await KsefClient.GrantsPermissionPersonAsync(grantRequest, ownerAccessToken, CancellationToken);

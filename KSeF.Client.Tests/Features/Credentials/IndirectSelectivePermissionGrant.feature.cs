@@ -13,7 +13,7 @@ using KSeF.Client.Tests.Utils;
 namespace KSeF.Client.Tests.Features.Credentials;
 
 /// <summary>
-/// Testy dla selektywnego nadawania uprawnień pośrednich w systemie KSeF.
+/// Testy selektywnego nadawania uprawnień pośrednich w systemie KSeF.
 /// Weryfikacja, że uprawnienia nadane selektywnie działają wyłącznie w kontekście wskazanych partnerów.
 /// </summary>
 [CollectionDefinition("IndirectSelectivePermissionGrant.feature")]
@@ -53,7 +53,7 @@ public class IndirectSelectivePermissionGrantTests : KsefIntegrationTestBase
 
     /// <summary>
     /// Scenariusz kompletnej obsługi selektywnych uprawnień pośrednich E2E:
-    /// 1. Nadanie uprawnień z delegacją dla pośrednika przez dwóch właścicieli
+    /// 1. Nadanie uprawnień z delegacją pośrednikowi przez dwóch właścicieli
     /// 2. Nadanie selektywnych uprawnień pośrednich (PESEL → firstOwner, NIP → secondOwner)
     /// 3. Weryfikacja dostępu w odpowiednich kontekstach oraz braku dostępu w pozostałych
     /// </summary>
@@ -70,8 +70,8 @@ public class IndirectSelectivePermissionGrantTests : KsefIntegrationTestBase
             AuthorizationClient,
             _secondOwnerNip)).AccessToken.Token;
 
-        // Act: 1) Nadanie uprawnień pośrednich przez właścicieli dla pośrednika
-        // Act: nadanie uprawnień dla pośrednika przez pierwszego właściciela
+        // Act: 1) Nadanie uprawnień pośrednich przez właścicieli pośrednikowi
+        // Act: nadanie uprawnień pośrednikowi przez pierwszego właściciela
         OperationResponse firstOwnerGrantResponse =
             await GrantPermissionsWithDelegationToIntermediaryAsync(_firstOwnerAccessToken);
 
@@ -85,7 +85,7 @@ public class IndirectSelectivePermissionGrantTests : KsefIntegrationTestBase
         Assert.NotNull(firstOwnerGrantStatus);
         Assert.Equal(OperationStatusCodeResponse.Success, firstOwnerGrantStatus.Status.Code);
 
-        // Act: nadanie uprawnień dla pośrednika przez drugiego właściciela
+        // Act: nadanie uprawnień pośrednikowi przez drugiego właściciela
         OperationResponse secondOwnerGrantResponse =
             await GrantPermissionsWithDelegationToIntermediaryAsync(_secondOwnerAccessToken);
 
@@ -105,7 +105,7 @@ public class IndirectSelectivePermissionGrantTests : KsefIntegrationTestBase
             _intermediaryNip)).AccessToken.Token;
 
         // Act: 2) Nadanie SELEKTYWNYCH uprawnień pośrednich
-        // Act: nadanie selektywnych uprawnień pośrednich dla PESEL w kontekście firstOwner
+        // Act: nadanie selektywnych uprawnień pośrednich PESEL-owi w kontekście firstOwner
         OperationResponse peselGrantResponse =
             await GrantSelectiveIndirectPermissionsAsync(_subjectWithPesel, _firstOwnerNip);
 
@@ -119,7 +119,7 @@ public class IndirectSelectivePermissionGrantTests : KsefIntegrationTestBase
         Assert.NotNull(peselGrantStatus);
         Assert.Equal(OperationStatusCodeResponse.Success, peselGrantStatus.Status.Code);
 
-        // Act: nadanie selektywnych uprawnień pośrednich dla NIP w kontekście secondOwner
+        // Act: nadanie selektywnych uprawnień pośrednich NIP-owi w kontekście secondOwner
         OperationResponse nipGrantResponse =
             await GrantSelectiveIndirectPermissionsAsync(_subjectWithNip, _secondOwnerNip);
 
@@ -193,7 +193,7 @@ public class IndirectSelectivePermissionGrantTests : KsefIntegrationTestBase
     }
 
     /// <summary>
-    /// Nadanie uprawnień InvoiceRead i InvoiceWrite z możliwością delegacji dla pośrednika.
+    /// Nadanie pośrednikowi uprawnień InvoiceRead i InvoiceWrite z możliwością delegacji.
     /// </summary>
     /// <param name="ownerAccessToken">Token dostępu właściciela nadającego uprawnienia</param>
     /// <returns>Odpowiedź operacji zawierająca numer referencyjny do śledzenia statusu</returns>
@@ -213,7 +213,7 @@ public class IndirectSelectivePermissionGrantTests : KsefIntegrationTestBase
                 EntityPermission.New(EntityStandardPermissionType.InvoiceRead, canDelegate: true),
                 EntityPermission.New(EntityStandardPermissionType.InvoiceWrite, canDelegate: true)
             )
-            .WithDescription("E2E test - nadanie uprawnień z delegacją dla pośrednika")
+            .WithDescription("E2E test - nadanie pośrednikowi uprawnień z delegacją")
             .WithSubjectDetails(new PermissionsEntitySubjectDetails
             {
                 FullName = $"Entity {_intermediaryNip}"
@@ -247,7 +247,7 @@ public class IndirectSelectivePermissionGrantTests : KsefIntegrationTestBase
                 IndirectEntityStandardPermissionType.InvoiceRead,
                 IndirectEntityStandardPermissionType.InvoiceWrite
             )
-            .WithDescription($"E2E test - selektywne przekazanie uprawnień dla partnera {targetPartnerNip}")
+            .WithDescription($"E2E test - selektywne przekazanie uprawnień partnerowi {targetPartnerNip}")
             .WithSubjectDetails(
                 new PermissionsIndirectEntitySubjectDetails
                 {

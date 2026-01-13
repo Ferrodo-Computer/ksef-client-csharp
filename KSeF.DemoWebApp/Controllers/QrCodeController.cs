@@ -56,7 +56,7 @@ public class QrCodeController(
        )
     {
         byte[] bytes = Convert.FromBase64String(certbase64);
-        X509Certificate2 certificate = bytes.LoadPkcs12();
+        X509Certificate2 certificate = bytes.LoadCertificate();
         string url = linkSvc.BuildCertificateVerificationUrl(sellerNip,contextIdentifierType ,contextIdentifierValue ,certSerial, invoiceHash, certificate, privateKey);
         byte[] qrCode = QrCodeService.GenerateQrCode(url);
         byte[] labeledQr = QrCodeService.AddLabelToQrCode(qrCode, "CERTYFIKAT");

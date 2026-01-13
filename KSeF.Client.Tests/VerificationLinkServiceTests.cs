@@ -19,8 +19,8 @@ namespace KSeF.Client.Tests;
 
 public class VerificationLinkServiceTests : KsefIntegrationTestBase
 {
-    private readonly IVerificationLinkService verificationLinkService = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST });
-    private readonly string BaseUrl = $"{KsefEnvironmentsUris.TEST}/client-app";
+    private readonly IVerificationLinkService verificationLinkService = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST, BaseQRUrl = KsefQREnvironmentsUris.TEST });
+    private readonly string BaseUrl = $"{KsefQREnvironmentsUris.TEST}";
 
 
     // =============================================
@@ -56,11 +56,10 @@ public class VerificationLinkServiceTests : KsefIntegrationTestBase
             .Segments
             .Select(s => s.Trim('/'))];
 
-        Assert.Equal("client-app", segments[1]);
-        Assert.Equal("invoice", segments[2]);
-        Assert.Equal(nip, segments[3]);
-        Assert.Equal(issueDate.ToString("dd-MM-yyyy", System.Globalization.CultureInfo.InvariantCulture), segments[4]);
-        Assert.Equal(expectedHash, segments[5]);
+        Assert.Equal("invoice", segments[1]);
+        Assert.Equal(nip, segments[2]);
+        Assert.Equal(issueDate.ToString("dd-MM-yyyy", System.Globalization.CultureInfo.InvariantCulture), segments[3]);
+        Assert.Equal(expectedHash, segments[4]);
     }
 
     [Fact]
@@ -85,15 +84,14 @@ public class VerificationLinkServiceTests : KsefIntegrationTestBase
         string[] segments = [.. new Uri(url)
             .Segments
             .Select(s => s.Trim('/'))];
-
-        Assert.Equal("client-app", segments[1]);
-        Assert.Equal("certificate", segments[2]);
-        Assert.Equal("Nip", segments[3]);
+                
+        Assert.Equal("certificate", segments[1]);
+        Assert.Equal("Nip", segments[2]);
+        Assert.Equal(nip, segments[3]);
         Assert.Equal(nip, segments[4]);
-        Assert.Equal(nip, segments[5]);
-        Assert.Equal(fullCert.SerialNumber, segments[6]);
-        Assert.False(string.IsNullOrWhiteSpace(segments[7])); // hash
-        Assert.False(string.IsNullOrWhiteSpace(segments[8])); // signed hash
+        Assert.Equal(fullCert.SerialNumber, segments[5]);
+        Assert.False(string.IsNullOrWhiteSpace(segments[6])); // hash
+        Assert.False(string.IsNullOrWhiteSpace(segments[7])); // signed hash
     }
 
     [Fact]
@@ -122,14 +120,13 @@ public class VerificationLinkServiceTests : KsefIntegrationTestBase
             .Segments
             .Select(s => s.Trim('/'))];
 
-        Assert.Equal("client-app", segments[1]);
-        Assert.Equal("certificate", segments[2]);
-        Assert.Equal("Nip", segments[3]);
+        Assert.Equal("certificate", segments[1]);
+        Assert.Equal("Nip", segments[2]);
+        Assert.Equal(nip, segments[3]);
         Assert.Equal(nip, segments[4]);
-        Assert.Equal(nip, segments[5]);
-        Assert.Equal(fullCert.SerialNumber, segments[6]);
-        Assert.False(string.IsNullOrWhiteSpace(segments[7])); // hash
-        Assert.False(string.IsNullOrWhiteSpace(segments[8])); // signed hash
+        Assert.Equal(fullCert.SerialNumber, segments[5]);
+        Assert.False(string.IsNullOrWhiteSpace(segments[6])); // hash
+        Assert.False(string.IsNullOrWhiteSpace(segments[7])); // signed hash
     }
 
 
@@ -236,8 +233,10 @@ public class VerificationLinkServiceTests : KsefIntegrationTestBase
         // Assert
         Assert.Equal(expectedUrl, url);
         string[] segments = [.. new Uri(url).Segments.Select(s => s.Trim('/'))];
-        Assert.Equal("invoice", segments[2]);
-        Assert.Equal(expectedHash, segments[5]);
+        Assert.Equal("invoice", segments[1]);
+        Assert.Equal(nip, segments[2]);
+        Assert.Equal(issueDate.ToString("dd-MM-yyyy", System.Globalization.CultureInfo.InvariantCulture), segments[3]);
+        Assert.Equal(expectedHash, segments[4]);
     }
 
     [Fact]
@@ -259,14 +258,13 @@ public class VerificationLinkServiceTests : KsefIntegrationTestBase
 
         // Assert – format ścieżek
         string[] segments = [.. new Uri(url).Segments.Select(s => s.Trim('/'))];
-        Assert.Equal("client-app", segments[1]);
-        Assert.Equal("certificate", segments[2]);
-        Assert.Equal("Nip", segments[3]);
+        Assert.Equal("certificate", segments[1]);
+        Assert.Equal("Nip", segments[2]);
+        Assert.Equal(nip, segments[3]);
         Assert.Equal(nip, segments[4]);
-        Assert.Equal(nip, segments[5]);
-        Assert.Equal(fullCert.SerialNumber, segments[6]);
-        Assert.False(string.IsNullOrWhiteSpace(segments[7])); // hash
-        Assert.False(string.IsNullOrWhiteSpace(segments[8])); // signed hash
+        Assert.Equal(fullCert.SerialNumber, segments[5]);
+        Assert.False(string.IsNullOrWhiteSpace(segments[6])); // hash
+        Assert.False(string.IsNullOrWhiteSpace(segments[7])); // signed hash
     }
 
     [Fact]

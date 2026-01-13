@@ -77,6 +77,7 @@ public static class PermissionsUtils
         string accessToken,
         GrantPermissionsPersonSubjectIdentifier subject,
         PersonPermissionType[] permissions,
+        PersonPermissionSubjectDetails subjectDetails,
         string description = "")
     {
         GrantPermissionsPersonRequest request = GrantPersonPermissionsRequestBuilder
@@ -84,6 +85,7 @@ public static class PermissionsUtils
             .WithSubject(subject)
             .WithPermissions(permissions)
             .WithDescription(!string.IsNullOrEmpty(description) ? description : $"Grant {string.Join(", ", permissions)} to {subject.Type}:{subject.Value}")
+            .WithSubjectDetails(subjectDetails)
             .Build();
 
         return await client.GrantsPermissionPersonAsync(request, accessToken).ConfigureAwait(false);

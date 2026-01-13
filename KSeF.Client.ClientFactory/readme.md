@@ -40,9 +40,9 @@ builder.Services.RegisterKSeFClientFactory();
 
 ## Obsługiwane środowiska
 
-  Test         https://ksef-test.mf.gov.pl
-  Demo         https://ksef-demo.mf.gov.pl
-  Produkcja    https://ksef.mf.gov.pl
+  Test         https://api-test.ksef.mf.gov.pl
+  Demo         https://api-demo.ksef.mf.gov.pl
+  Produkcja    https://api.ksef.mf.gov.pl
 
 ------------------------------------------------------------------------
 

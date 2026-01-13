@@ -60,7 +60,16 @@ public class PersonalPermissions_AuthorizedPesel_InNipContext_E2ETests : TestBas
                 PersonPermissionType.InvoiceRead,
                 PersonPermissionType.InvoiceWrite
             ],
-            Description = description
+			SubjectDetails = new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Jan",
+					LastName = "Testowy"
+				}
+			},
+			Description = description
         };
 
         OperationResponse grantOperation =

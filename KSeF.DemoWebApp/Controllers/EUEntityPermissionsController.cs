@@ -1,4 +1,3 @@
-using KSeF.Client.Api.Builders.EuEntityPermissions;
 using KSeF.Client.Core.Models.Permissions.EUEntity;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;

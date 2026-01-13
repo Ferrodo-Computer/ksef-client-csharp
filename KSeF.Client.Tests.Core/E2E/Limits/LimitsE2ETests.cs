@@ -20,7 +20,7 @@ public class LimitsE2ETests : TestBase
                 MiscellaneousUtils.GetRandomNip());
         string accessToken = authorizationInfo.AccessToken.Token;
 
-        // 2. Pobranie limitów dla bieżącego kontekstu sesji
+        // 2. Pobranie limitów bieżącego kontekstu sesji
         Client.Core.Models.TestData.SessionLimitsInCurrentContextResponse limitsForContext =
             await LimitsClient.GetLimitsForCurrentContextAsync(
                 accessToken,
@@ -36,7 +36,7 @@ public class LimitsE2ETests : TestBase
         Assert.True(limitsForContext.BatchSession.MaxInvoiceSizeInMB > 0);
         Assert.True(limitsForContext.BatchSession.MaxInvoiceWithAttachmentSizeInMB > 0);
 
-        // 4. Zmiana limitów dla bieżącego kontekstu sesji
+        // 4. Zmiana limitów bieżącego kontekstu sesji
         Client.Core.Models.TestData.ChangeSessionLimitsInCurrentContextRequest newLimits =
             new()
             {
@@ -70,7 +70,7 @@ public class LimitsE2ETests : TestBase
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMB);
         Assert.NotNull(limitsForContext.BatchSession);
 
-        // 6. Przywrócenie oryginalnych limitów dla bieżącego kontekstu sesji
+        // 6. Przywrócenie oryginalnych limitów bieżącego kontekstu sesji
         await TestDataClient.RestoreDefaultSessionLimitsInCurrentContextAsync(
             accessToken);
 
@@ -87,7 +87,7 @@ public class LimitsE2ETests : TestBase
     }
 
     /// <summary>
-    /// Sprawdzenie dostępnych limitów certyfikatów dla bieżącego podmiotu.
+    /// Sprawdzenie dostępnych limitów certyfikatów bieżącego podmiotu.
     /// </summary>
     [Fact]
     public async Task CertificatesLimits_E2E_Positive()
@@ -101,7 +101,7 @@ public class LimitsE2ETests : TestBase
                 MiscellaneousUtils.GetRandomNip());
         string accessToken = authorizationInfo.AccessToken.Token;
 
-        // 2. Pobranie limitów dla bieżącego podmiotu
+        // 2. Pobranie limitów bieżącego podmiotu
         Client.Core.Models.TestData.CertificatesLimitInCurrentSubjectResponse limitsForSubject =
             await LimitsClient.GetLimitsForCurrentSubjectAsync(
                 accessToken,
@@ -129,28 +129,28 @@ public class LimitsE2ETests : TestBase
             newCertificateLimitsForSubject,
             accessToken);
 
-        // 4. Pobranie aktualnych limitów dla bieżącego podmiotu
+        // 4. Pobranie aktualnych limitów bieżącego podmiotu
         limitsForSubject =
             await LimitsClient.GetLimitsForCurrentSubjectAsync(
                 accessToken,
                 CancellationToken);
 
 
-        // 5. Sprawdzenie czy limity dla bieżącego podmiotu zostały zmienione
+        // 5. Sprawdzenie czy limity bieżącego podmiotu zostały zmienione
         Assert.Equal(limitsForSubject.Certificate.MaxCertificates, newCertificateLimitsForSubject.Certificate.MaxCertificates);
         Assert.Equal(limitsForSubject.Enrollment.MaxEnrollments, newCertificateLimitsForSubject.Enrollment.MaxEnrollments);
 
-        // 6. Przywrócenie oryginalnych limitów dla bieżącego podmiotu
+        // 6. Przywrócenie oryginalnych limitów bieżącego podmiotu
         await TestDataClient.RestoreDefaultCertificatesLimitInCurrentSubjectAsync(
             accessToken);
 
-        // 7. Pobranie aktualnych limitów dla bieżącego podmiotu
+        // 7. Pobranie aktualnych limitów bieżącego podmiotu
         limitsForSubject =
             await LimitsClient.GetLimitsForCurrentSubjectAsync(
                 accessToken,
                 CancellationToken);
 
-        // 8. Sprawdzenie czy oryginalne limity dla bieżącego podmiotu zostały przywrócone
+        // 8. Sprawdzenie czy oryginalne limity bieżącego podmiotu zostały przywrócone
         Assert.Equal(limitsForSubject.Certificate.MaxCertificates, newCertificateLimitsForSubject.Certificate.MaxCertificates - LimitsChangeValue);
         Assert.Equal(limitsForSubject.Enrollment.MaxEnrollments, newCertificateLimitsForSubject.Enrollment.MaxEnrollments - LimitsChangeValue);
     }

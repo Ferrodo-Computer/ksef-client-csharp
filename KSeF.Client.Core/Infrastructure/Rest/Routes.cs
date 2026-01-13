@@ -58,11 +58,11 @@
             public const string RestoreDefaultSessionLimitsInCurrentContext = Prefix + "/limits/context/session";
 
             /// <summary>
-            /// Zmiana limitu certyfikatów dla bieżącego podmiotu (test).
+            /// Zmiana limitu certyfikatów bieżącego podmiotu (test).
             /// </summary>
             public const string ChangeCertificatesLimitInCurrentSubject = Prefix + "/limits/subject/certificate";
             /// <summary>
-            /// Przywrócenie domyślnego limitu certyfikatów dla bieżącego podmiotu (test).
+            /// Przywrócenie domyślnego limitu certyfikatów bieżącego podmiotu (test).
             /// </summary>
             public const string RestoreDefaultCertificatesLimitInCurrentSubject = Prefix + "/limits/subject/certificate";
 
@@ -292,7 +292,7 @@
                 /// </summary>
                 public const string Subunits = Prefix + "/subunits/grants";
                 /// <summary>
-                /// Nadanie uprawnień administracyjnych dla podmiotu unijnego (EU entity) w określonym kontekście.
+                /// Nadanie uprawnień administracyjnych podmiotowi unijnemu (EU entity) w określonym kontekście.
                 /// </summary>
                 public const string EuEntities = Prefix + "/eu-entities/administration/grants";
                 /// <summary>

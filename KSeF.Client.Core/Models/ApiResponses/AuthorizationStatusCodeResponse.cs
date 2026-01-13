@@ -3,7 +3,7 @@
     /// <summary>
     /// Zbiór statusów uwierzytelnienia zwracanych przez proces pobierania statusu uwierzytelniania.
     /// </summary>
-    public static class AuthorisationStatusCodeResponse
+    public static class AuthorizationStatusCodeResponse
     {
         /// <summary>
         /// Kod 100 — Uwierzytelnianie w toku.

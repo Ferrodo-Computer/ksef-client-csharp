@@ -65,6 +65,15 @@ public class CertificatesE2ETests : TestBase
         .WithSubject(new GrantPermissionsPersonSubjectIdentifier { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip })
         .WithPermissions(PersonPermissionType.CredentialsManage)
         .WithDescription("Access for quarterly review")
+        .WithSubjectDetails(new PersonPermissionSubjectDetails
+		{
+			SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+			PersonById = new PersonPermissionPersonById
+			{
+				FirstName = "Anna",
+				LastName = "Testowa"
+			}
+		})
         .Build();
 
         OperationResponse operationResult = await KsefClient.GrantsPermissionPersonAsync(request, ownerAccessToken);

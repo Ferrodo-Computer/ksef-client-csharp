@@ -27,7 +27,7 @@ public static class KsefApiLimits
     };
     
     /// <summary>
-    /// Zwraca limity dla konkretnego endpointu API.
+    /// Zwraca limity konkretnego endpointu API.
     /// </summary>
     public static ApiLimits GetLimits(KsefApiEndpoint endpoint)
     {

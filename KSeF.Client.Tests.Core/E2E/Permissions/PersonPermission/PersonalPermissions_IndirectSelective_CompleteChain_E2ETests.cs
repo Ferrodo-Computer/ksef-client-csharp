@@ -56,7 +56,11 @@ public class PersonalPermissions_IndirectSelective_CompleteChain_E2ETests : Test
                 })
                 .WithPermission(AuthorizationPermissionType.RRInvoicing)
                 .WithDescription(descOwnerToIntermediary)
-                .Build();
+				.WithSubjectDetails(new PermissionsAuthorizationSubjectDetails
+				{
+					FullName = "Podmiot Testowy 1"
+				})
+				.Build();
 
         OperationResponse opGrantOwnerToInterm =
             await KsefClient.GrantsAuthorizationPermissionAsync(ownerToIntermediary, ownerAccessToken, CancellationToken);
@@ -79,7 +83,16 @@ public class PersonalPermissions_IndirectSelective_CompleteChain_E2ETests : Test
                 Value = personPesel
             },
             Permissions = [PersonPermissionType.InvoiceRead],
-            Description = descIntermediaryToPerson
+			SubjectDetails = new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Jan",
+					LastName = "Testowy"
+				}
+			},
+			Description = descIntermediaryToPerson
         };
 
         OperationResponse opGrantIntermToPerson =

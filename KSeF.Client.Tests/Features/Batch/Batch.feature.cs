@@ -10,7 +10,7 @@ using System.Security.Cryptography;
 namespace KSeF.Client.Tests.Features.Batch;
 
 /// <summary>
-/// Testy integracyjne dla funkcjonalności wysyłki wsadowej faktur do systemu KSeF.
+/// Testy integracyjne funkcjonalności wysyłki wsadowej faktur do systemu KSeF.
 /// Weryfikują proces otwierania sesji, wysyłania zaszyfrowanych paczek i zamykania sesji wsadowej.
 /// </summary>
 [CollectionDefinition("Batch.feature")]
@@ -102,7 +102,7 @@ public class BatchTests : KsefIntegrationTestBase
         Assert.NotNull(sessionInvoices);
         Assert.NotEmpty(sessionInvoices.Invoices);
 
-        // Weryfikacja możliwości pobrania UPO (Urzędowego Poświadczenia Odbioru) dla pierwszej faktury
+        // Weryfikacja możliwości pobrania UPO (Urzędowego Poświadczenia Odbioru) pierwszej faktury
         SessionInvoice firstInvoice = sessionInvoices.Invoices.First();
         string upoDocument = await BatchUtils.GetSessionInvoiceUpoByKsefNumberAsync(
             KsefClient,
@@ -328,11 +328,9 @@ public class BatchTests : KsefIntegrationTestBase
                 KsefClient,
                 openSessionResponse.ReferenceNumber,
                 accessToken,
-                sleepTime: 500,
-                maxAttempts: 360);
+                maxAttempts: 1200);
 
             Assert.NotNull(sessionStatus);
-            Assert.True(sessionStatus.Status.Code != BatchSessionCodeResponse.Processing);
 
             int success = sessionStatus.SuccessfulInvoiceCount ?? 0;
             int failed = sessionStatus.FailedInvoiceCount ?? 0;

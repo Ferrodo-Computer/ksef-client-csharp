@@ -34,7 +34,7 @@ const vfs = require(join(generatorDir, 'node_modules', 'pdfmake', 'build', 'vfs_
 pdfMake.vfs = vfs;
 global.pdfMake = pdfMake;
 
-const generatorUrl = pathToFileURL(join(generatorDir, 'src', 'app', 'build', 'ksef-pdf-generator.es.js')).href;
+const generatorUrl = pathToFileURL(join(generatorDir, 'dist', 'ksef-fe-invoice-converter.js')).href;
 const { generateInvoice, generatePDFUPO } = await import(generatorUrl);
 
 const [documentType, inputXmlPath, outputPdfPath, additionalDataJson] = process.argv.slice(2);

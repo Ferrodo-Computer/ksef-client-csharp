@@ -31,7 +31,29 @@ cd ksef-client-csharp/KSeF.Client.Tests.PdfTestApp
 git submodule update --init --recursive
 ```
 
-### Krok 2: Zbuduj projekt
+### Krok 2: Przygotuj submoduł PDF generatora
+
+Projekt korzysta z submodułu `ksef-pdf-generator`, który jest aplikacją Node.js
+i musi zostać zbudowany przed uruchomieniem projektu .NET.
+
+#### Opcja 1 — ręcznie (wymagane przy pierwszym uruchomieniu)
+```bash
+cd Externals/ksef-pdf-generator
+npm install
+npm run build
+```
+
+#### Opcja 2 — automatycznie (przy uruchomieniu aplikacji)
+
+Podczas uruchamiania aplikacji testowej:
+
+```bash
+dotnet run --framework net10.0  # lub net8.0, net9.0
+```
+
+projekt automatycznie wykona instalację i build submodułu
+
+### Krok 3: Zbuduj projekt
 
 ```bash
 dotnet build
@@ -55,10 +77,10 @@ node generate-pdf-wrapper.mjs  <invoice|faktura|upo> <inputXml> <outputPdf> [add
 
 ```bash
 # Faktura z domyślnego przykładu
-node generate-pdf-wrapper.mjs invoice .\Externals\ksef-pdf-generator\examples\invoice.xml faktura.pdf
+node generate-pdf-wrapper.mjs invoice .\Externals\ksef-pdf-generator\assets\invoice.xml faktura.pdf
 
 # UPO z przykładu
-node generate-pdf-wrapper.mjs upo .\Externals\ksef-pdf-generator\examples\upo.xml upo.pdf
+node generate-pdf-wrapper.mjs upo .\Externals\ksef-pdf-generator\assets\upo.xml upo.pdf
 
 # Faktura z własnego pliku
 node generate-pdf-wrapper.mjs invoice C:\mojefaktury\faktura-2024-01.xml output.pdf
@@ -70,6 +92,9 @@ node generate-pdf-wrapper.mjs invoice faktura.xml output.pdf '{\"nrKSeF\":\"123-
 ### Opcja 2: Aplikacja .NET (wrapper C#)
 
 Wygodny wrapper dla projektów .NET, który wewnętrznie wywołuje Node.js wrapper.
+
+> **Uwaga:** Projekt wspiera .NET 8.0, 9.0 i 10.0. 
+Jeśli potrzebujesz wybrać konkretną wersję, dodaj `--framework net10.0` (lub `net8.0`, `net9.0`) po `dotnet run`.
 
 #### Składnia
 
@@ -84,23 +109,32 @@ dotnet run -- <typ> <ścieżkaXml> <additionalDataJson>     # Z dodatkowymi dany
 
 ```bash
 # Domyślna faktura przykładowa
-dotnet run
+dotnet run --framework net10.0
 
 # Faktura z własnego pliku
-dotnet run -- C:\mojefaktury\faktura-2024-01.xml
+dotnet run --framework net10.0 -- C:\mojefaktury\faktura-2024-01.xml
 
 # UPO
-dotnet run -- upo .\Externals\ksef-pdf-generator\examples\upo.xml
+dotnet run --framework net10.0 -- upo .\Externals\ksef-pdf-generator\assets\upo.xml
 
 # Faktura z jawnym określeniem typu
-dotnet run -- faktura C:\ścieżka\do\faktury.xml
+dotnet run --framework net10.0 -- faktura C:\ścieżka\do\faktury.xml
 
 # Faktura z dodatkowymi danymi (numer KSeF, QR code)
 # UWAGA: W PowerShell użyj pojedynczych cudzysłowów dla JSON!
-dotnet run -- faktura C:\faktura.xml '{\"nrKSeF\":\"1234567890\",\"qrCode\":\"https://...\"}'
+dotnet run --framework net10.0 -- faktura C:\faktura.xml '{\"nrKSeF\":\"1234567890\",\"qrCode\":\"https://...\"}'
 ```
 
 ### Gdzie znajduje się wygenerowany PDF?
 
 - **Node.js wrapper**: W lokalizacji podanej jako parametr `<outputPdf>`
 - **Aplikacja .NET**: W katalogu projektu, nazwa z pliku XML (np. `invoice.xml` -> `invoice.pdf`)
+
+## Rozwiązywanie problemów
+
+### Problem z zależnościami Node.js
+
+Jeśli napotkasz błędy związane z brakującymi modułami lub błędami podczas generowania PDF:
+1. Przejdź do katalogu `Externals/ksef-pdf-generator`
+2. Usuń katalog `node_modules` i plik `package-lock.json`
+3. Wykonaj ponownie `npm install` i `npm run build`

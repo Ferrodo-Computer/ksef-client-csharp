@@ -51,7 +51,7 @@ Przykłady:
 
 Scenariusz: Podmiot 3 może wyszukać fakturę, w której został wskazany jako ThirdSubject
 Zakładając, że wykonawca jest uwierzytelniony w sesji interaktywnej
-Oraz wystawia fakturę dla jednostki identyfikującej się numerem NIP jako Podmiot 3
+Oraz wystawia fakturę jednostce identyfikującej się numerem NIP jako Podmiot 3
 Oraz faktura zostanie pomyślnie wysłana i przetworzona w KSeF
 Jeżeli podmiot 3 uwierzytelni się w KSeF jako organizacja
 Oraz wykona zapytanie o metadane faktur jako Podmiot 3 w zadanym zakresie dat

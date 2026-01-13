@@ -1,7 +1,7 @@
 ﻿namespace KSeF.Client.Validation
 {
     /// <summary>
-    /// Zawiera stałe długości i zakresy długości dla różnych wartości tekstowych używanych w aplikacji.
+    /// Zawiera stałe długości i zakresy długości różnych wartości tekstowych używanych w aplikacji.
     /// </summary>
     public static class ValidValues
     {

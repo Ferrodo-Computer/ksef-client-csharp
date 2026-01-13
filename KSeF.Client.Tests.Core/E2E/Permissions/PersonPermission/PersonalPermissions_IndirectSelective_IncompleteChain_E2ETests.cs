@@ -69,6 +69,10 @@ public class PersonalPermissionsIndirectSelectiveIncompleteChainE2ETests : TestB
                 })
                 .WithPermission(AuthorizationPermissionType.TaxRepresentative)
                 .WithDescription(descOwnerToIntermediary)
+                .WithSubjectDetails(new PermissionsAuthorizationSubjectDetails
+                {
+                    FullName = "Podmiot Testowy 1"
+				})
                 .Build();
 
         OperationResponse opGrantOwnerToInterm =
@@ -96,6 +100,15 @@ public class PersonalPermissionsIndirectSelectiveIncompleteChainE2ETests : TestB
                 Value = personPesel
             },
             Permissions = [PersonPermissionType.InvoiceWrite],
+            SubjectDetails = new PersonPermissionSubjectDetails
+            {
+                SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+                {
+                    FirstName = "Jan",
+                    LastName = "Testowy"
+                }
+			},
             Description = descIntermediaryToPerson
         };
 

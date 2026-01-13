@@ -6,57 +6,62 @@
     public class EffectiveApiRateLimits
     {
         /// <summary>
-        /// Limity dla otwierania/zamykania sesji interaktywnych.
+        /// Limity otwierania/zamykania sesji interaktywnych.
         /// </summary>
         public EffectiveApiRateLimitValues OnlineSession { get; set; }
 
         /// <summary>
-        /// Limity dla otwierania/zamykania sesji wsadowych.
+        /// Limity otwierania/zamykania sesji wsadowych.
         /// </summary>
         public EffectiveApiRateLimitValues BatchSession { get; set; }
 
         /// <summary>
-        /// Limity dla wysyłki faktur.
+        /// Limity wysyłki faktur.
         /// </summary>
         public EffectiveApiRateLimitValues InvoiceSend { get; set; }
 
         /// <summary>
-        /// Limity dla pobierania statusu faktury z sesji.
+        /// Limity pobierania statusu faktury z sesji.
         /// </summary>
         public EffectiveApiRateLimitValues InvoiceStatus { get; set; }
 
         /// <summary>
-        /// Limity dla pobierania listy sesji.
+        /// Limity pobierania listy sesji.
         /// </summary>
         public EffectiveApiRateLimitValues SessionList { get; set; }
 
         /// <summary>
-        /// Limity dla pobierania listy faktur w sesji.
+        /// Limity pobierania listy faktur w sesji.
         /// </summary>
         public EffectiveApiRateLimitValues SessionInvoiceList { get; set; }
 
         /// <summary>
-        /// Limity dla pozostałych operacji w ramach sesji.
+        /// Limity pozostałych operacji w ramach sesji.
         /// </summary>
         public EffectiveApiRateLimitValues SessionMisc { get; set; }
 
         /// <summary>
-        /// Limity dla pobierania metadanych faktur.
+        /// Limity pobierania metadanych faktur.
         /// </summary>
         public EffectiveApiRateLimitValues InvoiceMetadata { get; set; }
 
         /// <summary>
-        /// Limity dla eksportu paczki faktur.
+        /// Limity eksportu paczki faktur.
         /// </summary>
         public EffectiveApiRateLimitValues InvoiceExport { get; set; }
 
         /// <summary>
-        /// Limity dla pobierania faktur po numerze KSeF.
+        /// Limity eksportu paczki faktur.
+        /// </summary>
+        public EffectiveApiRateLimitValues InvoiceExportStatus { get; set; }
+
+        /// <summary>
+        /// Limity pobierania faktur po numerze KSeF.
         /// </summary>
         public EffectiveApiRateLimitValues InvoiceDownload { get; set; }
 
         /// <summary>
-        /// Limity dla pozostałych operacji API.
+        /// Limity pozostałych operacji API.
         /// </summary>
         public EffectiveApiRateLimitValues Other { get; set; }
     }

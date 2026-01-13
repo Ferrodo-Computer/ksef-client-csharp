@@ -5,12 +5,12 @@ using KSeF.Client.Validation;
 namespace KSeF.Client.Api.Builders.PersonPermissions;
 
 /// <summary>
-/// Buduje żądanie nadania uprawnień dla osoby fizycznej w KSeF.
+/// Buduje żądanie nadania uprawnień osobie fizycznej w KSeF.
 /// </summary>
 public static class GrantPersonPermissionsRequestBuilder
 {
     /// <summary>
-    /// Rozpoczyna budowę żądania nadania uprawnień dla osoby.
+    /// Rozpoczyna budowę żądania nadania uprawnień osobie.
     /// </summary>
     /// <returns>
     /// Interfejs pozwalający ustawić osobę, której nadawane są uprawnienia.
@@ -72,7 +72,7 @@ public static class GrantPersonPermissionsRequestBuilder
     }
 
     /// <summary>
-    /// Ostatni etap budowy żądania nadania uprawnień dla osoby.
+    /// Ostatni etap budowy żądania nadania uprawnień osobie.
     /// </summary>
     public interface IBuildStep
     {
@@ -86,7 +86,7 @@ public static class GrantPersonPermissionsRequestBuilder
         IBuildStep WithSubjectDetails(PersonPermissionSubjectDetails subjectDetails);
 
         /// <summary>
-        /// Tworzy finalne żądanie nadania uprawnień dla osoby.
+        /// Tworzy finalne żądanie nadania uprawnień osobie.
         /// </summary>
         /// <returns>
         /// Obiekt <see cref="GrantPermissionsPersonRequest"/> gotowy do wysłania do KSeF.
@@ -109,7 +109,7 @@ public static class GrantPersonPermissionsRequestBuilder
         private GrantPermissionsRequestBuilderImpl() { }
 
         /// <summary>
-        /// Tworzy nową implementację buildera żądania nadania uprawnień dla osoby.
+        /// Tworzy nową implementację buildera żądania nadania uprawnień osobie.
         /// </summary>
         /// <returns>Interfejs startowy buildera.</returns>
         internal static ISubjectStep Create() => new GrantPermissionsRequestBuilderImpl();

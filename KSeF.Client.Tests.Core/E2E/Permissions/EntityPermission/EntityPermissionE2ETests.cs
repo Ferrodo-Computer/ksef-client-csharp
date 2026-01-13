@@ -40,7 +40,7 @@ public partial class EntityPermissionE2ETests : TestBase
     [Fact]
     public async Task EntityPermissions_FullFlow_GrantSearchRevokeSearch()
     {
-        // 1) Nadaj uprawnienia dla podmiotu
+        // 1) Nadaj uprawnienia podmiotowi
         OperationResponse grantResponse = await GrantEntityPermissionsAsync(Entity, PermissionDescription, accessToken);
         Assert.NotNull(grantResponse);
         Assert.False(string.IsNullOrEmpty(grantResponse.ReferenceNumber));
@@ -100,7 +100,7 @@ public partial class EntityPermissionE2ETests : TestBase
     }
 
     /// <summary>
-    /// Nadaje uprawnienia dla podmiotu i zwraca numer referencyjny operacji.
+    /// Nadaje uprawnienia podmiotowi i zwraca numer referencyjny operacji.
     /// </summary>
     private async Task<OperationResponse> GrantEntityPermissionsAsync(
         GrantPermissionsEntitySubjectIdentifier subject,

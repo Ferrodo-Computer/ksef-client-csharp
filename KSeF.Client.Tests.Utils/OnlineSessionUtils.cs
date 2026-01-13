@@ -414,7 +414,7 @@ public static class OnlineSessionUtils
     }
 
     /// <summary>
-    /// Pobiera UPO dla faktury z sesji na podstawie numeru KSeF.
+    /// Pobiera UPO faktury z sesji na podstawie numeru KSeF.
     /// </summary>
     /// <param name="ksefClient">Klient KSeF.</param>
     /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
@@ -431,7 +431,7 @@ public static class OnlineSessionUtils
     }
 
     /// <summary>
-    /// Pobiera zbiorcze UPO dla sesji online.
+    /// Pobiera zbiorcze UPO sesji online.
     /// </summary>
     /// <param name="ksefClient">Klient KSeF.</param>
     /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>

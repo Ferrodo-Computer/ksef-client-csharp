@@ -32,7 +32,7 @@ public class KsefTokenE2ETests : TestBase
     /// 2) Czeka aż status tokena zmieni się na Active.
     /// 3) Uwierzytelnia się do KSeF używając tokena (RSA-OAEP SHA-256 na ciągu "token|timestamp") i pobiera access/refresh token.
     /// 4) Unieważnia wygenerowany token.
-    /// 5) Sprawdza, że token ma status Revoked.
+    /// 5) Sprawdza czy token ma status Revoked.
     /// </remarks>
     [Fact]
     public async Task KsefTokensAsync_FullIntegrationFlow_AllStepsSucceed()
@@ -61,7 +61,6 @@ public class KsefTokenE2ETests : TestBase
         AuthenticationKsefToken activeToken = await AsyncPollingUtils.PollAsync(
             async () => await KsefClient.GetKsefTokenAsync(tokenResponse.ReferenceNumber, AccessToken, CancellationToken).ConfigureAwait(false),
             result => result is not null && result.Status == AuthenticationKsefTokenStatus.Active,
-            delay: TimeSpan.FromMilliseconds(SleepTime),
             maxAttempts: activationAttempts,
             cancellationToken: CancellationToken);
 
@@ -87,7 +86,6 @@ public class KsefTokenE2ETests : TestBase
                 AccessToken,
                 CancellationToken).ConfigureAwait(false),
             result => result is not null && result.Status == AuthenticationKsefTokenStatus.Revoked,
-            delay: TimeSpan.FromMilliseconds(SleepTime),
             maxAttempts: activationAttempts,
             cancellationToken: CancellationToken);
 
@@ -141,7 +139,6 @@ public class KsefTokenE2ETests : TestBase
         AuthStatus status = await AsyncPollingUtils.PollAsync(
             async () => await AuthorizationClient.GetAuthStatusAsync(signature.ReferenceNumber, signature.AuthenticationToken.Token, CancellationToken).ConfigureAwait(false),
             result => result is not null && result.Status?.Code == SuccessfulAuthStatusCode,
-            delay: TimeSpan.FromMilliseconds(SleepTime),
             maxAttempts: statusAttempts,
             cancellationToken: CancellationToken).ConfigureAwait(false);
 
@@ -153,5 +150,97 @@ public class KsefTokenE2ETests : TestBase
         // 5) Pobierz access/refresh tokeny
         AuthenticationOperationStatusResponse tokens = await AuthorizationClient.GetAccessTokenAsync(signature.AuthenticationToken.Token, CancellationToken).ConfigureAwait(false);
         return tokens;
+    }
+
+    /// <summary>
+    /// Test E2E weryfikujący pobieranie i filtrowanie wygenerowanych tokenów KSeF:
+    /// generowanie, oczekiwanie na aktywację, wyszukanie wygenerowanych tokenów, unieważnienie oraz weryfikacja unieważnienia.
+    /// </summary>
+    /// <remarks>
+    /// Kroki:
+    /// 1) Generuje 5 tokenów KSeF z uprawnieniami (InvoiceRead, InvoiceWrite).
+    /// 2) Czeka aż status tokenów zmieni się na Active.
+    /// 3) Wyszukuje wygenerowane tokeny:
+    /// 3a) Wyszukuje wszystkie wygenerowane tokeny
+    /// 3b) Wyszukuje wybrany token
+    /// 4) Unieważnia wygenerowane tokeny.
+    /// 5) Sprawdza czy tokeny mają status Revoked.
+    /// </remarks>
+    [Fact]
+    public async Task KsefTokensAsync_GenerateAndFilter_Positive()
+    {
+        // 1) Wygeneruj tokeny KSeF z uprawnieniami
+        List<(KsefTokenResponse, AuthenticationKsefToken)> createdTokens = new();
+        const int activationAttempts = 30;
+        for (int i = 0; i < 5; i++)
+        {
+            KsefTokenRequest createTokenRequest = new KsefTokenRequest
+            {
+                Permissions = [
+                    KsefTokenPermissionType.InvoiceRead,
+                KsefTokenPermissionType.InvoiceWrite
+                ],
+                Description = $"E2E token - {i}"
+            };
+
+            KsefTokenResponse tokenResponse = await KsefClient.GenerateKsefTokenAsync(
+                createTokenRequest,
+                AccessToken,
+                CancellationToken
+            );
+            Assert.NotNull(tokenResponse);
+            Assert.False(string.IsNullOrWhiteSpace(tokenResponse.ReferenceNumber));
+            Assert.False(string.IsNullOrWhiteSpace(tokenResponse.Token));
+
+            // 2) Poczekaj, aż token stanie się aktywny
+            AuthenticationKsefToken activeToken = await AsyncPollingUtils.PollAsync(
+                async () => await KsefClient.GetKsefTokenAsync(tokenResponse.ReferenceNumber, AccessToken, CancellationToken).ConfigureAwait(false),
+                result => result is not null && result.Status == AuthenticationKsefTokenStatus.Active,
+                maxAttempts: activationAttempts,
+                cancellationToken: CancellationToken);
+
+            Assert.NotNull(activeToken);
+            Assert.Equal(AuthenticationKsefTokenStatus.Active, activeToken.Status);
+
+            createdTokens.Add((tokenResponse, activeToken));
+        }
+
+        // 3) Wyszukaj wygenerowane tokeny
+
+        QueryKsefTokensResponse queryAllResult = await KsefClient.QueryKsefTokensAsync(AccessToken);
+
+        Assert.NotNull(queryAllResult);
+        Assert.True(queryAllResult.Tokens.Count >= createdTokens.Count);
+
+        // 3a) Wyszukaj wszystkie wygenerowane tokeny
+
+        // 3b) Wyszukaj wybrany token
+        QueryKsefTokensResponse singleResult = await KsefClient.QueryKsefTokensAsync(AccessToken,
+            description: "E2E token - 2");
+        Assert.NotNull(singleResult);
+        Assert.True(singleResult.Tokens.Count == 1);
+        Assert.True(singleResult.Tokens.First().Description == "E2E token - 2");
+
+        // 4) Unieważnij token
+        foreach ((KsefTokenResponse? tokenResponse, AuthenticationKsefToken _) in createdTokens)
+        {
+            await KsefClient.RevokeKsefTokenAsync(
+            tokenResponse.ReferenceNumber,
+            AccessToken,
+            CancellationToken);
+
+            // 5) Zweryfikuj, że token został unieważniony
+            AuthenticationKsefToken revokedToken = await AsyncPollingUtils.PollAsync(
+                async () => await KsefClient.GetKsefTokenAsync(
+                    tokenResponse.ReferenceNumber,
+                    AccessToken,
+                    CancellationToken).ConfigureAwait(false),
+                result => result is not null && result.Status == AuthenticationKsefTokenStatus.Revoked,
+                maxAttempts: activationAttempts,
+                cancellationToken: CancellationToken);
+
+            Assert.NotNull(revokedToken);
+            Assert.Equal(AuthenticationKsefTokenStatus.Revoked, revokedToken.Status);
+        }
     }
 }

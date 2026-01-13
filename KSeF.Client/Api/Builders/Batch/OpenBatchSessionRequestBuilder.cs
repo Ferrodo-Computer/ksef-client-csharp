@@ -32,7 +32,7 @@ namespace KSeF.Client.Api.Builders.Batch
         IOpenBatchSessionRequestBuilderBatchFile WithBatchFile(long fileSize, string fileHash);
 
         /// <summary>
-        /// Włącza lub wyłącza tryb offline dla sesji wsadowej.
+        /// Włącza lub wyłącza tryb offline sesji wsadowej.
         /// </summary>
         /// <param name="offlineMode">Wartość true włącza tryb offline, false pozostawia tryb domyślny.</param>
         /// <returns>Ten sam interfejs, umożliwiający dalsze ustawienia.</returns>
@@ -179,7 +179,6 @@ namespace KSeF.Client.Api.Builders.Batch
                 OrdinalNumber = ordinalNumber,
                 FileSize = fileSize,
                 FileHash = fileHash,
-                FileName = fileName
             });
             return this;
         }

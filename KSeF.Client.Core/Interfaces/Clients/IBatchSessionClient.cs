@@ -35,7 +35,7 @@ namespace KSeF.Client.Core.Interfaces.Clients
         /// Zamknięcie sesji wsadowej.
         /// </summary>
         /// <remarks>
-        /// Zamyka sesję wsadową, rozpoczyna procesowanie paczki faktur i generowanie UPO dla prawidłowych faktur oraz zbiorczego UPO dla sesji.
+        /// Zamyka sesję wsadową, rozpoczyna procesowanie paczki faktur i generowanie UPO prawidłowych faktur oraz zbiorczego UPO sesji.
         /// </remarks>
         /// <param name="batchSessionReferenceNumber">Numer referencyjny sesji wsadowej.</param>
         /// <param name="accessToken">Access token.</param>

@@ -35,7 +35,7 @@ namespace KSeF.Client.Core.Interfaces.Clients
         Task<SignatureResponse> SubmitKsefTokenAuthRequestAsync(AuthenticationKsefTokenRequest requestPayload, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Sprawdza bieżący status operacji uwierzytelniania dla podanego tokena.
+        /// Sprawdza bieżący status operacji uwierzytelniania podanego tokena.
         /// </summary>
         /// <param name="authOperationReferenceNumber">Numer referencyjny operacji.</param>
         /// <param name="authenticationToken">Tymczasowy token otrzymany po inicjalizacji.</param>

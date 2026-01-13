@@ -2,6 +2,7 @@ using KSeF.Client.Api.Services;
 using KSeF.Client.Api.Services.Internal;
 using KSeF.Client.Clients;
 using KSeF.Client.Core.Interfaces.Clients;
+using KSeF.Client.Core.Interfaces.Rest;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.DI;
 using KSeF.Client.Extensions;
@@ -31,6 +32,7 @@ public abstract class TestBase : IDisposable
 
     protected IPersonTokenService TokenService => Get<IPersonTokenService>();
     protected ICryptographyService CryptographyService => Get<ICryptographyService>();
+    protected IRestClient RestClient => Get<IRestClient>();
 
 
     public TestBase()

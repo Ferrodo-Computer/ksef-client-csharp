@@ -5,12 +5,12 @@ using KSeF.Client.Validation;
 namespace KSeF.Client.Api.Builders.SubEntityPermissions
 {
     /// <summary>
-    /// Buduje żądanie nadania uprawnień dla jednostki podrzędnej (subunit) w KSeF.
+    /// Buduje żądanie nadania uprawnień jednostce podrzędnej (subunit) w KSeF.
     /// </summary>
     public static class GrantSubunitPermissionsRequestBuilder
     {
         /// <summary>
-        /// Rozpoczyna budowę żądania nadania uprawnień dla jednostki podrzędnej.
+        /// Rozpoczyna budowę żądania nadania uprawnień jednostce podrzędnej.
         /// </summary>
         /// <returns>
         /// Interfejs pozwalający ustawić podmiot, któremu nadawane są uprawnienia.
@@ -23,7 +23,7 @@ namespace KSeF.Client.Api.Builders.SubEntityPermissions
         public interface ISubjectStep
         {
             /// <summary>
-            /// Określa identyfikator podmiotu, dla którego nadawane są uprawnienia jednostki podrzędnej.
+            /// Określa identyfikator podmiotu, któremu nadawane są uprawnienia jednostki podrzędnej.
             /// </summary>
             /// <param name="subject">
             /// Identyfikator podmiotu (np. NIP lub inny identyfikator). Nie może być null
@@ -100,7 +100,7 @@ namespace KSeF.Client.Api.Builders.SubEntityPermissions
             IOptionalStep WithSubunitName(string subunitName);
 
             /// <summary>
-            /// Ustawia dodatkowe dane podmiotu, któremu nadawane są uprawnienia dla jednostki podrzędnej.
+            /// Ustawia dodatkowe dane podmiotu, któremu nadawane są uprawnienia jednostki podrzędnej.
             /// </summary>
             /// <param name="subjectDetails">
             /// Szczegóły podmiotu (np. dane kontaktowe). Nie mogą być null.
@@ -109,7 +109,7 @@ namespace KSeF.Client.Api.Builders.SubEntityPermissions
             IOptionalStep WithSubjectDetails(SubunitSubjectDetails subjectDetails);
 
             /// <summary>
-            /// Tworzy finalne żądanie nadania uprawnień dla jednostki podrzędnej.
+            /// Tworzy finalne żądanie nadania uprawnień jednostce podrzędnej.
             /// </summary>
             /// <returns>
             /// Obiekt <see cref="GrantPermissionsSubunitRequest"/> gotowy do wysłania do KSeF.
@@ -132,7 +132,7 @@ namespace KSeF.Client.Api.Builders.SubEntityPermissions
             private GrantPermissionsRequestBuilderImpl() { }
 
             /// <summary>
-            /// Tworzy nową implementację buildera żądania nadania uprawnień dla jednostki podrzędnej.
+            /// Tworzy nową implementację buildera żądania nadania uprawnień jednostce podrzędnej.
             /// </summary>
             /// <returns>Interfejs startowy buildera.</returns>
             internal static ISubjectStep Create() => new GrantPermissionsRequestBuilderImpl();

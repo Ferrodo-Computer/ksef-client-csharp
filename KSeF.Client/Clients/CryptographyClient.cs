@@ -14,7 +14,7 @@ public class CryptographyClient(IRestClient restClient) : ICryptographyClient
     public async Task<ICollection<PemCertificateInfo>> GetPublicCertificatesAsync(CancellationToken cancellationToken = default)
     {
         return await _restClient.SendAsync<ICollection<PemCertificateInfo>, string>(HttpMethod.Get,
-                                                                      "/api/v2/security/public-key-certificates",
+                                                                      "/v2/security/public-key-certificates",
                                                                       default,
                                                                       default,
                                                                       RestClient.DefaultContentType,

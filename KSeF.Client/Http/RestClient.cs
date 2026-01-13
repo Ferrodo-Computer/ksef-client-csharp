@@ -5,8 +5,7 @@ using KSeF.Client.Http.Helpers;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Linq;
 
 namespace KSeF.Client.Http;
 
@@ -35,11 +34,33 @@ public sealed class RestClient(HttpClient httpClient) : IRestClient
         string contentType = "application/json", 
         CancellationToken cancellationToken = default)
     {
-        return await SendAsync<TResponse, TRequest>(method,url, requestBody, token, contentType, additionalHeaders : null, cancellationToken).ConfigureAwait(false);
+        return await SendAsync<TResponse, TRequest>(method, url, requestBody, token, contentType, additionalHeaders: null, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<TResponse> SendAsync<TResponse, TRequest>(
+        HttpMethod method,
+        string url,
+        TRequest requestBody = default,
+        string token = null,
+        string contentType = RestContentTypeExtensions.DefaultContentType,
+        Dictionary<string, string> additionalHeaders = null,
+        CancellationToken cancellationToken = default)
+    {
+        RestResponse<TResponse> response = await SendWithHeadersAsync<TResponse, TRequest>(
+            method,
+            url,
+            requestBody,
+            token,
+            contentType,
+            additionalHeaders,
+            cancellationToken).ConfigureAwait(false);
+
+        return response.Body;
+    }
+
+    /// <inheritdoc />
+    public async Task<RestResponse<TResponse>> SendWithHeadersAsync<TResponse, TRequest>(
         HttpMethod method,
         string url,
         TRequest requestBody = default,
@@ -84,7 +105,7 @@ public sealed class RestClient(HttpClient httpClient) : IRestClient
             }
         }
 
-        return await SendCoreAsync<TResponse>(httpRequestMessage, cancellationToken).ConfigureAwait(false);
+        return await SendCoreWithHeadersAsync<TResponse>(httpRequestMessage, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -231,6 +252,59 @@ public sealed class RestClient(HttpClient httpClient) : IRestClient
 
             using Stream responseStream = await httpResponseMessage.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             return await JsonUtil.DeserializeAsync<T>(responseStream).ConfigureAwait(false);
+        }
+
+        await HandleInvalidStatusCode(httpResponseMessage, cancellationToken).ConfigureAwait(false);
+        throw new InvalidOperationException("HandleInvalidStatusCode musi zgłosić wyjątek.");
+    }
+
+    private async Task<RestResponse<T>> SendCoreWithHeadersAsync<T>(HttpRequestMessage httpRequestMessage, CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage httpResponseMessage = await httpClient
+            .SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+
+        bool hasContent = httpResponseMessage.HasBody(httpRequestMessage.Method);
+
+        Dictionary<string, IEnumerable<string>> headers = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in httpResponseMessage.Headers)
+        {
+            headers[header.Key] = header.Value;
+        }
+
+        if (httpResponseMessage.Content is not null)
+        {
+            foreach (KeyValuePair<string, IEnumerable<string>> header in httpResponseMessage.Content.Headers)
+            {
+                headers[header.Key] = header.Value;
+            }
+        }
+
+        if (httpResponseMessage.IsSuccessStatusCode)
+        {
+            if (!hasContent || typeof(T) == typeof(object))
+            {
+                return new RestResponse<T>(default!, headers);
+            }
+
+            if (typeof(T) == typeof(string))
+            {
+                string responseText = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                return new RestResponse<T>((T)(object)(responseText ?? string.Empty), headers);
+            }
+
+            MediaTypeHeaderValue contentTypeHeader = httpResponseMessage.Content?.Headers?.ContentType;
+            string mediaType = contentTypeHeader?.MediaType;
+
+            if (!IsJsonMediaType(mediaType))
+            {
+                throw new KsefApiException($"Nieoczekiwany typ treści '{mediaType ?? "nieznany"}' dla {typeof(T).Name}.", httpResponseMessage.StatusCode);
+            }
+
+            using Stream responseStream = await httpResponseMessage.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            T body = await JsonUtil.DeserializeAsync<T>(responseStream).ConfigureAwait(false);
+            return new RestResponse<T>(body, headers);
         }
 
         await HandleInvalidStatusCode(httpResponseMessage, cancellationToken).ConfigureAwait(false);

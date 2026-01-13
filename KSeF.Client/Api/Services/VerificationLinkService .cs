@@ -1,4 +1,4 @@
-using KSeF.Client.Core.Interfaces.Services;
+﻿using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.QRCode;
 using KSeF.Client.DI;
 using KSeF.Client.Extensions;
@@ -11,13 +11,36 @@ namespace KSeF.Client.Api.Services
     /// <inheritdoc/>
     public class VerificationLinkService(KSeFClientOptions options) : IVerificationLinkService
     {
-        private readonly string BaseUrl = $"{options.BaseUrl}/client-app";
+        private string BaseUrl
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(options.BaseQRUrl))
+                {
+                    return options.BaseQRUrl;
+                }
+                if (KsefEnvironmentsUris.TEST == options.BaseUrl)
+                {
+                    return KsefQREnvironmentsUris.TEST;
+                }
+                if (KsefEnvironmentsUris.DEMO == options.BaseUrl)
+                {
+                    return KsefQREnvironmentsUris.DEMO;
+                }
+                if (KsefEnvironmentsUris.PROD == options.BaseUrl)
+                {
+                    return KsefQREnvironmentsUris.PROD;
+                }
+
+                throw new InvalidOperationException("Nieznane środowisko KSeF dla ustawienia BaseQRUrl.");
+            }
+        }
 
         /// <inheritdoc/>
         public string BuildInvoiceVerificationUrl(string nip, DateTime issueDate, string invoiceHash)
         {
             string date = issueDate.ToString("dd-MM-yyyy", System.Globalization.CultureInfo.InvariantCulture);
-            byte[] bytes = Convert.FromBase64String(invoiceHash);
+            byte[] bytes = invoiceHash.DecodeBase64OrBase64Url();
             string urlEncoded = bytes.EncodeBase64UrlToString();
             return $"{BaseUrl}/invoice/{nip}/{date}/{urlEncoded}";
         }
@@ -33,7 +56,7 @@ namespace KSeF.Client.Api.Services
             string privateKey = ""
         )
         {
-            byte[] bytes = Convert.FromBase64String(invoiceHash);
+            byte[] bytes = invoiceHash.DecodeBase64OrBase64Url();
             string invoiceHashUrlEncoded = bytes.EncodeBase64UrlToString();
 
             string pathToSign = $"{BaseUrl}/certificate/{contextIdentifierType}/{contextIdentifierValue}/{sellerNip}/{certificateSerial}/{invoiceHashUrlEncoded}".Replace("https://", "");

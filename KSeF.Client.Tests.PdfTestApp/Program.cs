@@ -4,7 +4,7 @@ internal sealed class Program
 {
     private const string ExternalsFolder = "Externals";
     private const string GeneratorFolder = "ksef-pdf-generator";
-    private const string ExamplesFolder = "examples";
+    private const string AssetsFolder = "assets";
     private const string InvoiceFileName = "invoice.xml";
 
     private enum DocumentType
@@ -39,7 +39,14 @@ internal sealed class Program
             await RunCommand("npm", "install", generatorDir).ConfigureAwait(false);
         }
 
-        string docType = documentType == DocumentType.Invoice ? "invoice" : "upo";
+		// Build przy pierwszym uruchomieniu
+		if (!Directory.Exists(Path.Combine(generatorDir, "dist")))
+		{
+			Console.WriteLine("Budowanie ksef-pdf-generator...");
+			await RunCommand("npm", "run build", generatorDir).ConfigureAwait(false);
+		}
+
+		string docType = documentType == DocumentType.Invoice ? "invoice" : "upo";
         string wrapperArgs = $"\"{wrapperPath}\" {docType} \"{xmlPath}\" \"{outputPdfPath}\"";
         
         if (!string.IsNullOrEmpty(additionalData))
@@ -62,7 +69,7 @@ internal sealed class Program
         {
             case 0:
                 // Brak argumentów - użyj domyślnej faktury
-                xmlPath = Path.Combine(projectDir, ExternalsFolder, GeneratorFolder, ExamplesFolder, InvoiceFileName);
+                xmlPath = Path.Combine(projectDir, ExternalsFolder, GeneratorFolder, AssetsFolder, InvoiceFileName);
                 return true;
 
             case 1:
@@ -133,20 +140,29 @@ internal sealed class Program
         return false;
     }
 
-    private static async Task RunCommand(string fileName, string arguments, string workingDirectory)
-    {
-        ProcessStartInfo processStartInfo = new()
-        {
-            FileName = fileName,
-            Arguments = arguments,
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+	private static async Task RunCommand(string fileName, string arguments, string workingDirectory)
+	{
+		string resolvedFileName = fileName;
+		string resolvedArguments = arguments;
 
-        using Process? process = Process.Start(processStartInfo);
+		if (OperatingSystem.IsWindows())
+		{
+			resolvedFileName = "cmd.exe";
+			resolvedArguments = $"/c {fileName} {arguments}";
+		}
+
+		ProcessStartInfo processStartInfo = new()
+		{
+			FileName = resolvedFileName,
+			Arguments = resolvedArguments,
+			WorkingDirectory = workingDirectory,
+			RedirectStandardOutput = true,
+			RedirectStandardError = true,
+			UseShellExecute = false,
+			CreateNoWindow = true
+		};
+
+		using Process? process = Process.Start(processStartInfo);
         string output = await process!.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
         string error = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
         await process.WaitForExitAsync().ConfigureAwait(false);
@@ -176,7 +192,7 @@ internal sealed class Program
         Console.WriteLine();
         Console.WriteLine("Przykłady:");
         Console.WriteLine("  KSeF.Client.Tests.PdfTestApp");
-        Console.WriteLine("    (generuje domyślną fakturę z examples/invoice.xml)");
+        Console.WriteLine("    (generuje domyślną fakturę z assets/invoice.xml)");
         Console.WriteLine();
         Console.WriteLine("  KSeF.Client.Tests.PdfTestApp C:\\ścieżka\\do\\faktury.xml");
         Console.WriteLine("    (generuje fakturę z podanego pliku)");

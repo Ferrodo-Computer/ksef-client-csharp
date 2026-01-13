@@ -43,10 +43,20 @@ public partial class CredentialsRevokeTests
         public static async Task<bool> GrantCredentialsManageToDelegateAsync(
             IKSeFClient client, string ownerToken, string delegateNip)
         {
+            PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+            {
+                SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+                PersonById = new PersonPermissionPersonById
+                {
+                    FirstName = "Jan",
+                    LastName = "Testowy"
+                }
+            };
+
             GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new() { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip };
             PersonPermissionType[] permissions = [PersonPermissionType.CredentialsManage];
 
-            OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(client, ownerToken, subjectIdentifier, permissions).ConfigureAwait(false);
+            OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(client, ownerToken, subjectIdentifier, permissions, subjectDetails).ConfigureAwait(false);
 
             return await ConfirmOperationSuccessAsync(client, operationResponse, ownerToken).ConfigureAwait(false);
         }

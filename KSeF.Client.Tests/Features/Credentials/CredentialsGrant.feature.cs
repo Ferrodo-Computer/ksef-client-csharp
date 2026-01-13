@@ -26,10 +26,23 @@ namespace KSeF.Client.Tests.Features.Credentials
 
             GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new() { Type = isNIP ? GrantPermissionsPersonSubjectIdentifierType.Nip : GrantPermissionsPersonSubjectIdentifierType.Pesel, Value = identyficator };
 
-            OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
+			PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			};
+
+			OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
                     authToken,
                     subjectIdentifier,
-                    permissions, "CredentialsGrantTests");
+                    permissions, 
+                    subjectDetails, 
+                    "CredentialsGrantTests"
+            );
 
             PermissionsOperationStatusResponse operationStatus = await AsyncPollingUtils.PollAsync(
                 async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, grantPermissionsResponse.ReferenceNumber, authToken).ConfigureAwait(false),
@@ -84,7 +97,18 @@ namespace KSeF.Client.Tests.Features.Credentials
             // nadanie uprawnień CredentialsManage
             GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new() { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip };
             PersonPermissionType[] managePermission = new[] { PersonPermissionType.CredentialsManage };
-            OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient, authToken, subjectIdentifier, managePermission);
+
+			PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			};
+
+			OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient, authToken, subjectIdentifier, managePermission, subjectDetails);
 
             PermissionsOperationStatusResponse operationStatus = await AsyncPollingUtils.PollAsync(
                 async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, operationResponse.ReferenceNumber, authToken).ConfigureAwait(false),
@@ -100,10 +124,22 @@ namespace KSeF.Client.Tests.Features.Credentials
 
             GrantPermissionsPersonSubjectIdentifier grantPermissionsPersonSubjectIdentifier = new() { Type = isNip ? GrantPermissionsPersonSubjectIdentifierType.Nip : GrantPermissionsPersonSubjectIdentifierType.Pesel, Value = identifier };
 
-            OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
+			PersonPermissionSubjectDetails targetPersonDetails = new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Jan",
+					LastName = "Testowy"
+				}
+			};
+
+			OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
                     delegateAuthToken,
                     grantPermissionsPersonSubjectIdentifier,
-                    permissions, "CredentialsGrantTests");
+                    permissions,
+					targetPersonDetails,
+					"CredentialsGrantTests");
 
             PermissionsOperationStatusResponse grantPermissionsActionStatus = await AsyncPollingUtils.PollAsync(
                 async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, operationResponse.ReferenceNumber, delegateAuthToken).ConfigureAwait(false),

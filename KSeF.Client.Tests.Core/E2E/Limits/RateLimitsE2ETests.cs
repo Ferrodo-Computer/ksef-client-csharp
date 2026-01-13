@@ -6,7 +6,7 @@ using KSeF.Client.Core.Exceptions;
 namespace KSeF.Client.Tests.Core.E2E.Limits;
 
 /// <summary>
-/// Testy E2E dla zarządzania limitami zapytań API (Rate Limits).
+/// Testy E2E zarządzania limitami zapytań API (Rate Limits).
 /// Sprawdza pełny scenariusz: pobranie aktualnych limitów, ustawienie nowych wartości w granicach dopuszczalnych,
 /// weryfikację zastosowania zmian, przywrócenie wartości domyślnych oraz weryfikację, że końcowe wartości
 /// są identyczne z początkowymi.
@@ -186,7 +186,7 @@ public class RateLimitsE2ETests : TestBase
     }
 
     /// <summary>
-    /// Modyfikuje wartości limitów dla jednej kategorii, pozostając w dopuszczalnych granicach.
+    /// Modyfikuje wartości limitów jednej kategorii, pozostając w dopuszczalnych granicach.
     /// Jeśli dodanie delta przekracza maksimum, próbuje odjąć delta; jeśli to również jest poza minimum, zwraca bieżącą wartość.
     /// </summary>
     /// <param name="values">Bieżące wartości limitów dla kategorii.</param>
@@ -288,7 +288,7 @@ public class RateLimitsE2ETests : TestBase
     }
 
     /// <summary>
-    /// Struktura przechowująca maksymalne dopuszczalne wartości limitów dla danej kategorii
+    /// Struktura przechowująca maksymalne dopuszczalne wartości limitów danej kategorii
     /// (na sekundę, na minutę, na godzinę).
     /// </summary>
     private readonly struct RateMax

@@ -143,7 +143,16 @@ public class IndirectPermissionE2ETests : TestBase
             )
             .WithPermissions(PersonPermissionType.CredentialsManage)
             .WithDescription("E2E test - nadanie uprawnień CredentialsManage do zarządzania uprawnieniami")
-            .Build();
+			.WithSubjectDetails(new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			})
+			.Build();
 
         OperationResponse grantOperationResponse =
             await KsefClient.GrantsPermissionPersonAsync(request, ownerAccessToken, CancellationToken).ConfigureAwait(false);

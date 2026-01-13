@@ -11,91 +11,100 @@ namespace KSeF.Client.Tests.Core.E2E.Permissions.PersonPermission;
 
 public class PersonalPermissionsPeselInNipContextMyPermissionsE2ETests : TestBase
 {
-    /// <summary>
-    /// Pobranie listy moich uprawnień do pracy w KSeF jako osoba uprawniona PESEL w kontekście NIP.
-    /// Scenariusz: właściciel nadaje uprawnienia (InvoiceRead, InvoiceWrite) osobie w swoim kontekście NIP,
-    /// następnie ta osoba uwierzytelnia się w tym samym kontekście i wywołuje
-    /// <c>SearchGrantedPersonalPermissionsAsync</c> filtrowane po NIP. Test sprawdza, że zwrócono dokładnie dwa nadane uprawnienia
-    /// w oczekiwanym kontekście (z użyciem mechanizmu pollingu na wypadek opóźnionej spójności).
-    /// </summary>
-    [Fact]
-    public async Task PersonalPermissionsByPeselInNipContextShouldReturnPermissionsInContext()
-    {
-        // Arrange
-        string contextNip = MiscellaneousUtils.GetRandomNip();
-        string pesel = MiscellaneousUtils.GetRandomPesel();
+	/// <summary>
+	/// Pobranie listy moich uprawnień do pracy w KSeF jako osoba uprawniona PESEL w kontekście NIP.
+	/// Scenariusz: właściciel nadaje uprawnienia (InvoiceRead, InvoiceWrite) osobie w swoim kontekście NIP,
+	/// następnie ta osoba uwierzytelnia się w tym samym kontekście i wywołuje
+	/// <c>SearchGrantedPersonalPermissionsAsync</c> filtrowane po NIP. Test sprawdza, że zwrócono dokładnie dwa nadane uprawnienia
+	/// w oczekiwanym kontekście (z użyciem mechanizmu pollingu na wypadek opóźnionej spójności).
+	/// </summary>
+	[Fact]
+	public async Task PersonalPermissionsByPeselInNipContextShouldReturnPermissionsInContext()
+	{
+		// Arrange
+		string contextNip = MiscellaneousUtils.GetRandomNip();
+		string pesel = MiscellaneousUtils.GetRandomPesel();
 
-        // Właściciel uwierzytelnia się we własnym kontekście
-        AuthenticationOperationStatusResponse ownerAuth =
-            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, contextNip);
+		// Właściciel uwierzytelnia się we własnym kontekście
+		AuthenticationOperationStatusResponse ownerAuth =
+			await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, contextNip);
 
-        // Nadaj uprawnienia osobie (PESEL) w kontekście NIP właściciela
-        GrantPermissionsPersonSubjectIdentifier subject = new GrantPermissionsPersonSubjectIdentifier
-        {
-            Type = GrantPermissionsPersonSubjectIdentifierType.Pesel,
-            Value = pesel
-        };
+		// Nadaj uprawnienia osobie (PESEL) w kontekście NIP właściciela
+		GrantPermissionsPersonSubjectIdentifier subject = new GrantPermissionsPersonSubjectIdentifier
+		{
+			Type = GrantPermissionsPersonSubjectIdentifierType.Pesel,
+			Value = pesel
+		};
 
-        string description = $"Nadanie uprawnień przeglądania i wystawiania faktur PESELowi {pesel} w kontekście NIP {contextNip}";
+		string description = $"Nadanie uprawnień przeglądania i wystawiania faktur PESELowi {pesel} w kontekście NIP {contextNip}";
 
-        OperationResponse grantResponse = await PermissionsUtils.GrantPersonPermissionsAsync(
-            KsefClient,
-            ownerAuth.AccessToken.Token,
-            subject,
-            [
-                PersonPermissionType.InvoiceRead,
-                PersonPermissionType.InvoiceWrite
-            ],
-            description);
+		OperationResponse grantResponse = await PermissionsUtils.GrantPersonPermissionsAsync(
+			KsefClient,
+			ownerAuth.AccessToken.Token,
+			subject,
+			[
+				PersonPermissionType.InvoiceRead,
+				PersonPermissionType.InvoiceWrite
+			],
+			new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			},
+		description);
 
-        Assert.NotNull(grantResponse);
+		Assert.NotNull(grantResponse);
 
-        // Uwierzytelnij się jako osoba (PESEL) w kontekście NIP właściciela
-        using System.Security.Cryptography.X509Certificates.X509Certificate2 personalCertificate =
-            SelfSignedCertificateForSignatureBuilder
-                .Create()
-                .WithGivenName("A")
-                .WithSurname("R")
-                .WithSerialNumber("PNOPL-" + pesel)
-                .WithCommonName("A R")
-                .Build();
+		// Uwierzytelnij się jako osoba (PESEL) w kontekście NIP właściciela
+		using System.Security.Cryptography.X509Certificates.X509Certificate2 personalCertificate =
+			SelfSignedCertificateForSignatureBuilder
+				.Create()
+				.WithGivenName("A")
+				.WithSurname("R")
+				.WithSerialNumber("PNOPL-" + pesel)
+				.WithCommonName("A R")
+				.Build();
 
-        AuthenticationOperationStatusResponse personAuth = await AuthenticationUtils.AuthenticateAsync(
-            AuthorizationClient,
-            contextNip,
-            AuthenticationTokenContextIdentifierType.Nip,
-            personalCertificate);
+		AuthenticationOperationStatusResponse personAuth = await AuthenticationUtils.AuthenticateAsync(
+			AuthorizationClient,
+			contextNip,
+			AuthenticationTokenContextIdentifierType.Nip,
+			personalCertificate);
 
-        // Act: pobierz moje uprawnienia dla osoby w bieżącym kontekście NIP, filtrując po kontekście na poziomie zapytania
-        PersonalPermissionsQueryRequest query = new()
-        {
-            ContextIdentifier = new PersonalPermissionsContextIdentifier
-            {
-                Type = PersonalPermissionsContextIdentifierType.Nip,
-                Value = contextNip
-            }
-        };
+		// Act: pobierz moje uprawnienia dla osoby w bieżącym kontekście NIP, filtrując po kontekście na poziomie zapytania
+		PersonalPermissionsQueryRequest query = new()
+		{
+			ContextIdentifier = new PersonalPermissionsContextIdentifier
+			{
+				Type = PersonalPermissionsContextIdentifierType.Nip,
+				Value = contextNip
+			}
+		};
 
-        PagedPermissionsResponse<PersonalPermission> personalPermissions =
-            await AsyncPollingUtils.PollAsync(
-                action: () => KsefClient.SearchGrantedPersonalPermissionsAsync(
-                    query,
-                    personAuth.AccessToken.Token),
-                condition: r => r is not null && r.Permissions is not null && r.Permissions.Count >= 2,
-                delay: TimeSpan.FromMilliseconds(SleepTime),
-                maxAttempts: 30,
-                cancellationToken: CancellationToken);
+		PagedPermissionsResponse<PersonalPermission> personalPermissions =
+			await AsyncPollingUtils.PollAsync(
+				action: () => KsefClient.SearchGrantedPersonalPermissionsAsync(
+					query,
+					personAuth.AccessToken.Token),
+				condition: r => r is not null && r.Permissions is not null && r.Permissions.Count >= 2,
+				delay: TimeSpan.FromMilliseconds(SleepTime),
+				maxAttempts: 30,
+				cancellationToken: CancellationToken);
 
-        // Assert
-        Assert.NotNull(personalPermissions);
-        Assert.NotEmpty(personalPermissions.Permissions);
-        Assert.Equal(2, personalPermissions.Permissions.Count);
-        List<PersonalPermission> inContextPermissions = [.. personalPermissions.Permissions.Where(p =>
-         p.Description == description &&
-         p.PermissionState == PersonalPermissionState.Active)];
+		// Assert
+		Assert.NotNull(personalPermissions);
+		Assert.NotEmpty(personalPermissions.Permissions);
+		Assert.Equal(2, personalPermissions.Permissions.Count);
+		List<PersonalPermission> inContextPermissions = [.. personalPermissions.Permissions.Where(p =>
+		 p.Description == description &&
+		 p.PermissionState == PersonalPermissionState.Active)];
 
-        Assert.Contains(inContextPermissions, p => p.PermissionScope == PersonalPermissionScopeType.InvoiceRead);
-        Assert.Contains(inContextPermissions, p => p.PermissionScope == PersonalPermissionScopeType.InvoiceWrite);
+		Assert.Contains(inContextPermissions, p => p.PermissionScope == PersonalPermissionScopeType.InvoiceRead);
+		Assert.Contains(inContextPermissions, p => p.PermissionScope == PersonalPermissionScopeType.InvoiceWrite);
 
-    }
+	}
 }

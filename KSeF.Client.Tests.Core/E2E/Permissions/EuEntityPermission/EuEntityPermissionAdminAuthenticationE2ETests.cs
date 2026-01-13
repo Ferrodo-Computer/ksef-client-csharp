@@ -87,6 +87,7 @@ namespace KSeF.Client.Tests.Core.E2E.Permissions.EuEntityPermission
                     FullName = "EU Admin Full Name"
                 }
             };
+
             // Właściciel nadaje uprawnienia administracyjne jednostce UE
             GrantPermissionsEuEntityRequest grantPermissionsRequest = GrantEuEntityPermissionsRequestBuilder
                 .Create()
@@ -102,7 +103,12 @@ namespace KSeF.Client.Tests.Core.E2E.Permissions.EuEntityPermission
                     Value = ownerVatEu
                 })
                 .WithDescription(AdminPermissionDescription)
-                .WithSubjectDetails(subjectDetails)
+				.WithEuEntityDetails(new PermissionsEuEntityDetails
+				{
+					Address = "ul. Testowa 2, 00-000 Miasto",
+					FullName = "Podmiot Testowy 2"
+				})
+				.WithSubjectDetails(subjectDetails)
                 .Build();
 
             OperationResponse grantOperationResponse = await KsefClient.GrantsPermissionEUEntityAsync(
@@ -160,7 +166,7 @@ namespace KSeF.Client.Tests.Core.E2E.Permissions.EuEntityPermission
             Assert.NotEmpty(grantedPermissionsResponse.Permissions);
             Assert.True(grantedPermissionsResponse.Permissions.All(x=> x.AuthorIdentifier != null));
             Assert.True(grantedPermissionsResponse.Permissions.All(x=> x.Description != null));
-            Assert.True(grantedPermissionsResponse.Permissions.All(x=> x.EuEntityDetails == null));
+            Assert.True(grantedPermissionsResponse.Permissions.All(x=> x.EuEntityDetails != null));
             Assert.True(grantedPermissionsResponse.Permissions.All(x=> x.SubjectPersonDetails == null));
             Assert.True(grantedPermissionsResponse.Permissions.All(x=> x.AuthorizedFingerprintIdentifier != null));
             Assert.Contains(grantedPermissionsResponse.Permissions, x => x.SubjectEntityDetails.Address == subjectDetails.EntityByFp.Address

@@ -2,7 +2,6 @@ using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Sessions.ActiveSessions;
 using KSeF.Client.Tests.Utils;
-using System.Net.NetworkInformation;
 
 
 namespace KSeF.Client.Tests.Core.E2E.Authorization.Sessions;
@@ -11,9 +10,10 @@ public class SessionE2ETests : TestBase
 {
     private readonly string accessToken;
     private readonly string refreshToken;
+    private readonly AuthenticationMethodEnum authenticationMethod;
     private readonly string nip;
 
-    private const string ExpectedErrorMessage = "21304: Brak uwierzytelnienia. - Nieprawidłowy token.";
+    private const string ExpectedErrorMessage = "21301: Brak autoryzacji. - Status uwierzytelnienia (425) nie pozwala na odświeżenie tokenu dostępowego.";
     public SessionE2ETests()
     {
         nip = MiscellaneousUtils.GetRandomNip();
@@ -23,6 +23,7 @@ public class SessionE2ETests : TestBase
             .GetAwaiter()
             .GetResult();
 
+        authenticationMethod = AuthenticationMethodEnum.QualifiedSignature;
         accessToken = auth.AccessToken.Token;
         refreshToken = auth.RefreshToken.Token;
     }
@@ -62,6 +63,7 @@ public class SessionE2ETests : TestBase
             Assert.True(!string.IsNullOrWhiteSpace(item.ReferenceNumber));
             Assert.NotNull(item.Status.Code);
             Assert.NotNull(item.StartDate);
+            Assert.Equal(item.AuthenticationMethod, authenticationMethod);
             Assert.True(DateTime.UtcNow.AddMinutes(-1) < item.StartDate.DateTime && item.StartDate.DateTime < DateTime.UtcNow.AddMinutes(1));
             Assert.True(item.IsTokenRedeemed);
             Assert.True(item.IsCurrent);

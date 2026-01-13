@@ -116,10 +116,10 @@ namespace KSeF.Client.Core.Interfaces.Clients
         Task<string> GetSessionInvoiceUpoByReferenceNumberAsync(string sessionReferenceNumber, string invoiceReferenceNumber, string accessToken, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Pobranie UPO dla sesji
+        /// Pobranie UPO sesji
         /// </summary>
         /// <remarks>
-        /// Zwraca XML zawierający zbiorcze UPO dla sesji.
+        /// Zwraca XML zawierający zbiorcze UPO sesji.
         /// </remarks>
         /// <param name="sessionReferenceNumber">Numer referencyjny sesji</param>
         /// <param name="upoReferenceNumber">Numer referencyjny UPO</param>

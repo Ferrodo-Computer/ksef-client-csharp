@@ -14,5 +14,10 @@ namespace KSeF.Client.Core.Models.Authorization
         /// </summary>
         public DateTimeOffset Timestamp { get; set; }
 
+        /// <summary>
+        /// Czas wygenerowania wyzwania autoryzacyjnego jako liczba milisekund od 1 stycznia 1970 roku (Unix timestamp)
+        /// </summary>
+        public long TimestampMs { get; set; }
+
     }
 }

@@ -5,7 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace KSeF.Client.Tests.Core.UnitTests;
 
 /// <summary>
-/// Zawiera testy jednostkowe dla metod rozszerzeń, które łączą certyfikaty X.509 z kluczami prywatnymi zakodowanymi w formacie PEM.
+/// Zawiera testy jednostkowe metod rozszerzeń, które łączą certyfikaty X.509 z kluczami prywatnymi zakodowanymi w formacie PEM.
 /// </summary>
 public class X509CertificateLoaderExtensionsTests
 {
@@ -103,6 +103,150 @@ public class X509CertificateLoaderExtensionsTests
     }
 
     /// <summary>
+    /// Sprawdza, czy MergeWithPemKeyNoProfileForEcdsa poprawnie łączy zaszyfrowany
+    /// klucz ECDSA PKCS#8 z certyfikatem, gdy podano prawidłowe hasło.
+    /// </summary>
+    [Fact]
+    public void MergeWithPemKeyNoProfileForEcdsa_ShouldMergeEncryptedEcdsaKey_WhenPasswordIsCorrect()
+    {
+        // Arrange
+        const string password = "StrongPassword123!";
+        (X509Certificate2 publicCert, string pemKey) = TestCertGenerator.GenerateEcdsa(encrypted: true, password);
+
+        // Act
+        X509Certificate2 merged = publicCert.MergeWithPemKeyNoProfileForEcdsa(pemKey, password);
+
+        // Assert
+        Assert.True(merged.HasPrivateKey);
+        Assert.NotNull(merged.GetECDsaPrivateKey());
+        Assert.Equal(publicCert.Thumbprint, merged.Thumbprint);
+    }
+
+    /// <summary>
+    /// Sprawdza, czy MergeWithPemKeyNoProfileForEcdsa zgłasza CryptographicException,
+    /// gdy użyto nieprawidłowego hasła do zaszyfrowanego klucza ECDSA.
+    /// </summary>
+    [Fact]
+    public void MergeWithPemKeyNoProfileForEcdsa_ShouldThrowCryptographicException_WhenPasswordIsWrong()
+    {
+        // Arrange
+        const string correctPassword = "P@ssw0rd!";
+        const string wrongPassword = "WrongP@ss";
+        (X509Certificate2 publicCert, string pemKey) = TestCertGenerator.GenerateEcdsa(encrypted: true, correctPassword);
+
+        // Act & Assert
+        Assert.Throws<CryptographicException>(() =>
+            publicCert.MergeWithPemKeyNoProfileForEcdsa(pemKey, wrongPassword));
+    }
+
+    /// <summary>
+    /// Sprawdza, czy MergeWithPemKeyNoProfileForEcdsa zgłasza NotSupportedException,
+    /// gdy zaszyfrowany klucz PKCS#8 nie reprezentuje klucza ECDSA (np. jest to klucz RSA).
+    /// </summary>
+    [Fact]
+    public void MergeWithPemKeyNoProfileForEcdsa_ShouldThrowNotSupportedException_WhenPemContainsRsaKey()
+    {
+        // Arrange – certyfikat ECDSA, ale zaszyfrowany klucz RSA
+        const string password = "Sup3rSecret!";
+        X509Certificate2 publicCert = TestCertGenerator.GenerateEcdsa(encrypted: false).PublicCert;
+        string rsaPem = TestCertGenerator.GenerateRsaEncryptedPem(password);
+
+        // Act & Assert
+        NotSupportedException ex = Assert.Throws<NotSupportedException>(() =>
+            publicCert.MergeWithPemKeyNoProfileForEcdsa(rsaPem, password));
+
+        Assert.Contains("OID", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Sprawdza, czy MergeWithPemKeyNoProfileForEcdsa zgłasza CryptographicException,
+    /// gdy przekazany PEM zawiera zwykły (niezaszyfrowany) klucz, a metoda oczekuje
+    /// bloku „ENCRYPTED PRIVATE KEY”.
+    /// </summary>
+    [Fact]
+    public void MergeWithPemKeyNoProfileForEcdsa_ShouldThrowCryptographicException_WhenPemIsPlainNotEncrypted()
+    {
+        // Arrange – metoda oczekuje ENCRYPTED PRIVATE KEY
+        (X509Certificate2 publicCert, string plainPem) = TestCertGenerator.GenerateEcdsa(encrypted: false);
+
+        // Act & Assert
+        CryptographicException ex = Assert.Throws<CryptographicException>(() =>
+            publicCert.MergeWithPemKeyNoProfileForEcdsa(plainPem, "any"));
+
+        Assert.Contains("ENCRYPTED PRIVATE KEY", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Sprawdza, czy MergeWithPemKeyNoProfileForEcdsa zgłasza ArgumentNullException,
+    /// gdy przekazany PEM jest null lub składa się wyłącznie ze znaków odstępu.
+    /// </summary>
+    [Fact]
+    public void MergeWithPemKeyNoProfileForEcdsa_ShouldThrowArgumentNullException_WhenPemIsNullOrWhitespace()
+    {
+        // Arrange
+        X509Certificate2 publicCert = TestCertGenerator.GenerateEcdsa(encrypted: false).PublicCert;
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            publicCert.MergeWithPemKeyNoProfileForEcdsa(null!, "pwd"));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            publicCert.MergeWithPemKeyNoProfileForEcdsa("   ", "pwd"));
+    }
+
+    /// <summary>
+    /// Sprawdza, czy MergeWithPemKeyNoProfileForEcdsa zgłasza ArgumentException,
+    /// gdy hasło jest puste lub ma wartość null dla zaszyfrowanego klucza.
+    /// </summary>
+    [Fact]
+    public void MergeWithPemKeyNoProfileForEcdsa_ShouldThrowArgumentException_WhenPasswordIsNullOrEmpty()
+    {
+        // Arrange
+        const string password = "Test123!";
+        (X509Certificate2 publicCert, string pemKey) = TestCertGenerator.GenerateEcdsa(encrypted: true, password);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            publicCert.MergeWithPemKeyNoProfileForEcdsa(pemKey, null!));
+
+        Assert.Throws<ArgumentException>(() =>
+            publicCert.MergeWithPemKeyNoProfileForEcdsa(pemKey, string.Empty));
+    }
+
+    /// <summary>
+    /// Sprawdza, czy MergeWithPemKeyNoProfileForEcdsa zgłasza ArgumentNullException,
+    /// gdy przekazany certyfikat publiczny ma wartość null.
+    /// </summary>
+    [Fact]
+    public void MergeWithPemKeyNoProfileForEcdsa_ShouldThrowArgumentNullException_WhenPublicCertIsNull()
+    {
+        // Arrange
+        const string password = "StrongPassword123!";
+        string pemKey = TestCertGenerator.GenerateEcdsa(encrypted: true, password).PemKey;
+
+        // Act & Assert (wywołanie metody rozszerzającej w formie statycznej, aby przekazać null)
+        Assert.Throws<ArgumentNullException>(() =>
+            X509CertificateLoaderExtensions.MergeWithPemKeyNoProfileForEcdsa(null!, pemKey, password));
+    }
+
+    /// <summary>
+    /// Sprawdza, czy MergeWithPemKeyNoProfileForEcdsa zgłasza CryptographicException,
+    /// gdy blok ENCRYPTED PRIVATE KEY zawiera niepoprawne dane Base64.
+    /// </summary>
+    [Fact]
+    public void MergeWithPemKeyNoProfileForEcdsa_ShouldThrowCryptographicException_WhenPemBase64IsInvalid()
+    {
+        // Arrange
+        X509Certificate2 publicCert = TestCertGenerator.GenerateEcdsa(encrypted: false).PublicCert;
+        const string invalidPem =
+            "-----BEGIN ENCRYPTED PRIVATE KEY-----\n@@@not-base64@@@\n-----END ENCRYPTED PRIVATE KEY-----";
+
+        // Act & Assert
+        Assert.Throws<CryptographicException>(() =>
+            publicCert.MergeWithPemKeyNoProfileForEcdsa(invalidPem, "pwd"));
+    }
+
+    /// <summary>
     /// Zapewnia pomocnicze metody do generowania testowych certyfikatów X.509
     /// oraz odpowiadających im kluczy prywatnych w formacie PEM.
     /// </summary>
@@ -162,6 +306,23 @@ public class X509CertificateLoaderExtensionsTests
                 : ecdsa.ExportPkcs8PrivateKeyPem();
 
             return (publicCert, pemKey);
+        }
+
+        /// <summary>
+        /// Generuje zaszyfrowany klucz RSA w formacie PKCS#8 (PEM) na potrzeby testów,
+        /// używany do sprawdzenia reakcji na niezgodny algorytm (RSA zamiast ECDSA).
+        /// </summary>
+        /// <param name="password">Hasło używane do szyfrowania klucza RSA.</param>
+        public static string GenerateRsaEncryptedPem(string password)
+        {
+            using RSA rsa = RSA.Create(2048);
+
+            PbeParameters pbeParams = new(
+                PbeEncryptionAlgorithm.Aes256Cbc,
+                HashAlgorithmName.SHA256,
+                100_000);
+
+            return rsa.ExportEncryptedPkcs8PrivateKeyPem(password, pbeParams);
         }
     }
 }

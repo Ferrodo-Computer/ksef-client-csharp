@@ -13,12 +13,12 @@ public static class GrantAuthorizationPermissionsRequestBuilder
     /// Rozpoczyna budowę żądania nadania uprawnień.
     /// </summary>
     /// <returns>
-    /// Interfejs umożliwiający ustawienie identyfikatora podmiotu, dla którego nadawane są uprawnienia.
+    /// Interfejs umożliwiający ustawienie identyfikatora podmiotu, któremu nadawane są uprawnienia.
     /// </returns>
     public static ISubjectStep Create() => GrantPermissionsRequestBuilderImpl.Create();
 
     /// <summary>
-    /// Etap budowy żądania, w którym określany jest podmiot, dla którego nadawane są uprawnienia.
+    /// Etap budowy żądania, w którym określany jest podmiot, któremu nadawane są uprawnienia.
     /// </summary>
     public interface ISubjectStep
     {

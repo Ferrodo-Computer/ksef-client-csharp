@@ -30,9 +30,9 @@ public class VatGroupParentSubunitPermissionsListAsParentE2ETests : TestBase
 
     private readonly string _vatGroupNip = MiscellaneousUtils.GetRandomNip();
     private readonly string _subunitNip = MiscellaneousUtils.GetRandomNip();
-    private string _parentInternalId => _vatGroupNip + "-00001";
+    private string _parentInternalId => _vatGroupNip + "-12342"; /*Przykładowa suma kontrolna zgodna z algorytmem podanym w dokumentacji API*/
 
-    private string _parentAccessToken = string.Empty;
+	private string _parentAccessToken = string.Empty;
     private string _subunitAccessToken = string.Empty;
     private string _grantedAdminSubjectNip = string.Empty;
 
@@ -191,6 +191,16 @@ public class VatGroupParentSubunitPermissionsListAsParentE2ETests : TestBase
     /// <returns>Odpowiedź operacji z numerem referencyjnym.</returns>
     private async Task<OperationResponse> GrantPersonPermissionsForSubunitAsync()
     {
+        PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+        {
+            SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+            PersonById = new PersonPermissionPersonById
+            {
+                FirstName = "Anna",
+                LastName = "Testowa"
+            }
+        };
+
         GrantPermissionsPersonRequest personGrantRequest = GrantPersonPermissionsRequestBuilder.Create()
             .WithSubject(new GrantPermissionsPersonSubjectIdentifier
             {
@@ -199,6 +209,7 @@ public class VatGroupParentSubunitPermissionsListAsParentE2ETests : TestBase
             })
             .WithPermissions(PersonPermissionType.SubunitManage, PersonPermissionType.CredentialsManage)
             .WithDescription("E2E test - nadanie uprawnień osobowych do zarządzania jednostką podrzędną")
+            .WithSubjectDetails(subjectDetails)
             .Build();
 
         OperationResponse operationResponse = await KsefClient.GrantsPermissionPersonAsync(personGrantRequest, _parentAccessToken).ConfigureAwait(false);

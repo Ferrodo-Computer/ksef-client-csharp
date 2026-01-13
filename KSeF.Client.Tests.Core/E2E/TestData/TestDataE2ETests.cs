@@ -3,6 +3,7 @@ using KSeF.Client.Core.Models.Permissions;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Core.Models.TestData;
 using KSeF.Client.Tests.Utils;
+using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 using static KSeF.Client.Core.Models.Permissions.PersonalPermission;
 
@@ -68,7 +69,8 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
 
             // Assert - Weryfikacja przypisania ról po utworzeniu podmiotu głównego
             Assert.NotNull(rolesAfterCreation);
-            Assert.NotNull(rolesAfterCreation.Roles);
+			Assert.True(rolesAfterCreation.Roles.All(x => x.StartDate != default));
+			Assert.NotNull(rolesAfterCreation.Roles);
             Assert.True(rolesAfterCreation.Roles.Any(role => role.Role == expectedRoleType),
                 $"Jednostka podrzędna powinna mieć przypisaną rolę {expectedRoleType}");
 
@@ -373,7 +375,7 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
 		/// <summary>
 		/// Weryfikacja poprawności nadawania i odbierania uprawnień do wysyłki faktur z załącznikami.
 		/// Scenariusz:
-		/// 1. Nadanie uprawnienia do załączników dla podmiotu
+		/// 1. Nadanie podmiotowi uprawnienia do załączników
 		/// 2. Uwierzytelnienie i weryfikacja aktywnego uprawnienia
 		/// 3. Cofnięcie uprawnienia - ustawienie daty wygaśnięcia (revokeDate)
 		/// 4. Weryfikacja ustawienia daty wygaśnięcia uprawnienia
@@ -383,7 +385,7 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
 		{
 			// Arrange
 			string subjectNip = MiscellaneousUtils.GetRandomNip();
-			DateTime revokeDate = DateTime.UtcNow.AddDays(1);
+			string revokeDate = DateTime.UtcNow.AddDays(1).Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
 			// Nadanie uprawnienia do wysyłki faktur z załącznikami
 			AttachmentPermissionGrantRequest grantRequest = new AttachmentPermissionGrantRequest
@@ -433,7 +435,8 @@ namespace KSeF.Client.Tests.Core.E2E.TestData
 			Assert.True(revokedPermissionStatus.RevokedDate.HasValue,
 				"Data wygaśnięcia uprawnienia (revokeDate) powinna zostać ustawiona po cofnięciu uprawnienia");
 
-            DateOnly expectedDate = DateOnly.FromDateTime(revokeDate.ToUniversalTime());
+            DateOnly expectedDate = DateOnly.Parse(revokeDate, CultureInfo.InvariantCulture);
+            
             DateOnly actualDate = DateOnly.FromDateTime(revokedPermissionStatus.RevokedDate.Value.ToUniversalTime());
 
             Assert.Equal(expectedDate, actualDate);

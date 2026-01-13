@@ -104,14 +104,14 @@ namespace KSeF.Client.Core.Interfaces.Services
         FileMetadata GetMetaData(byte[] file);
 
         /// <summary>
-        /// Zwraca metadane pliku: rozmiar i hash SHA256 dla strumienia bez buforowania całej zawartości w pamięci.
+        /// Zwraca metadane pliku: rozmiar i hash SHA256 strumienia bez buforowania całej zawartości w pamięci.
         /// </summary>
         /// <param name="fileStream">Strumień pliku.</param>
         /// <returns><see cref="FileMetadata"/></returns>
         FileMetadata GetMetaData(Stream fileStream);
 
         /// <summary>
-        /// Zwraca asynchronicznie metadane pliku: rozmiar i hash SHA256 dla strumienia bez buforowania całej zawartości w pamięci.
+        /// Zwraca asynchronicznie metadane pliku: rozmiar i hash SHA256 strumienia bez buforowania całej zawartości w pamięci.
         /// </summary>
         /// <param name="fileStream">Strumień pliku.</param>
         /// <param name="cancellationToken">Token anulowania</param>

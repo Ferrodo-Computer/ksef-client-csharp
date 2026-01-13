@@ -22,7 +22,7 @@ public class InvoiceE2ETests : TestBase
     private readonly string _accessToken;
 
     /// <summary>
-    /// Konstruktor testów E2E dla faktur. Ustawia token dostępu na podstawie uwierzytelnienia.
+    /// Konstruktor testów E2E faktur. Ustawia token dostępu na podstawie uwierzytelnienia.
     /// </summary>
     public InvoiceE2ETests()
     {
@@ -109,6 +109,7 @@ public class InvoiceE2ETests : TestBase
             _accessToken,
             systemCode);
         Assert.NotNull(openSessionResponse?.ReferenceNumber);
+        Assert.True(openSessionResponse?.ValidUntil <= DateTime.UtcNow.AddDays(1));
 
         // Krok 2: wysłanie faktury
         SendInvoiceResponse sendInvoiceResponse = await OnlineSessionUtils.SendInvoiceAsync(
@@ -323,7 +324,7 @@ public class InvoiceE2ETests : TestBase
     }
 
     /// <summary>
-    /// Przepływ weryfikujący metadane dla podmiotu trzeciego (Subject3).
+    /// Przepływ weryfikujący metadane podmiotu trzeciego (Subject3).
     /// Kroki:
     /// 1) otwarcie sesji online,
     /// 2) wysłanie faktury z Podmiot3 = bieżący NIP,

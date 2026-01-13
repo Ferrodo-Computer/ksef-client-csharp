@@ -29,10 +29,10 @@ namespace KSeF.Client.Tests.Features
         [Trait("Scenario", "Posiadając uprawnienie właścicielskie pytamy o fakturę wysłaną")]
         public async Task GivenNewInvoiceSendedToKsefThenReturnsNewKsefNumber(SystemCode systemCode, string invoiceTemplatePath)
         {
-            // authenticated in constructor
+            // uwierzytelnienie w konstruktorze
             Assert.NotNull(authToken);
 
-            // proceed with invoice online session
+            // rozpoczęcie sesji online dla faktury
             Core.Models.Sessions.EncryptionData encryptionData = CryptographyService.GetEncryptionData();
 
             Core.Models.Sessions.OnlineSession.OpenOnlineSessionResponse openSessionRequest = await OnlineSessionUtils.OpenOnlineSessionAsync(KsefClient,
@@ -75,10 +75,15 @@ namespace KSeF.Client.Tests.Features
                     authToken);
                     Assert.NotNull(invoiceMetadata);
 
-                    await Task.Delay(60000);
+                    // Polling zamiast stałego opóźnienia: czekamy aż faktura będzie dostępna do pobrania
+                    string invoice = await AsyncPollingUtils.PollAsync(
+                        action: async () => await KsefClient.GetInvoiceAsync(item.KsefNumber, authToken).ConfigureAwait(false),
+                        condition: result => !string.IsNullOrWhiteSpace(result),
+                        description: "Oczekiwanie na możliwość pobrania treści faktury",
+                        delay: TimeSpan.FromMilliseconds(SleepTime),
+                        maxAttempts: 120);
 
-                    string invoice = await KsefClient.GetInvoiceAsync(item.KsefNumber, authToken);
-                    Assert.NotNull(invoice);
+                    Assert.False(string.IsNullOrWhiteSpace(invoice));
                 }
             }
             finally
@@ -95,10 +100,10 @@ namespace KSeF.Client.Tests.Features
         {
             string wrongNIP = MiscellaneousUtils.GetRandomNip();
 
-            // authenticated in constructor
+            // uwierzytelnienie w konstruktorze
             Assert.NotNull(authToken);
 
-            // proceed with invoice online session
+            // rozpoczęcie sesji online dla faktury
             Core.Models.Sessions.EncryptionData encryptionData = CryptographyService.GetEncryptionData();
 
             Core.Models.Sessions.OnlineSession.OpenOnlineSessionResponse openSessionRequest = await OnlineSessionUtils.OpenOnlineSessionAsync(KsefClient,
@@ -121,21 +126,19 @@ namespace KSeF.Client.Tests.Features
 
             try
             {
-                Core.Models.Sessions.SessionInvoice sendInvoiceStatus;
-
-                do
-                {
-                    sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
-                    openSessionRequest.ReferenceNumber,
-                    sendInvoiceResponse.ReferenceNumber,
-                    authToken);
-
-                    await Task.Delay(SleepTime);
-                }
-                while (sendInvoiceStatus.Status.Code == 150);
+                Core.Models.Sessions.SessionInvoice sendInvoiceStatus = await AsyncPollingUtils.PollAsync(
+                    async () => await OnlineSessionUtils.GetSessionInvoiceStatusAsync(
+                        KsefClient,
+                        openSessionRequest.ReferenceNumber,
+                        sendInvoiceResponse.ReferenceNumber,
+                        authToken).ConfigureAwait(false),
+                    result => result is not null && result.Status.Code != InvoiceInSessionStatusCodeResponse.Processing,
+                    description: "Oczekiwanie na końcowy status dla nieprawidłowego NIP",
+                    delay: TimeSpan.FromMilliseconds(SleepTime),
+                    maxAttempts: 120);
 
                 Assert.NotNull(sendInvoiceStatus);
-                Assert.Equal(InvoiceInSessionStatusCodeResponse.InvalidPermissions, sendInvoiceStatus.Status.Code); // CODE 410, Insufficient permissions
+                Assert.Equal(InvoiceInSessionStatusCodeResponse.InvalidPermissions, sendInvoiceStatus.Status.Code);
             }
             finally
             {
@@ -148,7 +151,7 @@ namespace KSeF.Client.Tests.Features
         [Trait("Category", "SchemaValidationError")]
         [Trait("Field", "DataWytworzeniaFa")]
         [Trait("Condition", "< 2025-09-01")]
-        [Trait("Scenario", "Invoice rejected when DataWytworzeniaFa < 2025-09-01")]
+        [Trait("Scenario", "Odrzucenie faktury gdy DataWytworzeniaFa < 2025-09-01")]
         public async Task GivenInvoiceWithDataWytworzeniaFaBeforeCutoffShouldFail(
             SystemCode systemCode, string templatePath)
         {
@@ -170,20 +173,19 @@ namespace KSeF.Client.Tests.Features
                 KsefClient, openSessionRequest.ReferenceNumber, authToken, invalidXml, encryptionData, CryptographyService);
                 Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse?.ReferenceNumber));
 
-                Core.Models.Sessions.SessionInvoice sendInvoiceStatus;
-                int attemtp = 0;
-                do
-                {
-                    sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
-                    openSessionRequest.ReferenceNumber,
-                    sendInvoiceResponse.ReferenceNumber,
-                    authToken);
-                    attemtp++;
-                    await Task.Delay(SleepTime);
-                } while (sendInvoiceStatus.Status.Code != 450 || attemtp < 5);
+                Core.Models.Sessions.SessionInvoice sendInvoiceStatus = await AsyncPollingUtils.PollAsync(
+                    async () => await OnlineSessionUtils.GetSessionInvoiceStatusAsync(
+                        KsefClient,
+                        openSessionRequest.ReferenceNumber,
+                        sendInvoiceResponse.ReferenceNumber,
+                        authToken).ConfigureAwait(false),
+                    result => result is not null && result.Status.Code == (int)InvoiceInSessionStatusCodeResponse.InvoiceSemanticValidationError,
+                    description: "Oczekiwanie na błąd walidacji semantycznej (450) dla DataWytworzeniaFa",
+                    delay: TimeSpan.FromMilliseconds(SleepTime),
+                    maxAttempts: 120);
                 
                 Assert.NotNull(sendInvoiceStatus);
-                Assert.Equal(InvoiceInSessionStatusCodeResponse.InvoiceSemanticValidationError, sendInvoiceStatus.Status.Code); // CODE 450, Semantic validation error of the invoice document
+                Assert.Equal(InvoiceInSessionStatusCodeResponse.InvoiceSemanticValidationError, sendInvoiceStatus.Status.Code); // KOD 450, błąd walidacji semantycznej dokumentu faktury
             }
             finally
             {
@@ -197,7 +199,7 @@ namespace KSeF.Client.Tests.Features
         [Trait("ErrorType", "SchemaValidationError")]
         [Trait("Field", "P_1")]
         [Trait("Condition", "> today")]
-        [Trait("Scenario", "Invoice rejected when P_1 is set to a future date")]
+        [Trait("Scenario", "Odrzucenie faktury gdy P_1 jest ustawione na przyszłą datę")]
         public async Task GivenInvoiceWithP1InFutureShouldFail(
             SystemCode systemCode, string templatePath)
         {
@@ -208,7 +210,7 @@ namespace KSeF.Client.Tests.Features
 
             string template = InvoiceHelpers.GetTemplateText(templatePath, nip);
 
-            // Tomorrow UTC
+            // Jutro (UTC)
             DateTime tomorrowUtc = DateTime.UtcNow.Date.AddDays(1);
             string invalidXml = InvoiceHelpers.SetElementValue(template, "P_1", InvoiceHelpers.SetDateForElement("P_1", tomorrowUtc));
 
@@ -218,21 +220,19 @@ namespace KSeF.Client.Tests.Features
                 KsefClient, openSessionRequest.ReferenceNumber, authToken, invalidXml, encryptionData, CryptographyService);
                 Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse?.ReferenceNumber));
 
-                Core.Models.Sessions.SessionInvoice sendInvoiceStatus;
-
-                do
-                {
-                    sendInvoiceStatus = await OnlineSessionUtils.GetSessionInvoiceStatusAsync(KsefClient,
-                    openSessionRequest.ReferenceNumber,
-                    sendInvoiceResponse.ReferenceNumber,
-                    authToken);
-
-                    await Task.Delay(SleepTime);
-                }
-                while (sendInvoiceStatus.Status.Code == 150);
+                Core.Models.Sessions.SessionInvoice sendInvoiceStatus = await AsyncPollingUtils.PollAsync(
+                    async () => await OnlineSessionUtils.GetSessionInvoiceStatusAsync(
+                        KsefClient,
+                        openSessionRequest.ReferenceNumber,
+                        sendInvoiceResponse.ReferenceNumber,
+                        authToken).ConfigureAwait(false),
+                    result => result is not null && result.Status.Code != InvoiceInSessionStatusCodeResponse.Processing,
+                    description: "Oczekiwanie na końcowy status dla przyszłej daty P_1",
+                    delay: TimeSpan.FromMilliseconds(SleepTime),
+                    maxAttempts: 120);
 
                 Assert.NotNull(sendInvoiceStatus);
-                Assert.Equal(InvoiceInSessionStatusCodeResponse.InvoiceSemanticValidationError, sendInvoiceStatus.Status.Code); // CODE 450, Semantic validation error of the invoice document
+                Assert.Equal(InvoiceInSessionStatusCodeResponse.InvoiceSemanticValidationError, sendInvoiceStatus.Status.Code); // KOD 450, błąd walidacji semantycznej dokumentu faktury
             }
             finally
             {
@@ -248,10 +248,10 @@ namespace KSeF.Client.Tests.Features
         [Trait("ErrorType", "ValidationError")]
         [Trait("Field", "pageSize")]
         [Trait("Condition", "outside 10-250")]
-        [Trait("Scenario", "QueryInvoiceMetadataAsync throws when pageSize is out of allowed range")]
+        [Trait("Scenario", "QueryInvoiceMetadataAsync zgłasza wyjątek gdy pageSize jest poza dozwolonym zakresem")]
         public async Task GivenInvoiceMetadataQueryWithInvalidPageSizeShouldThrowError(int pageSize)
         {
-            // authenticated in constructor
+            // uwierzytelnienie w konstruktorze
             Assert.NotNull(authToken);
 
             InvoiceQueryFilters invoiceMetadataQueryRequest = new()
@@ -278,7 +278,7 @@ namespace KSeF.Client.Tests.Features
         [Trait("Scenario", "Podmiot 3 może wyszukać fakturę, w której został wskazany jako ThirdSubject")]
         public async Task GivenNewInvoiceWithP3_SendedToKsef_ThenP3ShouldFoundInvoice()
         {
-            // Arrange
+            // Przygotowanie
             EncryptionData encryptionData = CryptographyService.GetEncryptionData();
             string invoiceCreatorNip = MiscellaneousUtils.GetRandomNip();
             string thirdSubjectIdentifier = MiscellaneousUtils.GetRandomNip();
@@ -313,8 +313,7 @@ namespace KSeF.Client.Tests.Features
                     openSessionResponse.ReferenceNumber,
                     invoiceCreatorAuthToken).ConfigureAwait(false),
                 result => result is not null && result.InvoiceCount == result.SuccessfulInvoiceCount,
-                delay: TimeSpan.FromMilliseconds(2 * SleepTime),
-                maxAttempts: 60);
+                delay: TimeSpan.FromMilliseconds(2 * SleepTime));
 
             Assert.NotNull(sessionStatus);
             Assert.Equal(sessionStatus.InvoiceCount, sessionStatus.SuccessfulInvoiceCount);
@@ -351,7 +350,7 @@ namespace KSeF.Client.Tests.Features
                 pageOffset: 0,
                 pageSize: 30);
 
-            // Assert
+            // Asercje
             Assert.Contains(invoiceQueryResponse.Invoices, x => x.ThirdSubjects.Any(y => y.Identifier.Value == thirdSubjectIdentifier));
         }
     }

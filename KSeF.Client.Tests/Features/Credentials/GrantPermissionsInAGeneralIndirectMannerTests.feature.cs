@@ -36,7 +36,7 @@ public class GrantPermissionsInAGeneralIndirectMannerTests : KsefIntegrationTest
             AuthorizationClient,
             intermediaryNip);
 
-        #region nadanie uprawnień w sposób pośredni dla wszystkich kontekstów obsługiwanych przez nip {intermediaryNip} danyemu numerowi PESEL oraz NIP
+        #region nadanie uprawnień w sposób pośredni wszystkim kontekstom obsługiwanym przez NIP {intermediaryNip} danemu numerowi PESEL oraz NIP
 
         OperationResponse grantIndirectPermissionsForPeselOperationResponse = await GrantIndirectPermissions(lastIdentifierInTheChainPesel, IndirectEntitySubjectIdentifierType.Pesel, intermediaryAuthOperationStatusResponse.AccessToken.Token);
         

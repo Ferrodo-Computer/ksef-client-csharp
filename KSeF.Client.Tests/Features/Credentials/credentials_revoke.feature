@@ -1,12 +1,12 @@
 language: pl
 Potrzeba biznesowa:
-Jako w³aœciciel lub osoba z uprawnieniem do zarz¹dzania uprawnieniami
-Chcê móc odbieraæ nadane uprawnienia innym osobom i podmiotom
+Jako wÅ‚aÅ›ciciel lub osoba z uprawnieniem do zarzÄ…dzania uprawnieniami
+ChcÄ™ mÃ³c odbieraÄ‡ nadane uprawnienia innym osobom i podmiotom
 
 @outline
-Szablon scenariusza: Odbieranie uprawnieñ przez delegata z uprawnieniem „Zarz¹dzanie uprawnieniami”
-Zak³adaj¹c, ¿e uwierzytelni³em siê jako w³aœciciel i nada³em delegatowi prawo do zarz¹dzania uprawnieniami
-Oraz uwierzytelni³em siê jako delegat w kontekœcie w³aœciciela
-Oraz na kontekœcie s¹ nadane okreœlone uprawnienia dla identyfikatora
+Szablon scenariusza: Odbieranie uprawnieÅ„ przez delegata z uprawnieniem "ZarzÄ…dzanie uprawnieniami"
+ZakÅ‚adajÄ…c, Å¼e uwierzytelniÅ‚em siÄ™ jako wÅ‚aÅ›ciciel i nadaÅ‚em delegatowi prawo do zarzÄ…dzania uprawnieniami
+Oraz uwierzytelniÅ‚em siÄ™ jako delegat w kontekÅ›cie wÅ‚aÅ›ciciela
+Oraz na kontekÅ›cie sÄ… nadane okreÅ›lone uprawnienia identyfikatorowi
 Kiedy delegat odbierze te uprawnienia
-Wtedy nie powinny byæ ju¿ aktywne dla tego identyfikatora.
+Wtedy nie powinny byÄ‡ juÅ¼ aktywne dla tego identyfikatora.

@@ -62,12 +62,23 @@ public class PersonPermissionsOwnerNipGrantedFilterAuthorizedNipE2ETests : TestB
             Value = authorizedNip
         };
 
-        GrantPermissionsPersonRequest grantRequest =
+		PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+		{
+			SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+			PersonById = new PersonPermissionPersonById
+			{
+				FirstName = "Anna",
+				LastName = "Testowa"
+			}
+		};
+
+		GrantPermissionsPersonRequest grantRequest =
             GrantPersonPermissionsRequestBuilder
                 .Create()
                 .WithSubject(subject)
                 .WithPermissions(PersonPermissionType.InvoiceRead)
                 .WithDescription($"E2E-Grant-Read-{authorizedNip}")
+                .WithSubjectDetails(subjectDetails)
                 .Build();
 
         OperationResponse grantOp =

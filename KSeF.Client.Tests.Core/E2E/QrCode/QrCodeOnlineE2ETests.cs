@@ -8,6 +8,7 @@ using KSeF.Client.DI;
 using KSeF.Client.Extensions;
 using KSeF.Client.Tests.Utils;
 using System.Globalization;
+using System.Xml.Linq;
 
 namespace KSeF.Client.Tests.Core.E2E.QrCode;
 
@@ -32,7 +33,7 @@ public class QrCodeOnlineE2ETests : TestBase
     public QrCodeOnlineE2ETests(QrCodeOnlineE2EScenarioFixture fixture)
     {
         _fixture = fixture;
-        _linkSvc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST });
+        _linkSvc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST, BaseQRUrl = KsefQREnvironmentsUris.TEST });
         _encryptionData = CryptographyService.GetEncryptionData();
         _fixture.Nip = MiscellaneousUtils.GetRandomNip();
 
@@ -41,8 +42,8 @@ public class QrCodeOnlineE2ETests : TestBase
     }
 
     [Theory]
-    [InlineData([SystemCode.FA2, "invoice-template-fa-2.xml"])]
-    [InlineData([SystemCode.FA3, "invoice-template-fa-3.xml"])]
+    [InlineData(new object[] { SystemCode.FA2, "invoice-template-fa-2.xml" })]
+    [InlineData(new object[] { SystemCode.FA3, "invoice-template-fa-3.xml" })]
     public async Task QrCodeOnlineE2ETest(SystemCode systemCode, string invoiceTemplate)
     {
         OpenOnlineSessionResponse openSessionResponse = await OnlineSessionUtils.OpenOnlineSessionAsync(
@@ -108,8 +109,8 @@ public class QrCodeOnlineE2ETests : TestBase
                 _fixture.SessionReferenceNumber,
                 sendInvoiceResponse.ReferenceNumber,
                 _fixture.AccessToken).ConfigureAwait(false),
-            condition: inv => inv.Status.Code != 150,
-            description: "Oczekiwanie na zakończenie przetwarzania faktury (status != 150)",
+            condition: inv => inv.Status.Code != InvoiceInSessionStatusCodeResponse.Processing,
+            description: "Oczekiwanie na zakończenie przetwarzania faktury",
             delay: TimeSpan.FromMilliseconds(SleepTime),
             maxAttempts: MaxInvoiceStatusAttempts
         );
@@ -127,19 +128,46 @@ public class QrCodeOnlineE2ETests : TestBase
         SessionInvoice invoiceMetadata = invoicesMetadata.Invoices.Single(x => x.ReferenceNumber == sendInvoiceResponse.ReferenceNumber);
         string invoiceKsefNumber = invoiceMetadata.KsefNumber;
         string invoiceHash = invoiceMetadata.InvoiceHash;
-        DateTimeOffset invoicingDate = invoiceMetadata.InvoicingDate;
 
-        string invoiceForOnlineUrl = _linkSvc.BuildInvoiceVerificationUrl(_fixture.Nip, invoicingDate.DateTime, invoiceHash);
+        DateTime issueDateFromTemplate = GetIssueDateFromTemplate(invoiceTemplate);
+
+        string invoiceForOnlineUrl = _linkSvc.BuildInvoiceVerificationUrl(_fixture.Nip, issueDateFromTemplate, invoiceHash);
 
         Assert.NotNull(invoiceForOnlineUrl);
         Assert.Contains(Convert.FromBase64String(invoiceHash).EncodeBase64UrlToString(), invoiceForOnlineUrl);
         Assert.Contains(_fixture.Nip, invoiceForOnlineUrl);
-        Assert.Contains(invoicingDate.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture), invoiceForOnlineUrl);
+        Assert.Contains(issueDateFromTemplate.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture), invoiceForOnlineUrl);
 
         byte[] qrOnline = QrCodeService.GenerateQrCode(invoiceForOnlineUrl);
         Assert.NotNull(qrOnline);
 
         qrOnline = QrCodeService.AddLabelToQrCode(qrOnline, invoiceKsefNumber);
         Assert.NotEmpty(qrOnline);
+    }
+
+    private static DateTime GetIssueDateFromTemplate(string templateName)
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "Templates", templateName);
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Nie znaleziono szablonu: {path}");
+        }
+
+        string xml = File.ReadAllText(path);
+        XDocument doc = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
+
+        string? p1 = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "P_1")?.Value;
+        if (!string.IsNullOrWhiteSpace(p1) && DateTime.TryParseExact(p1, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime issueDate))
+        {
+            return issueDate;
+        }
+
+        string? created = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "DataWytworzeniaFa")?.Value;
+        if (!string.IsNullOrWhiteSpace(created) && DateTime.TryParse(created, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime createdDt))
+        {
+            return createdDt.Date;
+        }
+
+        throw new InvalidOperationException($"Nie można odczytać daty wystawienia z szablonu {templateName}.");
     }
 }

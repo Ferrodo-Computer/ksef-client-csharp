@@ -39,7 +39,7 @@ public static class BatchUtils
         => await ksefClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken, pageSize).ConfigureAwait(false);
 
     /// <summary>
-    /// Pobiera UPO dla faktury z sesji wsadowej na podstawie numeru KSeF.
+    /// Pobiera UPO faktury z sesji wsadowej na podstawie numeru KSeF.
     /// </summary>
     /// <param name="ksefClient">Klient KSeF.</param>
     /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>

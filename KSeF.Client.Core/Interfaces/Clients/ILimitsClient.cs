@@ -11,17 +11,17 @@ namespace KSeF.Client.Core.Interfaces.Clients
     public interface ILimitsClient
     {
         /// <summary>
-        /// GET /api/v2/limits/context — pobiera aktualne limity dla bieżącego kontekstu.
+        /// GET /api/v2/limits/context — pobiera aktualne limity bieżącego kontekstu.
         /// </summary>
         Task<SessionLimitsInCurrentContextResponse> GetLimitsForCurrentContextAsync(string accessToken, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// GET /api/v2/limits/subject — pobiera aktualne limity dla bieżącego podmiotu.
+        /// GET /api/v2/limits/subject — pobiera aktualne limity bieżącego podmiotu.
         /// </summary>
         Task<CertificatesLimitInCurrentSubjectResponse> GetLimitsForCurrentSubjectAsync(string accessToken, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// GET /api/v2/rate-limits — pobiera aktualne limity dla przesyłanych żądań do API.
+        /// GET /api/v2/rate-limits — pobiera aktualne limity żądań przesyłanych do API.
         /// </summary>
         Task<EffectiveApiRateLimits> GetRateLimitsAsync(string accessToken, CancellationToken cancellationToken = default);
     }

@@ -14,7 +14,7 @@ public class QrCodeTests
 
     public QrCodeTests()
     {
-        _linkSvc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST });
+        _linkSvc = new VerificationLinkService(new KSeFClientOptions()  {BaseUrl = KsefEnvironmentsUris.TEST, BaseQRUrl = KsefQREnvironmentsUris.TEST });
     }
 
     [Theory]

@@ -5,7 +5,7 @@ using KSeF.Client.Validation;
 namespace KSeF.Client.Api.Builders.IndirectEntityPermissions;
 
 /// <summary>
-/// Buduje żądanie nadania uprawnień pośrednich dla podmiotu w KSeF.
+/// Buduje żądanie nadania uprawnień pośrednich podmiotowi w KSeF.
 /// </summary>
 public static class GrantIndirectEntityPermissionsRequestBuilder
 {

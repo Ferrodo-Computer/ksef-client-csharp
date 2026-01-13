@@ -70,7 +70,24 @@ public class AuthenticateTests : KsefIntegrationTestBase
         {
             subjectIdentifier = new GrantPermissionsPersonSubjectIdentifier { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip };
         }
-        await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient, ownerToken, subjectIdentifier, permissions);
+
+		PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+		{
+			SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+			PersonById = new PersonPermissionPersonById
+			{
+				FirstName = "Anna",
+				LastName = "Testowa"
+			}
+		};
+
+        await PermissionsUtils.GrantPersonPermissionsAsync(
+            KsefClient,
+            ownerToken,
+            subjectIdentifier,
+            permissions,
+            subjectDetails
+        );
 
         AuthenticationChallengeResponse challengeResponse = await AuthorizationClient
             .GetAuthChallengeAsync();

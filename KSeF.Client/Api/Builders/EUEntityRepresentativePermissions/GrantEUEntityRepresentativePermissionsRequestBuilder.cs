@@ -10,7 +10,7 @@ namespace KSeF.Client.Api.Builders.EUEntityRepresentativePermissions;
 public static class GrantEUEntityRepresentativePermissionsRequestBuilder
 {
     /// <summary>
-    /// Rozpoczyna budowę żądania nadania uprawnień dla przedstawiciela podmiotu z UE.
+    /// Rozpoczyna budowę żądania nadania uprawnień przedstawicielowi podmiotu z UE.
     /// </summary>
     /// <returns>
     /// Interfejs pozwalający ustawić przedstawiciela, któremu nadawane są uprawnienia.
@@ -23,7 +23,7 @@ public static class GrantEUEntityRepresentativePermissionsRequestBuilder
     public interface ISubjectStep
     {
         /// <summary>
-        /// Ustawia identyfikator przedstawiciela podmiotu z UE, dla którego nadawane są uprawnienia.
+        /// Ustawia identyfikator przedstawiciela podmiotu z UE, któremu nadawane są uprawnienia.
         /// </summary>
         /// <param name="subject">
         /// Identyfikator przedstawiciela (np. dane osoby). Nie może być null
@@ -79,7 +79,7 @@ public static class GrantEUEntityRepresentativePermissionsRequestBuilder
         IOptionalStep WithSubjectDetails(EuEntityRepresentativeSubjectDetails subjectDetails);
 
         /// <summary>
-        /// Tworzy finalne żądanie nadania uprawnień dla przedstawiciela podmiotu z UE.
+        /// Tworzy finalne żądanie nadania uprawnień przedstawicielowi podmiotu z UE.
         /// </summary>
         /// <returns>
         /// Obiekt <see cref="GrantPermissionsEuEntityRepresentativeRequest"/> gotowy do wysłania do KSeF.

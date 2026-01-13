@@ -3,7 +3,6 @@ using KSeF.Client.Api.Builders.EUEntityRepresentativePermissions;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Permissions;
-using KSeF.Client.Core.Models.Permissions.Authorizations;
 using KSeF.Client.Core.Models.Permissions.EUEntity;
 using KSeF.Client.Core.Models.Permissions.EuEntityRepresentative;
 using KSeF.Client.Core.Models.Permissions.Identifiers;
@@ -87,6 +86,11 @@ public class EuRepresentativePermissionE2ETests : TestBase
             .WithContext(new EuEntityContextIdentifier { Type = EuEntityContextIdentifierType.NipVatUe, Value = ownerVatEu })
             .WithDescription("EU Company")
             .WithSubjectDetails(subjectDetails)
+            .WithEuEntityDetails(new PermissionsEuEntityDetails
+            {
+                Address = "ul. Testowa 1, 00-000 Miasto",
+                FullName = "Podmiot Testowy 1"
+            })
             .Build();
 
         OperationResponse response = await KsefClient
@@ -119,7 +123,7 @@ public class EuRepresentativePermissionE2ETests : TestBase
             {
                 FirstName = "Reprezentant",
                 LastName = "Reprezentant",
-                BirthDate = new DateTimeOffset(1990, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                BirthDate = new DateTimeOffset(1990, 1, 1, 0, 0, 0, TimeSpan.Zero).Date.ToString("yyyy-MM-dd"),
                 IdDocument = new EuEntityRepresentativeIdentityDocument
                 {
                     Type = "Passport",

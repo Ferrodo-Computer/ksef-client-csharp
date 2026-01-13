@@ -5,7 +5,7 @@ using KSeF.Client.Validation;
 namespace KSeF.Client.Api.Builders.EntityPermissions;
 
 /// <summary>
-/// Buduje żądanie nadania uprawnień dla wskazanego podmiotu w KSeF.
+/// Buduje żądanie nadania uprawnień wskazanemu podmiotowi w KSeF.
 /// </summary>
 public static class GrantEntityPermissionsRequestBuilder
 {
@@ -23,7 +23,7 @@ public static class GrantEntityPermissionsRequestBuilder
     public interface ISubjectStep
     {
         /// <summary>
-        /// Ustawia identyfikator podmiotu, dla którego mają zostać nadane uprawnienia.
+        /// Ustawia identyfikator podmiotu, któremu mają zostać nadane uprawnienia.
         /// </summary>
         /// <param name="subject">
         /// Identyfikator podmiotu (np. NIP, dane jednostki). Nie może być null
@@ -79,7 +79,7 @@ public static class GrantEntityPermissionsRequestBuilder
         IOptionalStep WithSubjectDetails(PermissionsEntitySubjectDetails subjectDetails);
 
         /// <summary>
-        /// Tworzy finalne żądanie nadania uprawnień dla podmiotu.
+        /// Tworzy finalne żądanie nadania uprawnień podmiotowi.
         /// </summary>
         /// <returns>
         /// Obiekt <see cref="GrantPermissionsEntityRequest"/> gotowy do wysłania do KSeF.

@@ -19,8 +19,7 @@ namespace KSeF.DemoWebApp.Controllers;
 public class AuthController(IAuthCoordinator authCoordinator,
     IConfiguration configuration,
     IAuthorizationClient authorizationClient,
-    ICryptographyService cryptographyService,
-    ICryptographyClient cryptographyClient) : ControllerBase
+    ICryptographyService cryptographyService) : ControllerBase
 {
 
     private readonly string _contextIdentifier = configuration["Tools:ContextIdentifier"]!;

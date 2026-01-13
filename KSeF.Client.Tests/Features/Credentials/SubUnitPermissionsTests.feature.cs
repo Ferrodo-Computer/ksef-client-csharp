@@ -27,8 +27,8 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
         EncryptionData encryptionData = CryptographyService.GetEncryptionData();
         string invoiceCreatorNip = MiscellaneousUtils.GetRandomNip();
         string municipalOfficeNip = MiscellaneousUtils.GetRandomNip();
-        string kindergartenId = $"{municipalOfficeNip}-12345";
-        string directorPesel = MiscellaneousUtils.GetRandomPesel();
+        string kindergartenId = $"{municipalOfficeNip}-12342"; /*Przykładowa suma kontrolna zgodna z algorytmem podanym w dokumentacji API*/
+		string directorPesel = MiscellaneousUtils.GetRandomPesel();
 
         // --- Etap 1: Wystawienie faktury przez wykonawcę dla przedszkola (jednostki podrzędnej) ---
         string invoiceCreatorAuthToken = (await AuthenticationUtils.AuthenticateAsync(
@@ -123,12 +123,23 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
             Value = directorPesel
         };
 
-        OperationResponse grantPersonResponse = await PermissionsUtils.GrantPersonPermissionsAsync(
+		PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+		{
+			SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+			PersonById = new PersonPermissionPersonById
+			{
+				FirstName = "Jan",
+				LastName = "Testowy"
+			}
+		};
+
+		OperationResponse grantPersonResponse = await PermissionsUtils.GrantPersonPermissionsAsync(
             KsefClient,
             kindergartenAuthToken,
             directorSubject,
             [PersonPermissionType.InvoiceRead],
-            "GrantPermissionToDirector");
+			subjectDetails,
+			"GrantPermissionToDirector");
 
         PermissionsOperationStatusResponse grantPersonStatus = await AsyncPollingUtils.PollAsync(
                 async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient,grantPersonResponse.ReferenceNumber, kindergartenAuthToken).ConfigureAwait(false),
@@ -152,8 +163,8 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
             DateRange = new DateRange
             {
                 From = DateTime.UtcNow.AddMonths(-2),
-                To = DateTime.UtcNow.AddMonths(5),
-                DateType = DateType.Issue,
+                To = DateTime.UtcNow.AddDays(1),
+                DateType = DateType.Invoicing,
             }
         };
 
@@ -176,8 +187,8 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
             DateRange = new DateRange
             {
                 From = DateTime.UtcNow.AddMonths(-2),
-                To = DateTime.UtcNow.AddMonths(5),
-                DateType = DateType.Issue,
+                To = DateTime.UtcNow.AddDays(1),
+                DateType = DateType.Invoicing,
             }
         };
 

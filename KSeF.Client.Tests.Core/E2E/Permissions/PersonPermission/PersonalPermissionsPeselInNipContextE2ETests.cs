@@ -46,7 +46,16 @@ public class PersonalPermissionsPeselInNipContextE2ETests : TestBase
                 PersonPermissionType.InvoiceRead,
                 PersonPermissionType.InvoiceWrite
             ],
-            description);
+			new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			},
+			description);
 
         Assert.NotNull(grantResponse);
 

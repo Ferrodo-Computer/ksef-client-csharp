@@ -13,7 +13,7 @@ namespace KSeF.Client.Tests.Core.E2E.Permissions.AuthorizationPermission;
 public class AuthorizationPermissions_ReceivedOwnerNip_E2ETests : TestBase
 {
     /// <summary>
-    /// E2E bez buildera: GRANT (podmiot nadający) → oczekiwanie na 200 → SEARCH Received (NIP właściciela) → asercje → REVOKE → oczekiwanie na 200.
+    /// Nadanie uprawnień → wyszukanie uprawnień (Otrzymanie, NIP właściciela) → odebranie uprawnień.
     /// </summary>
     [Fact]
     public async Task Search_Received_AsOwnerNip_Direct_FullFlow_ShouldFindGrantedPermission()
@@ -57,7 +57,7 @@ public class AuthorizationPermissions_ReceivedOwnerNip_E2ETests : TestBase
         #endregion
 
         #region Act
-        // Dla Received wyszukujemy „po stronie właściciela” (owner context).
+        // Dla sekcji „Otrzymane” wyszukujemy „po stronie właściciela” (kontekst właściciela).
         AuthenticationOperationStatusResponse ownerAuth =
             await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip);
         string ownerAccessToken = ownerAuth.AccessToken.Token;
@@ -72,13 +72,12 @@ public class AuthorizationPermissions_ReceivedOwnerNip_E2ETests : TestBase
             QueryType = QueryType.Received
         };
 
-        // Czekamy aż lista Received zawiera nowo nadane uprawnienie.
         PagedAuthorizationsResponse<AuthorizationGrant> receivedPage =
             await AsyncPollingUtils.PollAsync(
                 async () => await KsefClient.SearchEntityAuthorizationGrantsAsync(
                     searchRequest, ownerAccessToken, pageOffset: 0, pageSize: 50, cancellationToken: CancellationToken).ConfigureAwait(false),
                 page => page.AuthorizationGrants != null && page.AuthorizationGrants.Count > 0,
-                description: "Czekam aż Received zawiera nowy grant",
+                description: "Oczekiwanie na nowo nadane uprawnienia",
                 delay: TimeSpan.FromMilliseconds(SleepTime),
                 cancellationToken: CancellationToken);
 
@@ -105,8 +104,7 @@ public class AuthorizationPermissions_ReceivedOwnerNip_E2ETests : TestBase
             await AsyncPollingUtils.PollAsync(
                 async () => await KsefClient.OperationsStatusAsync(revokeOperation.ReferenceNumber, grantorAccessToken).ConfigureAwait(false),
                 result => result.Status.Code == OperationStatusCodeResponse.Success,
-                description: "Czekam na zakończenie REVOKE (200)",
-                delay: TimeSpan.FromMilliseconds(SleepTime),
+                description: "Oczekiwanie na zakończenie odbierania uprawnień",
                 cancellationToken: CancellationToken);
 
         Assert.NotNull(revokeStatus);
@@ -114,7 +112,7 @@ public class AuthorizationPermissions_ReceivedOwnerNip_E2ETests : TestBase
     }
 
     /// <summary>
-    /// E2E z builderem zapytania Received: GRANT → 200 → SEARCH(Builder) → asercje → REVOKE → 200.
+    /// E2E z builderem zapytania „Otrzymane”: GRANT → 200 → SEARCH(Builder) → asercje → REVOKE → 200.
     /// </summary>
     [Fact]
     public async Task Search_Received_AsOwnerNip_Builder_FullFlow_ShouldFindGrantedPermission()
@@ -169,8 +167,6 @@ public class AuthorizationPermissions_ReceivedOwnerNip_E2ETests : TestBase
                 async () => await KsefClient.SearchEntityAuthorizationGrantsAsync(
                     searchRequest, ownerAccessToken, pageOffset: 0, pageSize: 50, cancellationToken: CancellationToken).ConfigureAwait(false),
                 page => page.AuthorizationGrants != null && page.AuthorizationGrants.Count > 0,
-                description: "Czekam aż Received zawiera nowy grant",
-                delay: TimeSpan.FromMilliseconds(SleepTime),
                 cancellationToken: CancellationToken);
 
         AuthorizationGrant? matching =
@@ -195,8 +191,6 @@ public class AuthorizationPermissions_ReceivedOwnerNip_E2ETests : TestBase
             await AsyncPollingUtils.PollAsync(
                 async () => await KsefClient.OperationsStatusAsync(revokeOperation.ReferenceNumber, grantorAccessToken).ConfigureAwait(false),
                 result => result.Status.Code == OperationStatusCodeResponse.Success,
-                description: "Czekam na zakończenie REVOKE (200)",
-                delay: TimeSpan.FromMilliseconds(SleepTime),
                 cancellationToken: CancellationToken);
 
         Assert.NotNull(revokeStatus);

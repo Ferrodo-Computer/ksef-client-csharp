@@ -4,7 +4,7 @@ using System.Xml.Serialization;
 namespace KSeF.Client.Tests.Utils.Upo;
 
 [XmlRoot("Potwierdzenie", Namespace = "http://upo.schematy.mf.gov.pl/KSeF/v4-2")]
-public class SessionUpo : IUpoParsable
+public class SessionUpoV4_2 : IUpoParsable
 {
     [XmlElement("NazwaPodmiotuPrzyjmujacego")]
     public required string ReceivingEntityName { get; set; }

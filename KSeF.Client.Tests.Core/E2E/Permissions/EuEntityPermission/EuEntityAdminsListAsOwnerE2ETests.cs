@@ -1,5 +1,6 @@
 using KSeF.Client.Api.Builders.EuEntityPermissions;
 using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Permissions;
 using KSeF.Client.Core.Models.Permissions.EUEntity;
@@ -16,6 +17,15 @@ namespace KSeF.Client.Tests.Core.E2E.Permissions.EuEntityPermission;
 /// </summary>
 public class EuEntityAdminsListAsOwnerE2ETests : TestBase
 {
+    private const string EuFirstName = "EU";
+    private const string EuLastName = "Admin";
+    private const string EuBirthDate = "1990-01-01";
+    private const string IdDocType = "ID";
+    private const string IdDocNumber = "123456";
+    private const string IdDocCountry = "PL";
+    private const string SerialNumberPrefixTinPl = "TINPL";
+    private const string EuAdminCommonName = "EU Admin";
+
     [Fact]
     public async Task EuEntityAdmins_AsOwner_ShouldReturnList()
     {
@@ -33,22 +43,29 @@ public class EuEntityAdminsListAsOwnerE2ETests : TestBase
 
         // Przygotuj "administratora" jednostki UE (fingerprint certyfikatu osobistego)
         X509Certificate2 euAdminCertificate = CertificateUtils.GetPersonalCertificate(
-            givenName: "EU",
-            surname: "Admin",
-            serialNumberPrefix: "TINPL",
+            givenName: EuFirstName,
+            surname: EuLastName,
+            serialNumberPrefix: SerialNumberPrefixTinPl,
             serialNumber: ownerNip,
-            commonName: "EU Admin");
+            commonName: EuAdminCommonName);
         string euAdminFingerprint = CertificateUtils.GetSha256Fingerprint(euAdminCertificate);
 
         // Nadaj uprawnienia administracyjne jednostce UE w kontekście właściciela (NipVatUe)
         PermissionsEuEntitySubjectDetails subjectDetails = new PermissionsEuEntitySubjectDetails
         {
-            SubjectDetailsType = PermissionsEuEntitySubjectDetailsType.EntityByFingerprint,
-             EntityByFp = new PermissionsEuEntityEntityByFp
-             {
-                 Address = "EU Admin Address",
-                 FullName = "EU Admin Full Name"
-             }
+            SubjectDetailsType = PermissionsEuEntitySubjectDetailsType.PersonByFingerprintWithoutIdentifier,
+            PersonByFpNoId = new PermissionsEuEntityPersonByFpNoId
+            {
+                FirstName = EuFirstName,
+                LastName = EuLastName,
+                BirthDate = EuBirthDate,
+                IdDocument = new PermissionsEuEntityIdentityDocument
+                {
+                    Type = IdDocType,
+                    Number = IdDocNumber,
+                    Country = IdDocCountry
+                }
+            }
         };
 
         GrantPermissionsEuEntityRequest grantRequest = GrantEuEntityPermissionsRequestBuilder
@@ -58,15 +75,20 @@ public class EuEntityAdminsListAsOwnerE2ETests : TestBase
                 Type = EuEntitySubjectIdentifierType.Fingerprint,
                 Value = euAdminFingerprint
             })
-            .WithSubjectName("EU Admin Entity")
+            .WithSubjectName("Administrator jednostki UE")
             .WithContext(new EuEntityContextIdentifier
             {
                 Type = EuEntityContextIdentifierType.NipVatUe,
                 Value = ownerVatEu
             })
-            .WithDescription("Grant admin for EU Entity context")
+            .WithDescription("Nadanie uprawnień administratora dla kontekstu jednostki UE")
             .WithSubjectDetails(subjectDetails)
-            .Build();
+			.WithEuEntityDetails(new PermissionsEuEntityDetails
+			{
+				Address = "ul. Testowa 1, 00-000 Miasto",
+				FullName = "Podmiot Testowy 1"
+			})
+			.Build();
 
         OperationResponse grantResponse = await KsefClient
             .GrantsPermissionEUEntityAsync(grantRequest, ownerAuth.AccessToken.Token, CancellationToken);
@@ -77,9 +99,7 @@ public class EuEntityAdminsListAsOwnerE2ETests : TestBase
         // Opcjonalnie: poczekaj aż operacja nadania będzie w statusie 200
         PermissionsOperationStatusResponse grantStatus = await AsyncPollingUtils.PollAsync(
             async () => await KsefClient.OperationsStatusAsync(grantResponse.ReferenceNumber, ownerAuth.AccessToken.Token).ConfigureAwait(false),
-            result => result is not null && result.Status is not null && result.Status.Code == 200,
-            delay: TimeSpan.FromMilliseconds(SleepTime),
-            maxAttempts: 60,
+            result => result is not null && result.Status is not null && result.Status.Code == OperationStatusCodeResponse.Success,
             cancellationToken: CancellationToken);
 
         Assert.NotNull(grantStatus);
@@ -102,13 +122,11 @@ public class EuEntityAdminsListAsOwnerE2ETests : TestBase
                 pageSize: 10,
                 CancellationToken).ConfigureAwait(false),
             condition: r => r is not null && r.Permissions is { Count: > 0 },
-            delay: TimeSpan.FromMilliseconds(SleepTime),
-            maxAttempts: 60,
             cancellationToken: CancellationToken);
 
         // Assert
         Assert.NotNull(admins);
         Assert.NotEmpty(admins.Permissions);
-        Assert.Contains(admins.Permissions, x => x.SubjectEntityDetails.Address == subjectDetails.EntityByFp.Address && x.SubjectEntityDetails.FullName == subjectDetails.EntityByFp.FullName);
+        Assert.Contains(admins.Permissions, x => x.SubjectPersonDetails is not null && x.SubjectPersonDetails.FirstName == subjectDetails.PersonByFpNoId.FirstName && x.SubjectPersonDetails.LastName == subjectDetails.PersonByFpNoId.LastName);
     }
 }

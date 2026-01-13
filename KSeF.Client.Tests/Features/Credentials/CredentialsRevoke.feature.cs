@@ -10,7 +10,7 @@ namespace KSeF.Client.Tests.Features;
 public partial class CredentialsRevokeTests : KsefIntegrationTestBase
 {
     [Fact]
-    [Trait("Scenario", "Właściciel nadaje CredentialsManage dla delegata, delegat nadaje 'InvoiceWrite' dla PESEL i następnie odbiera.")]
+    [Trait("Scenario", "Właściciel nadaje CredentialsManage delegatowi, delegat nadaje 'InvoiceWrite' PESEL-owi i następnie odbiera.")]
     public async Task DelegateGrantAndRevokeInvoiceWriteForPeselAsManagerLeavesNoActivePermission()
     {
         // Arrange

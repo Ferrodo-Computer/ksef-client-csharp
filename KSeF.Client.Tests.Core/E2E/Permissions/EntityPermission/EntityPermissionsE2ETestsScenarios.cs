@@ -123,8 +123,21 @@ public class EntityPermissionsE2ETestsScenarios : TestBase
         Assert.NotNull(queryForAllPermissionsResponse);
         Assert.NotEmpty(queryForAllPermissionsResponse.Permissions);
         Assert.Equal(ExpectedPermissionsCount, queryForAllPermissionsResponse.Permissions.Count);
+		
+        Assert.Contains(queryForAllPermissionsResponse.Permissions,
+			x => x.PermissionScope == PersonalPermission.PersonalPermissionScopeType.InvoiceWrite);
+		Assert.Contains(queryForAllPermissionsResponse.Permissions,
+			x => x.PermissionScope == PersonalPermission.PersonalPermissionScopeType.InvoiceRead);
 
-        List<PersonalPermission> permissionsGrantedByEntity = queryForAllPermissionsResponse.Permissions
+		Assert.All(queryForAllPermissionsResponse.Permissions, permission =>
+		{
+			Assert.False(string.IsNullOrEmpty(permission.Id));
+			Assert.False(string.IsNullOrEmpty(permission.Description));
+			Assert.Equal(PersonalPermission.PersonalPermissionState.Active, permission.PermissionState);
+			Assert.NotEqual(default, permission.StartDate);
+		});
+
+		List<PersonalPermission> permissionsGrantedByEntity = queryForAllPermissionsResponse.Permissions
             .Where(p => p.ContextIdentifier.Value == contextNip)
             .ToList();
         Assert.Equal(ExpectedPermissionsCount, permissionsGrantedByEntity.Count);

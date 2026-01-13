@@ -26,7 +26,7 @@ public class UpoVersionedE2ETests : TestBase
 	// Wersja UPO używana w testach
 	private const string UpoVersion = "upo-v4-3";
 
-	// Konfiguracja dla sesji wsadowej
+	// Konfiguracja sesji wsadowej
 	private const int TotalInvoices = 20;
 	private const int PartQuantity = 1;
 	private const int ExpectedSuccessfulInvoiceCount = 20;
@@ -38,8 +38,8 @@ public class UpoVersionedE2ETests : TestBase
 	{
 		_nip = MiscellaneousUtils.GetRandomNip();
 		AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(AuthorizationClient, _nip)
-										  .GetAwaiter()
-										  .GetResult();
+												  .GetAwaiter()
+												  .GetResult();
 		_accessToken = authInfo.AccessToken.Token;
 	}
 
@@ -115,11 +115,17 @@ public class UpoVersionedE2ETests : TestBase
 		Assert.NotNull(statusAfterClose);
 		Assert.Equal(200, statusAfterClose.Status.Code);
 
-		// 7) pobranie UPO faktury z URL zawartego w metadanych faktury
+		// 7) pobranie UPO faktury z URL zawartego w metadanych faktury razem z hash z nagłówka
 		Uri upoDownloadUrl = invoices.Invoices.First().UpoDownloadUrl;
-		string invoiceUpoXml = await UpoUtils.GetUpoAsync(KsefClient, upoDownloadUrl);
-		Assert.False(string.IsNullOrWhiteSpace(invoiceUpoXml));
-		InvoiceUpoV4_3 invoiceUpo = UpoUtils.UpoParse<InvoiceUpoV4_3>(invoiceUpoXml);
+		UpoWithHash upoWithHash = await UpoUtils.GetUpoWithHashAsync(this.RestClient, upoDownloadUrl, CancellationToken).ConfigureAwait(false);
+		Assert.False(string.IsNullOrWhiteSpace(upoWithHash.Xml));
+		Assert.False(string.IsNullOrWhiteSpace(upoWithHash.HashHeaderBase64));
+
+		// Weryfikacja zgodności hash: nagłówek vs lokalnie wyliczony hash faktury
+		FileMetadata invoiceMetadata = CryptographyService.GetMetaData(Encoding.UTF8.GetBytes(upoWithHash.Xml));
+		Assert.Equal(invoiceMetadata.HashSHA, upoWithHash.HashHeaderBase64);
+
+		InvoiceUpoV4_3 invoiceUpo = UpoUtils.UpoParse<InvoiceUpoV4_3>(upoWithHash.Xml);
 		Assert.Equal(invoiceUpo.Document.KSeFDocumentNumber, ksefNumber);
 		Assert.NotNull(invoiceUpo.Document.InvoicingMode);
 	}
@@ -193,7 +199,14 @@ public class UpoVersionedE2ETests : TestBase
 		string ksefNumber = documents.Invoices.First().KsefNumber;
 		Uri upoDownloadUrl = documents.Invoices.First().UpoDownloadUrl;
 
-		InvoiceUpoV4_3 invoiceUpo = await GetAndParseInvoiceUpoAsync(upoDownloadUrl);
+		UpoWithHash upoWithHash = await UpoUtils.GetUpoWithHashAsync(this.RestClient, upoDownloadUrl, CancellationToken).ConfigureAwait(false);
+		Assert.False(string.IsNullOrWhiteSpace(upoWithHash.Xml));
+		Assert.False(string.IsNullOrWhiteSpace(upoWithHash.HashHeaderBase64));
+
+		FileMetadata invoiceMetadata = CryptographyService.GetMetaData(Encoding.UTF8.GetBytes(upoWithHash.Xml));
+		Assert.Equal(invoiceMetadata.HashSHA, upoWithHash.HashHeaderBase64);
+
+		InvoiceUpoV4_3 invoiceUpo = UpoUtils.UpoParse<InvoiceUpoV4_3>(upoWithHash.Xml);
 
 		// 7) Weryfikacja pól specyficznych dla wersji v4-3
 		Assert.Equal(ksefNumber, invoiceUpo.Document.KSeFDocumentNumber);
@@ -312,11 +325,15 @@ public class UpoVersionedE2ETests : TestBase
 	/// </summary>
 	private async Task<InvoiceUpoV4_3> GetAndParseInvoiceUpoAsync(Uri upoDownloadUrl)
 	{
-		string invoiceUpoXml = await UpoUtils.GetUpoAsync(KsefClient, upoDownloadUrl).ConfigureAwait(false);
+		UpoWithHash upoWithHash = await UpoUtils.GetUpoWithHashAsync(this.RestClient, upoDownloadUrl, CancellationToken).ConfigureAwait(false);
 
-		Assert.False(string.IsNullOrWhiteSpace(invoiceUpoXml));
+		Assert.False(string.IsNullOrWhiteSpace(upoWithHash.Xml));
+		Assert.False(string.IsNullOrWhiteSpace(upoWithHash.HashHeaderBase64));
 
-		InvoiceUpoV4_3 invoiceUpo = UpoUtils.UpoParse<InvoiceUpoV4_3>(invoiceUpoXml);
+		FileMetadata invoiceMetadata = CryptographyService.GetMetaData(Encoding.UTF8.GetBytes(upoWithHash.Xml));
+		Assert.Equal(invoiceMetadata.HashSHA, upoWithHash.HashHeaderBase64);
+
+		InvoiceUpoV4_3 invoiceUpo = UpoUtils.UpoParse<InvoiceUpoV4_3>(upoWithHash.Xml);
 		return invoiceUpo;
 	}
 }

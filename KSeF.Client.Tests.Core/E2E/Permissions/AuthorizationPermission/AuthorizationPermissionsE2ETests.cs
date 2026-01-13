@@ -4,6 +4,7 @@ using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Permissions;
 using KSeF.Client.Core.Models.Permissions.Authorizations;
 using KSeF.Client.Core.Models.Permissions.Entity;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Tests.Utils;
 
 namespace KSeF.Client.Tests.Core.E2E.Permissions.AuthorizationPermission;
@@ -52,10 +53,32 @@ public class AuthorizationPermissionsE2ETests : TestBase
                 maxAttempts: 30,
                 cancellationToken: CancellationToken);
 
-        // Assert
-        Assert.NotNull(entityRolesPaged);
+		// Assert
+		Assert.NotNull(entityRolesPaged);
+		Assert.NotNull(entityRolesPaged.AuthorizationGrants);
         Assert.NotEmpty(entityRolesPaged.AuthorizationGrants);
-        _fixture.SearchResponse = entityRolesPaged;
+
+		Assert.Contains(entityRolesPaged.AuthorizationGrants,
+			x => x.AuthorizationScope == AuthorizationPermissionType.SelfInvoicing);
+
+		Assert.All(entityRolesPaged.AuthorizationGrants, grant =>
+		{
+			Assert.False(string.IsNullOrEmpty(grant.Id));
+
+			Assert.NotNull(grant.AuthorizedEntityIdentifier);
+			Assert.Equal(AuthorizedEntityIdentifierType.Nip, grant.AuthorizedEntityIdentifier.Type);
+			Assert.False(string.IsNullOrEmpty(grant.AuthorizedEntityIdentifier.Value));
+
+			Assert.NotNull(grant.AuthorizingEntityIdentifier);
+			Assert.Equal(AuthorizingEntityIdentifierType.Nip, grant.AuthorizingEntityIdentifier.Type);
+			Assert.False(string.IsNullOrEmpty(grant.AuthorizingEntityIdentifier.Value));
+
+			Assert.False(string.IsNullOrEmpty(grant.Description));
+
+			Assert.NotEqual(default, grant.StartDate);
+		});
+
+		_fixture.SearchResponse = entityRolesPaged;
         #endregion
 
         #region Cofnij uprawnienia
@@ -99,6 +122,10 @@ public class AuthorizationPermissionsE2ETests : TestBase
             .WithSubject(_fixture.SubjectIdentifier)
             .WithPermission(AuthorizationPermissionType.SelfInvoicing)
             .WithDescription("E2E test grant")
+            .WithSubjectDetails(new PermissionsAuthorizationSubjectDetails
+            {
+                FullName = "Podmiot Testowy 1"
+            })
             .Build();
 
         OperationResponse operationResponse = await KsefClient

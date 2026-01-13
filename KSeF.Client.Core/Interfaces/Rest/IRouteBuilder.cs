@@ -9,7 +9,7 @@ namespace KSeF.Client.Core.Interfaces.Rest
     public interface IRouteBuilder
     {
         /// <summary>
-        /// Tworzy ścieżkę względną w formacie "/{apiPrefix}/{version}/{endpoint}".
+        /// Tworzy ścieżkę względną w formacie "/{version}/{endpoint}".
         /// </summary>
         /// <param name="endpoint">Względny endpoint (bez poprzedzającego '/').</param>
         /// <param name="apiVersion">

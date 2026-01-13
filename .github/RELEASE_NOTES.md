@@ -1,14 +1,50 @@
-> Info: 🔧 zmienione • ➕ dodane • ➖ usunięte • 🔀 przeniesione
+## Rejestr zmian: Wersja 2.0.0
+### Nowe
+- Dodano obsługę nagłówka `x-ms-meta-hash` zwracanego przez API (skrót SHA-256 dokumentu UPO w formacie Base64) oraz nowe metody w `UpoUtils` umożliwiające pobieranie UPO wraz z tym hashem.
+- Dodano metodę `X509CertificateLoaderExtensions.MergeWithPemKeyNoProfileForEcdsa`, która ręcznie odszyfrowuje zaszyfrowane klucze ECDSA PKCS#8 w pamięci i importuje je jako efemeryczne, zapewniając działanie także w środowiskach, gdzie `ImportFromEncryptedPem` zawodzi (np. IIS z wyłączonym LoadUserProfile dla ECDSA).
+
+### Zmodyfikowane
+- Zmieniono obsługę błędów w metodzie `X509CertificateLoaderExtensions.MergeWithPemKey`przy ładowaniu zaszyfrowanych kluczy ECDSA: zamiast niejasnego komunikatu użytkownik dostaje prosty opis problemu, a biblioteka automatycznie wywołuje metodę `MergeWithPemKeyNoProfileForEcdsa`, która działa bez profilu użytkownika.
+
+## Rejestr zmian: Wersja 2.0.0 RC6.1.1
+### Nowe
+- Usunięto przedrostek `/api` z adresów URL w `KSeFClient` oraz `RouteBuilder`.
+- Poprawiono `KsefEnvironmentConfig` w projekcie `ClientFactory`.
+- Dodano url środowiska PROD w `KsefEnvironmentsUris` oraz `KsefQREnvironmentsUris`.
+
+### Zmodyfikowane
+- Poprawiono działanie generatora PDF w aplikacji testowej `KSeF.Client.Tests.PdfTestApp`:
+  - Dostosowano działanie pod nową wersję submodułu `ksef-pdf-generator`
+  - Zaktualizowano dokumentację z sekcją troubleshootingu
+  - Dodano instrukcje odświeżania submodułu `ksef-pdf-generator` (wymagane po aktualizacji ze starszych wersji)
+
+## Rejestr zmian: Wersja 2.0.0 RC6.1
+### Nowe
+- Dodano wymaganą właściwość `timestampMs` w `AuthenticationChallengeResponse`.
+- Dodano wymaganą właściwość `rateLimits.invoiceExportStatus` w `EffectiveApiRateLimits`.
+
+### Zmodyfikowane
+- Zmieniono adresy URL API KSeF oraz generowanie linków QR zgodnie z dokumentacją:
+  - [srodowiska.md](https://github.com/CIRFMF/ksef-docs/blob/main/srodowiska.md)
+  - [kody-qr.md](https://github.com/CIRFMF/ksef-docs/blob/main/kody-qr.md)
+- Usunięto wartość wyliczeniową (enum): Token z właściwości `subjectIdentifierType` z `TestDataSubjectIdentifier`.
+- Usunięto właściwość `batchFile.fileParts[].fileName` z `OpenBatchSessionRequest`.
+- W celu zachowania kompatybilności z .NET Standard 2.0 zmieniono następujące typy:
+  - `AttachmentPermissionRevokeRequest` - zmieniono typ pola `ExpectedDate` z `DateTime` na `string`.
+  - `EuEntityRepresentativePersonByFpNoId` - zmieniono typ pola `BirthDate` z `DateTimeOffset` na `string`.
+  - `PermissionsIndirectEntityPersonByFingerprintWithoutIdentifier` - zmieniono typ pola `BirthDate` z `DateTimeOffset` na `string`.
+  - `PersonPermissionPersonByFingerprintNoId` - zmieniono typ pola `BirthDate` z `DateTimeOffset` na `string`.
+  - `PersonPermissionSubjectPersonDetails` - zmieniono typ pola `BirthDate?` z `DateTimeOffset` na `string`.
+  - `PermissionsSubunitPersonByFingerprintWithoutIdentifier` - zmieniono typ pola `BirthDate` z `DateTimeOffset` na `string`.
 
 ## Rejestr zmian: Wersja 2.0.0 RC6.0.2
 ### Nowe
-- **Dodano nowe przeciążenie metody ExportInvoicesAsync(InvoiceExportRequest, string, CancellationToken) niewymagające parametru includeMetadata.**
-- **Dodano możliwość uwierzytelniania tokenem KSeF w KseF.DemoWebApp**
-- **Dodano metodę rozszerzającą `X509Certificate2.MergeWithPemKey` w `X509CertificateLoaderExtensions`.**
-  - Umożliwia bezpieczne łączenie publicznego certyfikatu z kluczem prywatnym (PEM) w pamięci (Ephemeral Key). Jej użycie rozwiązuje problem błędu _the password may be incorrect_ na środowiskach IIS oraz Azure Web Apps, gdzie profil użytkownika jest niedostępny.
-- **Dodano przeciążenie metody `BuildCertificateVerificationUrl`, które nie wymaga podawania numeru seryjnego certyfikatu, a odczytuje go z podanego w innym parametrze obiektu typu u `X509Certificate2`.**
-- **Dodano plik `templates.md` w `KSeF.Client.Tests.Core/Templates` ze wskazówkami dotyczącymi testowania wysyłki faktur w Aplikacji Podatnika.**
-- **Dodano metody Invalidate() oraz RefreshAsync() dla klasy KSeFFactoryCertificateFetcherServices**
+- Dodano nowe przeciążenie metody `ExportInvoicesAsync(InvoiceExportRequest, string, CancellationToken)` niewymagające parametru includeMetadata.
+- Dodano możliwość uwierzytelniania tokenem KSeF w KseF.DemoWebApp.
+- Dodano metodę rozszerzającą `X509Certificate2.MergeWithPemKey` w `X509CertificateLoaderExtensions`, umożliwiającą bezpieczne łączenie publicznego certyfikatu z kluczem prywatnym (PEM) w pamięci (Ephemeral Key). Jej użycie rozwiązuje problem błędu _the password may be incorrect_ na środowiskach IIS oraz Azure Web Apps, gdzie profil użytkownika jest niedostępny.
+- Dodano przeciążenie metody `BuildCertificateVerificationUrl`, które nie wymaga podawania numeru seryjnego certyfikatu, a odczytuje go z podanego w innym parametrze obiektu typu  `X509Certificate2`.
+- Dodano plik `templates.md` w `KSeF.Client.Tests.Core/Templates` ze wskazówkami dotyczącymi testowania wysyłki faktur w Aplikacji Podatnika.
+- Dodano metody `Invalidate()` oraz `RefreshAsync()` do klasy `KSeFFactoryCertificateFetcherServices`.
 
 ### Zmodyfikowane
 - Parametr includeMetadata w metodzie `ExportInvoicesAsync(InvoiceExportRequest, string, bool, CancellationToken)` został oznaczony jako przestarzały (`[Obsolete]`).
@@ -61,7 +97,7 @@
 - `SubordinateEntityRoleType` → nowy enum (`LocalGovernmentSubUnit`, `VatGroupSubUnit`) używany w `SubordinateEntityRole`.
 - Rozdzielono zależności na poszczególne wersje .NET SDK.
 - EditorConfig: C# 7.3, NRT off, wymuszenie jawnych typów, Async*…Async, _underscore dla pól prywatnych i chronionych.
-- `KSeF.Client.Api`: opisy w języku polskim dla publicznych interfejsów/typów.
+- `KSeF.Client.Api`: opisy publicznych interfejsów/typów w języku polskim.
 - Utils: `ToVatEuFromDomestic(...)` - usprawniona logika działania i komunikaty w języku polskim.
 
 ### Zmodyfikowane
@@ -317,7 +353,7 @@
     - `SearchGrantedPersonalPermissionsAsync` – `POST /api/v2/permissions/query/personal/grants`.
     - `GrantsPermissionAuthorizationAsync` – `POST /api/v2/permissions/authorizations/grants`.
     - `QueryPeppolProvidersAsync` – `GET /api/v2/peppol/query`.
-- **Tests**: `Authenticate.feature.cs` → dodano testy end-to-end dla procesu uwierzytelniania.
+- **Tests**: `Authenticate.feature.cs` → dodano testy end-to-end procesu uwierzytelniania.
 
 ### Zmodyfikowane
 - **authv2.xsd**
@@ -577,5 +613,5 @@ Zmiana wersji .NET z 8.0 na 9.0.
 **Utils**
 - ➕ Nowe utils usprawniające uwierzytelnianie, obsługę sesji interaktywnych, wsadowych, zarządzanie uprawnieniami, oraz ich metody wspólne: **AuthenticationUtils.cs**, **OnlineSessionUtils.cs**, **MiscellaneousUtils.cs**, **BatchSessionUtils.cs**, **PermissionsUtils.cs**.
 - 🔧 Refactor testów - użycie nowych klas utils.
-- 🔧 Zmiana kodu statusu dla zamknięcia sesji interaktywnej z 300 na 170.
-- 🔧 Zmiana kodu statusu dla zamknięcia sesji wsadowej z 300 na 150.
+- 🔧 Zmiana kodu statusu zamknięcia sesji interaktywnej z 300 na 170.
+- 🔧 Zmiana kodu statusu zamknięcia sesji wsadowej z 300 na 150.

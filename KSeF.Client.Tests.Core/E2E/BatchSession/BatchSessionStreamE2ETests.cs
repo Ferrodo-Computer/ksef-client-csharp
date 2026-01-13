@@ -107,7 +107,7 @@ public class BatchSessionStreamE2ETests : TestBase
         Uri upoDownloadUrl = documents.Invoices.First().UpoDownloadUrl;
         string invoiceUpoXml = await UpoUtils.GetUpoAsync(KsefClient, upoDownloadUrl);
         Assert.False(string.IsNullOrWhiteSpace(invoiceUpoXml));
-        InvoiceUpoV4_2 invoiceUpo = UpoUtils.UpoParse<InvoiceUpoV4_2>(invoiceUpoXml);
+        InvoiceUpoV4_3 invoiceUpo = UpoUtils.UpoParse<InvoiceUpoV4_3>(invoiceUpoXml);
         Assert.Equal(invoiceUpo.Document.KSeFDocumentNumber, ksefNumber);
         Assert.True(!string.IsNullOrWhiteSpace(invoiceUpo.ReceivingEntityName));
         Assert.True(!string.IsNullOrWhiteSpace(invoiceUpo.SessionReferenceNumber));

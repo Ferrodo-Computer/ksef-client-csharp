@@ -408,7 +408,8 @@ public class VerificationLinkServiceTests : KsefIntegrationTestBase
             ownerNip,
             InvoiceFileName,
             encryptionData,
-            CryptographyService);
+            CryptographyService,
+            true);
         Assert.NotNull(sendInvoiceResponse);
         Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse.ReferenceNumber));
 

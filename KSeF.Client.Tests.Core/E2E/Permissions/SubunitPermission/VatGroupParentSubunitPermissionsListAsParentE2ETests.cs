@@ -30,11 +30,16 @@ public class VatGroupParentSubunitPermissionsListAsParentE2ETests : TestBase
 
     private readonly string _vatGroupNip = MiscellaneousUtils.GetRandomNip();
     private readonly string _subunitNip = MiscellaneousUtils.GetRandomNip();
-    private string _parentInternalId => _vatGroupNip + "-12342"; /*Przykładowa suma kontrolna zgodna z algorytmem podanym w dokumentacji API*/
+    private readonly string _parentInternalId;
 
 	private string _parentAccessToken = string.Empty;
     private string _subunitAccessToken = string.Empty;
     private string _grantedAdminSubjectNip = string.Empty;
+
+    public VatGroupParentSubunitPermissionsListAsParentE2ETests()
+    {
+        _parentInternalId = MiscellaneousUtils.GenerateInternalIdentifier($"{_vatGroupNip}"); /* Suma kontrolna zgodna z algorytmem podanym w dokumentacji API*/
+	}
 
     [Fact]
     public async Task SubunitAdminsAsVatGroupParentShouldReturnList()

@@ -226,6 +226,28 @@ string privateKeyPem = File.ReadAllText("key.pem");
 X509Certificate2 cert = publicCert.MergeWithPemKey(privateKeyPem, "TwojeHaslo");
 ```
 
+### Generowania kodów QR na środowisku Linux / Błąd: wyjątek inicjalizacji SkiaSharp (`libfontconfig.so.1`)
+
+Jeśli podczas generowania kodów QR pojawia się wyjątek podobny do:
+
+> **TypeInitializationException:** The type initializer for `SkiaSharp.SKImageInfo` threw an exception  
+> `libfontconfig.so.1: cannot open shared object file`
+
+Oznacza to brak systemowej biblioteki `libfontconfig` w środowisku uruchomieniowym (np. w najnowszych obrazach Docker `aspnet/runtime`).
+
+SkiaSharp korzysta z natywnych bibliotek, których obecność jest wymagana już na etapie inicjalizacji i nie może być zapewniona po stronie biblioteki aplikacyjnej.
+
+#### Rozwiązanie
+
+Doinstalować bibliotekę `libfontconfig` w środowisku uruchomieniowym, np. w obrazie Docker:
+
+```
+dockerfile
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libfontconfig1 \
+ && rm -rf /var/lib/apt/lists/*
+ ```
+
 ## Więcej informacji
 
 Szczegółowe przykłady użycia i dokumentacja API dostępne są w [repozytorium dokumentacji](https://github.com/CIRFMF/ksef-docs).

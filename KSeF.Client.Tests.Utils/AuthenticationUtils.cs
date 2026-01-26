@@ -270,7 +270,7 @@ public static class AuthenticationUtils
         {
             return lastStatus ?? new AuthStatus
             {
-                Status = new StatusInfo
+                Status = new OperationStatusInfo
                 {
                     Code = AuthInProgressCode,
                     Description = "Brak finalnego statusu przed upływem limitu czasu."

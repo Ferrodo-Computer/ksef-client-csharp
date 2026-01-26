@@ -30,6 +30,14 @@ builder.Services.AddKSeFClient
     options.SupportedUICultures = builder.Configuration.GetSection("ApiSettings").GetSection("SupportedUICultures").Get<string[]>() ?? null;
 });
 
+builder.Services.AddLighthouseClient(options =>
+{
+    options.BaseUrl =
+        builder.Configuration.GetSection("LighthouseSettings")
+                .GetValue<string>("BaseUrl")
+                ?? LighthouseEnvironmentsUris.TEST;
+});
+
 // UWAGA: w aplikacji webowej używamy AddCryptographyClient do rejestracji CryptographyClient i powiązanych serwisów
 // tutaj z domyślnym DefaultCertificateFetcher pobierającym certyfikaty, zobacz dostępne parametry w dokumentacji metody rozszerzającej
 builder.Services.AddCryptographyClient();

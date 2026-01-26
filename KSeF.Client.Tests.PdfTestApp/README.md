@@ -130,11 +130,35 @@ dotnet run --framework net10.0 -- faktura C:\faktura.xml '{\"nrKSeF\":\"12345678
 - **Node.js wrapper**: W lokalizacji podanej jako parametr `<outputPdf>`
 - **Aplikacja .NET**: W katalogu projektu, nazwa z pliku XML (np. `invoice.xml` -> `invoice.pdf`)
 
+## Aktualizacja
+
+### Aktualizacja submodułu ksef-pdf-generator
+
+Aby zaktualizować submoduł `ksef-pdf-generator` do najnowszej wersji:
+
+1. Zaktualizuj submoduł do najnowszej wersji z remote:
+   ```bash
+   git submodule update --remote
+   ```
+
+2. Wyczyść katalogi generowane przez build:
+   ```bash
+   cd Externals/ksef-pdf-generator
+   rm -r node_modules, dist
+   rm package-lock.json
+   ```
+
+3. Przy pierwszym uruchomieniu aplikacja automatycznie zainstaluje zależności i zbuduje generator:
+   ```bash
+   cd ../..
+   dotnet run --framework net10.0
+   ```
+
 ## Rozwiązywanie problemów
 
 ### Problem z zależnościami Node.js
 
 Jeśli napotkasz błędy związane z brakującymi modułami lub błędami podczas generowania PDF:
 1. Przejdź do katalogu `Externals/ksef-pdf-generator`
-2. Usuń katalog `node_modules` i plik `package-lock.json`
+2. Usuń katalogi `node_modules`, `dist` i plik `package-lock.json`
 3. Wykonaj ponownie `npm install` i `npm run build`

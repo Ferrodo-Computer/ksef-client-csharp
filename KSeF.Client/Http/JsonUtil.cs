@@ -16,13 +16,10 @@ public static class JsonUtil
 
         WriteIndented = false,
         PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter() }
     };
 
-    static JsonUtil()
-    {
-        _settings.Converters.Add(new JsonStringEnumConverter());
-    }
     public static string Serialize<T>(T obj)
     {
         try

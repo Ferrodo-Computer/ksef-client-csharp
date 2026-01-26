@@ -413,18 +413,12 @@ public sealed class RestClient(HttpClient httpClient) : IRestClient
 
             if (!string.IsNullOrEmpty(responseBody) && IsJsonContent(responseMessage))
             {
-                if (TryDeserializeJson(responseBody, out ApiErrorResponse apiErrorResponse) && apiErrorResponse is not null)
+                if (TryDeserializeJson<TooManyRequestsErrorResponse>(
+                        responseBody,
+                        out TooManyRequestsErrorResponse statusErrorResponse)
+                    && statusErrorResponse?.Status?.Details?.Any() == true)
                 {
-                    string detailedMessage = BuildErrorMessageFromDetails(apiErrorResponse);
-                    if (!string.IsNullOrWhiteSpace(detailedMessage))
-                    {
-                        rateLimitMessage = detailedMessage;
-                    }
-
-                    throw KsefRateLimitException.FromRetryAfterHeader(
-                        rateLimitMessage,
-                        retryAfterHeaderValue,
-                        apiErrorResponse);
+                    rateLimitMessage = string.Join(" ", statusErrorResponse.Status.Details);
                 }
             }
 

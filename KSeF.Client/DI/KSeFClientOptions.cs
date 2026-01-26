@@ -8,12 +8,21 @@ namespace KSeF.Client.DI;
 /// </summary>
 public class KSeFClientOptions
 {
-    [Required(ErrorMessage = "BaseUrl is required.")]
-    [Url(ErrorMessage = "BaseUrl must be a valid URL.")]
+    [Required(ErrorMessage = "Pole BaseUrl jest wymagane.")]
+    [Url(ErrorMessage = "Pole BaseUrl musi być poprawnym adresem URL.")]
     public string BaseUrl { get; set; } = "";
-    [Required(ErrorMessage = "BaseQRUrl is required.")]
-    [Url(ErrorMessage = "BaseUrl must be a valid URL.")]
+
+    [Required(ErrorMessage = "Pole BaseQRUrl jest wymagane.")]
+    [Url(ErrorMessage = "Pole BaseQRUrl musi być poprawnym adresem URL.")]
     public string BaseQRUrl { get; set; } = "";
+
+    /// <summary>
+    /// Opcjonalny bazowy adres URL usługi Latarni.
+    /// Jeśli nie ustawiony, używany jest domyślny adres dla środowiska PROD.
+    /// </summary>
+    [Url(ErrorMessage = "Pole LighthouseBaseUrl musi być poprawnym adresem URL.")]
+    public string LighthouseBaseUrl { get; set; } = "";
+
     public Dictionary<string, string> CustomHeaders { get; set; }
     public IWebProxy WebProxy { get; set; }
 
@@ -21,7 +30,6 @@ public class KSeFClientOptions
     public string[] SupportedUICultures { get; set; }
     public string[] SupportedCultures { get; set; }
     public string DefaultCulture { get; set; }
-
 
     public ApiConfiguration ApiConfiguration { get; set; } = new ApiConfiguration();
 }

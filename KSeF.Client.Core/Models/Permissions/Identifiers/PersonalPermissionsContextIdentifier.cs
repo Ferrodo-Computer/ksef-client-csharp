@@ -7,6 +7,7 @@ namespace KSeF.Client.Core.Models.Permissions.Identifiers
     }
     public enum PersonalPermissionsContextIdentifierType
     {
-        Nip
+        Nip,
+        InternalId
     }
 }

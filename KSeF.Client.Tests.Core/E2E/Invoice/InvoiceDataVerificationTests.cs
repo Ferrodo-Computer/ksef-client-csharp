@@ -56,7 +56,8 @@ namespace KSeF.Client.Tests.Core.E2E.Invoice
                 _sellerNip,
                 invoiceTemplatePath,
                 encryptionData,
-                CryptographyService);
+                CryptographyService,
+                true);
             Assert.NotNull(sendInvoiceResponse);
 
             // Krok 3: oczekiwanie na przetworzenie faktur w sesji

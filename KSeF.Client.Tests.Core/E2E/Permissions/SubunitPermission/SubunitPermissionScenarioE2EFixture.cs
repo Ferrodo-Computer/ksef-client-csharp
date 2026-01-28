@@ -9,7 +9,7 @@ public class SubunitPermissionsScenarioE2EFixture
 {
     public SubunitPermissionsScenarioE2EFixture()
     {
-        UnitNipInternal = $"{Unit.Value}-12342"; /*Przykładowa suma kontrolna zgodna z algorytmem podanym w dokumentacji API*/
+        UnitNipInternal = MiscellaneousUtils.GenerateInternalIdentifier($"{Unit.Value}"); /* Suma kontrolna wyliczana zgodnie z algorytmem podanym w dokumentacji API*/
 	}
 
     public SubunitContextIdentifier Unit { get; } = new SubunitContextIdentifier

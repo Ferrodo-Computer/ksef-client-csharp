@@ -63,7 +63,8 @@ public class QrCodeOnlineE2ETests : TestBase
             _fixture.Nip,
             invoiceTemplate,
             _encryptionData,
-            CryptographyService);
+            CryptographyService,
+            true);
 
         Assert.NotNull(sendInvoiceResponse);
         Assert.False(string.IsNullOrWhiteSpace(sendInvoiceResponse.ReferenceNumber));

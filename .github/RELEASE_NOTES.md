@@ -1,3 +1,35 @@
+## Rejestr zmian: Wersja 2.0.1
+### Nowe
+- Dodano obsługę wartości `InternalId` w `PersonalPermissionContextIdentifierType` oraz `PersonalPermissionsContextIdentifierType` umożliwiającą filtrowanie uprawnień osobistych według identyfikatora wewnętrznego.
+- Dodano nowy model `OperationStatusInfo` do reprezentowania statusów operacji (w odróżnieniu od statusów faktur).
+- Dodano `TooManyRequestsErrorResponse` do obsługi odpowiedzi HTTP 429 (zbyt wiele żądań).
+- Dodano testy E2E dla uprawnień osobistych z filtrowaniem po `InternalId`: `PersonalPermissionsWithInternalIdFilterE2ETests`.
+- Dodano walidator numerów NIP - na środowisku testowym użycie opcjonalne.
+
+### Zmodyfikowane
+- Poprawiono obsługę odpowiedzi HTTP 429 w metodzie `HandleTooManyRequestsAsync` w `RestClient`.
+- Podzielono model `StatusInfo` na dwa odrębne typy:
+  - `InvoiceStatusInfo` - do statusów związanych z fakturami
+  - `OperationStatusInfo` - do statusów operacji
+- Zaktualizowano szablon faktury `invoice-template-fa-3-with-custom-Subject2.xml`.
+- Poprawiono testy E2E:
+  - `CertificatesE2ETests` - usunięto równoległość z testu przekroczenia limitu certyfikatów
+  - `DuplicateInvoiceE2ETests` - usunięto niepotrzebną asercję
+  - `InvoiceE2ETests` - poprawiono generowanie i walidację `InternalId`
+  - `PeppolPefE2ETests` - skrócono opóźnienia w testach
+  - `EuRepresentativePermissionE2ETests` - weryfikacja uprawnień przedstawiciela po odcisku palca zamiast porównania liczby
+  - `SubunitPermissionScenarioE2EFixture` - poprawki w scenariuszach uprawnień podjednostek
+- Rozszerzono narzędzia pomocnicze `MiscellaneousUtils` oraz `OnlineSessionUtils` o dodatkowe metody.
+
+### Dokumentacja
+- Zaktualizowano `README.md` o instrukcje aktualizacji submodułu `ksef-pdf-generator`.
+- Dodano wpis troubleshooting w `README.md` dla `KSeF.Client.Tests.PdfTestApp`.
+- Poprawiono opis kodów QR w dokumentacji README.
+
+### Poprawki
+- Poprawiono test uprawnień jednostek podrzędnych.
+- Poprawiono generowanie `InternalId` z poprawną sumą kontrolną w testach.
+
 ## Rejestr zmian: Wersja 2.0.0
 ### Nowe
 - Dodano obsługę nagłówka `x-ms-meta-hash` zwracanego przez API (skrót SHA-256 dokumentu UPO w formacie Base64) oraz nowe metody w `UpoUtils` umożliwiające pobieranie UPO wraz z tym hashem.

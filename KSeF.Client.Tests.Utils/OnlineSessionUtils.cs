@@ -4,6 +4,7 @@ using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Invoices;
 using KSeF.Client.Core.Models.Sessions;
 using KSeF.Client.Core.Models.Sessions.OnlineSession;
+using KSeF.Client.Helpers;
 using System.Globalization;
 using System.Text;
 
@@ -55,6 +56,7 @@ public static class OnlineSessionUtils
     /// <param name="templatePath">Ścieżka do pliku szablonu XML.</param>
     /// <param name="encryptionData">Dane szyfrowania.</param>
     /// <param name="cryptographyService">Serwis kryptograficzny.</param>
+    /// <param name="validateInvoice">Czy walidować fakturę przed wysłaniem (domyślnie: false).</param>
     /// <returns>Odpowiedź z informacjami o wysłanej fakturze.</returns>
     public static async Task<SendInvoiceResponse> SendInvoiceAsync(IKSeFClient ksefClient,
         string sessionReferenceNumber,
@@ -62,7 +64,8 @@ public static class OnlineSessionUtils
         string nip,
         string templatePath,
         EncryptionData encryptionData,
-        ICryptographyService cryptographyService)
+        ICryptographyService cryptographyService,
+        bool validateInvoice = false)
     {
         string invoiceFilePath = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
         if (!File.Exists(invoiceFilePath))
@@ -72,7 +75,7 @@ public static class OnlineSessionUtils
 
         string xml = GetXmlInvoiceFromPath(invoiceFilePath, nip);
 
-        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml).ConfigureAwait(false);
+        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml, validateInvoice).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -86,14 +89,16 @@ public static class OnlineSessionUtils
     /// <param name="templatePath">Ścieżka do pliku szablonu XML.</param>
     /// <param name="encryptionData">Dane szyfrowania.</param>
     /// <param name="cryptographyService">Serwis kryptograficzny.</param>
+    /// <param name="validateInvoice">Czy walidować fakturę przed wysłaniem (domyślnie: false).</param>
     /// <returns>Odpowiedź z informacjami o wysłanej fakturze.</returns>
     public static async Task<SendInvoiceResponse> SendInvoiceAsync(IKSeFClient ksefClient,
         string sessionReferenceNumber,
         string accessToken,
-        string nip,string subject,
+        string nip, string subject,
         string templatePath,
         EncryptionData encryptionData,
-        ICryptographyService cryptographyService)
+        ICryptographyService cryptographyService,
+        bool validateInvoice = false)
     {
         string invoiceFilePath = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
         if (!File.Exists(invoiceFilePath))
@@ -103,10 +108,58 @@ public static class OnlineSessionUtils
 
         string xml = GetXmlInvoiceFromPath(invoiceFilePath, nip, subject);
 
-        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml).ConfigureAwait(false);
+        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml, validateInvoice).ConfigureAwait(false);
     }
 
-    private static string GetXmlInvoiceFromPath(string invoiceFilePath,string nip, string subject = "")
+
+    /// <summary>
+    /// Wysyła fakturę w ramach otwartej sesji online. Faktura zawiera dodatkowo podmiot3 będący jednostką podrzędną podmiotu2. 
+    /// </summary>
+    /// <param name="ksefClient">Klient KSeF.</param>
+    /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
+    /// <param name="accessToken">Token dostępu.</param>
+    /// <param name="nip">NIP podmiotu.</param>
+    /// <param name="subject">identyfikator nabywcy.</param>
+    /// <param name="thirdSubject">identyfikator podmiotu trzeciego.</param>
+    /// <param name="templatePath">Ścieżka do pliku szablonu XML.</param>
+    /// <param name="encryptionData">Dane szyfrowania.</param>
+    /// <param name="cryptographyService">Serwis kryptograficzny.</param>
+    /// <param name="validateInvoice">Czy walidować fakturę przed wysłaniem (domyślnie: false).</param>
+    /// <returns>Odpowiedź z informacjami o wysłanej fakturze.</returns>
+    public static async Task<SendInvoiceResponse> SendInvoiceAsync(IKSeFClient ksefClient,
+       string sessionReferenceNumber,
+       string accessToken,
+       string nip, string subject, string thirdSubject,
+       string templatePath,
+       EncryptionData encryptionData,
+       ICryptographyService cryptographyService,
+       bool validateInvoice = false)
+    {
+        string invoiceFilePath = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
+        if (!File.Exists(invoiceFilePath))
+        {
+            throw new FileNotFoundException($"Template not found at: {invoiceFilePath}");
+        }
+
+        string xml = GetXmlInvoiceFromPath(invoiceFilePath, nip, subject, thirdSubject);
+
+        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml, validateInvoice).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Wysyła fakturę w ramach otwartej sesji online. Faktura zawiera dodatkowo podmiot3 będący jednostką podrzędną podmiotu2. 
+    /// </summary>
+    /// <param name="ksefClient">Klient KSeF.</param>
+    /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
+    /// <param name="accessToken">Token dostępu.</param>
+    /// <param name="nip">NIP podmiotu.</param>
+    /// <param name="subject">identyfikator nabywcy.</param>
+    /// <param name="thirdSubject">identyfikator podmiotu trzeciego.</param>
+    /// <param name="templatePath">Ścieżka do pliku szablonu XML.</param>
+    /// <param name="encryptionData">Dane szyfrowania.</param>
+    /// <param name="cryptographyService">Serwis kryptograficzny.</param>
+    /// <returns>Odpowiedź z informacjami o wysłanej fakturze.</returns>
+    private static string GetXmlInvoiceFromPath(string invoiceFilePath, string nip, string subject = "", string thirdSubject = "")
     {
         string xml = File.ReadAllText(invoiceFilePath, Encoding.UTF8);
         xml = xml.Replace("#nip#", nip);
@@ -115,6 +168,11 @@ public static class OnlineSessionUtils
         if (!string.IsNullOrEmpty(subject))
         {
             xml = xml.Replace("#nipOdbiorca#", subject);
+        }
+
+        if (!string.IsNullOrEmpty(thirdSubject))
+        {
+            xml = xml.Replace("#idWewnetrzne#", thirdSubject);
         }
 
         return xml;
@@ -158,7 +216,7 @@ public static class OnlineSessionUtils
             => string.IsNullOrWhiteSpace(v) ? v : new string([.. v.Where(ch => !char.IsWhiteSpace(ch))]).ToUpperInvariant();
 
         // dane wejściowe -> tylko normalizacja
-        
+
         string ibanNorm = NormalizeIban(iban);
 
         // tokeny faktycznie obecne w szablonie
@@ -257,8 +315,24 @@ public static class OnlineSessionUtils
     }
 
 
-    private static async Task<SendInvoiceResponse> SendInvoice(IKSeFClient ksefClient, string sessionReferenceNumber, string accessToken, EncryptionData encryptionData, ICryptographyService cryptographyService, string xml)
+    private static async Task<SendInvoiceResponse> SendInvoice(
+        IKSeFClient ksefClient,
+        string sessionReferenceNumber,
+        string accessToken,
+        EncryptionData encryptionData,
+        ICryptographyService cryptographyService,
+        string xml,
+        bool validateInvoice = false)
     {
+        if (validateInvoice)
+        {
+            ValidationResult validationResult = ValidationHelper.ValidateInvoiceBeforeSending(xml).ValidationResult;
+            if (!validationResult.IsValid)
+            {
+                throw new InvoiceValidationException(validationResult.Message);
+            }
+        }
+
         using MemoryStream memoryStream = new(Encoding.UTF8.GetBytes(xml));
         byte[] invoice = memoryStream.ToArray();
 

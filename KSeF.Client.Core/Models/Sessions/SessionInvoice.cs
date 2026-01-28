@@ -58,7 +58,7 @@ namespace KSeF.Client.Core.Models.Sessions
         /// <summary>
         /// Status faktury (wymagany obiekt).
         /// </summary>
-        public StatusInfo Status { get; set; }
+        public InvoiceStatusInfo Status { get; set; }
 
         /// <summary>
         /// Tryb fakturowania.

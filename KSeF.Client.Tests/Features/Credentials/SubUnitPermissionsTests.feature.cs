@@ -27,7 +27,7 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
         EncryptionData encryptionData = CryptographyService.GetEncryptionData();
         string invoiceCreatorNip = MiscellaneousUtils.GetRandomNip();
         string municipalOfficeNip = MiscellaneousUtils.GetRandomNip();
-        string kindergartenId = $"{municipalOfficeNip}-12342"; /*Przykładowa suma kontrolna zgodna z algorytmem podanym w dokumentacji API*/
+        string kindergartenId = MiscellaneousUtils.GenerateInternalIdentifier($"{municipalOfficeNip}"); /*Przykładowa suma kontrolna zgodna z algorytmem podanym w dokumentacji API*/
 		string directorPesel = MiscellaneousUtils.GetRandomPesel();
 
         // --- Etap 1: Wystawienie faktury przez wykonawcę dla przedszkola (jednostki podrzędnej) ---
@@ -47,10 +47,11 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
             openSessionResponse.ReferenceNumber,
             invoiceCreatorAuthToken,
             invoiceCreatorNip,
-            municipalOfficeNip,
+            municipalOfficeNip, kindergartenId,
             "invoice-template-fa-3-with-custom-Subject2.xml",
             encryptionData,
-            CryptographyService);
+            CryptographyService,
+            true);
 
         Assert.NotNull(sendInvoiceResponse);
 
@@ -164,7 +165,7 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
             {
                 From = DateTime.UtcNow.AddMonths(-2),
                 To = DateTime.UtcNow.AddDays(1),
-                DateType = DateType.Invoicing,
+                DateType = DateType.PermanentStorage,
             }
         };
 
@@ -186,9 +187,9 @@ public class SubUnitPermissionsTests : KsefIntegrationTestBase
             SubjectType = InvoiceSubjectType.Subject2,
             DateRange = new DateRange
             {
-                From = DateTime.UtcNow.AddMonths(-2),
+                From = DateTime.UtcNow.AddDays(-2),
                 To = DateTime.UtcNow.AddDays(1),
-                DateType = DateType.Invoicing,
+                DateType = DateType.PermanentStorage,
             }
         };
 

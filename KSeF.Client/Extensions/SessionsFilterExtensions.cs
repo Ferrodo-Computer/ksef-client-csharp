@@ -70,7 +70,10 @@ public static class SessionsFilterExtensions
 
         if (filter.Statuses != null && filter.Statuses.Count > 0)
         {
-            Add("statuses", string.Join(",", filter.Statuses));
+            foreach (SessionStatus status in filter.Statuses)
+            {
+                Add("statuses", status.ToString());
+            }
         }
     }
 }

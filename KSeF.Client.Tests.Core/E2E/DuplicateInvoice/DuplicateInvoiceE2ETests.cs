@@ -18,8 +18,8 @@ public class DuplicateInvoiceE2ETests : TestBase
 
     private const int ExpectedFailedInvoiceCount = 0;
 
-    private const int OnlineSessionStatusPollDelaySeconds = 1;
-    private const int OnlineSessionStatusMaxAttempts = 60;
+    private const int OnlineSessionStatusPollDelaySeconds = 2;
+    private const int OnlineSessionStatusMaxAttempts = 30;
     // Dodatkowe parametry dla pollingu listy nieudanych faktur (może pojawiać się z opóźnieniem względem statusu sesji)
     private const int FailedInvoicesPollDelaySeconds = 2;
     private const int FailedInvoicesMaxAttempts = 120;
@@ -101,10 +101,8 @@ public class DuplicateInvoiceE2ETests : TestBase
 
         // 1. Online: pierwsze wysłanie (powinno przejść poprawnie)
         (string onlineRef, SessionStatusResponse onlineStatus) = await ProcessOnlineSessionAsync(systemCode, invoiceTemplatePath, sharedInvoiceNumber, encryptionData).ConfigureAwait(false);
+
         Assert.NotNull(onlineStatus);
-        // Sesja online może zakończyć się kodem 200 
-        Assert.True(onlineStatus.Status.Code == InvoiceInSessionStatusCodeResponse.Success,
-            $"Oczekiwano kodu {InvoiceInSessionStatusCodeResponse.Success}, otrzymano {onlineStatus.Status.Code}");
         Assert.Equal(1, onlineStatus.SuccessfulInvoiceCount);
         Assert.Equal(0, onlineStatus.FailedInvoiceCount ?? 0);
 

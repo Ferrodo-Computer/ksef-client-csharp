@@ -67,6 +67,7 @@ public static class ServiceCollectionExtensions
         {
             return new RouteBuilder(options.ApiConfiguration.ApiVersion);
         });
+
         services.AddScoped<IKSeFClient, KSeFClient>();
         services.AddScoped<ITestDataClient, TestDataClient>();
         services.AddScoped<IAuthCoordinator, AuthCoordinator>();
@@ -107,6 +108,35 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Rejestruje klienta Latarni.
+    /// </summary>
+    public static IServiceCollection AddLighthouseClient(this IServiceCollection services,
+        Action<LighthouseClientOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        LighthouseClientOptions options = new();
+        configure(options);
+
+        if (string.IsNullOrWhiteSpace(options.BaseUrl))
+        {
+            // Domyślnie w całym SDK preferujemy TEST, jeśli nie wskazano inaczej.
+            options.BaseUrl = LighthouseEnvironmentsUris.TEST;
+        }
+
+        services.Replace(ServiceDescriptor.Singleton(options));
+        services.AddScoped<ILighthouseClient, LighthouseClient>();
+        return services;
+    }
+
+    /// <summary>
+    /// Rejestruje klienta Latarni z podanym adresem bazowym.
+    /// </summary>
+    public static IServiceCollection AddLighthouseClient(this IServiceCollection services, string baseUrl)
+        => services.AddLighthouseClient(options => options.BaseUrl = baseUrl);
+
+    /// <summary>
     /// Rejestruje wszystkie potrzebne serwisy do korzystania z klienta kryptograficznego,
     /// używając domyślnego mechanizmu pobierania certyfikatów.
     /// </summary>
@@ -142,7 +172,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <remarks>
     /// Ta metoda jest przestarzała. Zalecanym podejściem jest stworzenie własnej klasy
-    /// implementującej ICertificateFetcher, zarejestrowanie jej w kontenerze DI
+    /// implementującą ICertificateFetcher, zarejestrowanie jej w kontenerze DI
     /// i wywołanie przeciążenia AddCryptographyClient() bez parametru delegata.
     /// </remarks> 
     /// <param name="services">Rozszerzany interfejs</param>

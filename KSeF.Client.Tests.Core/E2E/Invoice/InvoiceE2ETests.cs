@@ -19,7 +19,9 @@ public class InvoiceE2ETests : TestBase
     private const int FromOffsetDays = -1;
     private const int ToOffsetDays = 1;
     private readonly string _sellerNip;
+    private string _subjectNip;
     private readonly string _accessToken;
+    private string _subjectAccessToken;
 
     /// <summary>
     /// Konstruktor testów E2E faktur. Ustawia token dostępu na podstawie uwierzytelnienia.
@@ -119,7 +121,8 @@ public class InvoiceE2ETests : TestBase
             _sellerNip,
             invoiceTemplatePath,
             encryptionData,
-            CryptographyService);
+            CryptographyService,
+            true);
         Assert.NotNull(sendInvoiceResponse);
 
         // Krok 3: oczekiwanie na przetworzenie faktur w sesji
@@ -234,6 +237,7 @@ public class InvoiceE2ETests : TestBase
     {
         // Krok 0: przygotowanie danych szyfrowania
         EncryptionData encryptionData = CryptographyService.GetEncryptionData();
+        _subjectNip = MiscellaneousUtils.GetRandomNip();
 
         // Krok 1: otwarcie sesji online
         OpenOnlineSessionResponse openSessionResponse = await OnlineSessionUtils.OpenOnlineSessionAsync(
@@ -249,10 +253,11 @@ public class InvoiceE2ETests : TestBase
             openSessionResponse.ReferenceNumber,
             _accessToken,
             _sellerNip,
-            _sellerNip,
+            _subjectNip,
             invoiceTemplatePath,
             encryptionData,
-            CryptographyService);
+            CryptographyService,
+            true);
         Assert.NotNull(sendInvoiceResponse);
 
         // Krok 3: oczekiwanie na przetworzenie
@@ -288,6 +293,11 @@ public class InvoiceE2ETests : TestBase
         string ksefInvoiceNumber = invoicesMetadata.Invoices.First().KsefNumber;
         Assert.False(string.IsNullOrWhiteSpace(ksefInvoiceNumber));
 
+
+        AuthenticationOperationStatusResponse authOperationStatusResponse =
+                    AuthenticationUtils.AuthenticateAsync(AuthorizationClient, _subjectNip).GetAwaiter().GetResult();
+        _subjectAccessToken = authOperationStatusResponse.AccessToken.Token;
+
         // Krok 7: przygotowanie zapytania o metadane zakupowe (Subject2)
         InvoiceQueryFilters query = new()
         {
@@ -302,7 +312,7 @@ public class InvoiceE2ETests : TestBase
 
         // Krok 8: pobranie i weryfikacja metadanych zakupowych, w tym obecności wysłanej faktury
         PagedInvoiceResponse buyerInvoicesMetadata = await AsyncPollingUtils.PollAsync(
-            async () => await KsefClient.QueryInvoiceMetadataAsync(query, _accessToken, cancellationToken: CancellationToken).ConfigureAwait(false),
+            async () => await KsefClient.QueryInvoiceMetadataAsync(query, _subjectAccessToken, cancellationToken: CancellationToken).ConfigureAwait(false),
             result => result is not null && result.Invoices is { Count: > 0 } && result.Invoices.Any(i => i.KsefNumber == ksefInvoiceNumber),
             delay: TimeSpan.FromSeconds(PollingIntervalSeconds),
             cancellationToken: CancellationToken);
@@ -321,114 +331,5 @@ public class InvoiceE2ETests : TestBase
             Assert.False(string.IsNullOrWhiteSpace(inv.InvoiceNumber));
         }
         Assert.InRange(buyerInvoicesMetadata.Invoices.Count, MinInvoiceCount, PageSize);
-    }
-
-    /// <summary>
-    /// Przepływ weryfikujący metadane podmiotu trzeciego (Subject3).
-    /// Kroki:
-    /// 1) otwarcie sesji online,
-    /// 2) wysłanie faktury z Podmiot3 = bieżący NIP,
-    /// 3) oczekiwanie na przetworzenie,
-    /// 4) zamknięcie sesji,
-    /// 5) pobranie metadanych sesji,
-    /// 6) pobranie numeru KSeF pierwszej faktury,
-    /// 7) przygotowanie zapytania Subject3,
-    /// 8) pobranie i weryfikacja metadanych Subject3 oraz pól,
-    /// 9) weryfikacja stronnicowania.
-    /// </summary>
-    [Theory]
-    [InlineData(SystemCode.FA3, "invoice-template-fa-3-with-custom-Subject3.xml")]
-    public async Task Invoice_ThirdSubjectMetadataFlow_ValidatesSubject3Metadata(SystemCode systemCode, string invoiceTemplatePath)
-    {
-        // Krok 0: przygotowanie danych szyfrowania
-        EncryptionData encryptionData = CryptographyService.GetEncryptionData();
-
-        // Krok 1: otwarcie sesji online
-        OpenOnlineSessionResponse openSessionResponse = await OnlineSessionUtils.OpenOnlineSessionAsync(
-            KsefClient,
-            encryptionData,
-            _accessToken,
-            systemCode);
-        Assert.NotNull(openSessionResponse?.ReferenceNumber);
-
-        // Krok 2: wysłanie faktury (Podmiot3 = bieżący NIP)
-        SendInvoiceResponse sendInvoiceResponse = await OnlineSessionUtils.SendInvoiceAsync(
-            KsefClient,
-            openSessionResponse.ReferenceNumber,
-            _accessToken,
-            _sellerNip,
-            _sellerNip,
-            invoiceTemplatePath,
-            encryptionData,
-            CryptographyService);
-        Assert.NotNull(sendInvoiceResponse);
-
-        // Krok 3: oczekiwanie na przetworzenie
-        SessionStatusResponse sendInvoiceStatus = await AsyncPollingUtils.PollAsync(
-            async () => await OnlineSessionUtils.GetOnlineSessionStatusAsync(
-                KsefClient,
-                openSessionResponse.ReferenceNumber,
-                _accessToken).ConfigureAwait(false),
-            result => result is not null && result.InvoiceCount == result.SuccessfulInvoiceCount,
-            delay: TimeSpan.FromSeconds(PollingIntervalSeconds),
-            cancellationToken: CancellationToken);
-        Assert.NotNull(sendInvoiceStatus);
-        Assert.Equal(sendInvoiceStatus.InvoiceCount, sendInvoiceStatus.SuccessfulInvoiceCount);
-
-        // Krok 4: zamknięcie sesji
-        await OnlineSessionUtils.CloseOnlineSessionAsync(KsefClient,
-             openSessionResponse.ReferenceNumber,
-             _accessToken);
-
-        // Krok 5: pobranie metadanych sesji
-        SessionInvoicesResponse invoicesMetadata = await AsyncPollingUtils.PollAsync(
-            async () => await OnlineSessionUtils.GetSessionInvoicesMetadataAsync(
-                KsefClient,
-                openSessionResponse.ReferenceNumber,
-                _accessToken).ConfigureAwait(false),
-            result => result is not null && result.Invoices is { Count: > 0 },
-            delay: TimeSpan.FromSeconds(PollingIntervalSeconds),
-            cancellationToken: CancellationToken);
-        Assert.NotNull(invoicesMetadata);
-        Assert.NotEmpty(invoicesMetadata.Invoices);
-
-        // Krok 6: pobranie numeru KSeF pierwszej faktury
-        string ksefInvoiceNumber = invoicesMetadata.Invoices.First().KsefNumber;
-        Assert.False(string.IsNullOrWhiteSpace(ksefInvoiceNumber));
-
-        // Krok 7: przygotowanie zapytania Subject3
-        InvoiceQueryFilters query = new()
-        {
-            DateRange = new DateRange
-            {
-                From = DateTime.Now.AddDays(FromOffsetDays),
-                To = DateTime.Now.AddDays(ToOffsetDays),
-                DateType = DateType.Invoicing
-            },
-            SubjectType = InvoiceSubjectType.Subject3
-        };
-
-        // Krok 8: pobranie i weryfikacja metadanych Subject3 oraz pól
-        PagedInvoiceResponse subject3Metadata = await AsyncPollingUtils.PollAsync(
-            async () => await KsefClient.QueryInvoiceMetadataAsync(query, _accessToken, cancellationToken: CancellationToken).ConfigureAwait(false),
-            result => result is not null && result.Invoices is { Count: > 0 } && result.Invoices.Any(i => i.KsefNumber == ksefInvoiceNumber),
-            delay: TimeSpan.FromSeconds(PollingIntervalSeconds),
-            cancellationToken: CancellationToken);
-        Assert.NotNull(subject3Metadata);
-        Assert.NotNull(subject3Metadata.Invoices);
-        Assert.Contains(subject3Metadata.Invoices, i => i.KsefNumber == ksefInvoiceNumber);
-
-        foreach (InvoiceSummary inv in subject3Metadata.Invoices)
-        {
-            DateTime invoicingDateUtc = inv.InvoicingDate.UtcDateTime.Date;
-            DateTime fromDate = query.DateRange.From.Date;
-            DateTime toDate = query.DateRange.To.GetValueOrDefault(DateTime.UtcNow).Date;
-            Assert.True(invoicingDateUtc >= fromDate && invoicingDateUtc <= toDate,
-                $"Invoice {inv.KsefNumber} InvoicingDate {inv.InvoicingDate} poza zakresem [{query.DateRange.From}, {query.DateRange.To}].");
-            Assert.False(string.IsNullOrWhiteSpace(inv.InvoiceNumber));
-        }
-
-        // Krok 9: weryfikacja stronnicowania
-        Assert.InRange(subject3Metadata.Invoices.Count, MinInvoiceCount, PageSize);
     }
 }

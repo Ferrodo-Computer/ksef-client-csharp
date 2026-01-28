@@ -449,13 +449,102 @@ public static partial class MiscellaneousUtils
     }
 
     /// <summary>
-    /// Generuje polski IBAN (PL) z prawidłowymi cyframi kontrolnymi (ISO 13616 / mod 97)
-    /// na podstawie 26 cyfr NRB: 8 cyfr bank/oddział + 16 cyfr rachunku (losowo, jeśli null).
+    /// Generuje pełny identyfikator wewnętrzny z poprawną sumą kontrolną.
+    /// Format: {NIP}-{4 cyfry unikalne}{cyfra kontrolna}
     /// </summary>
-    /// <param name="bankBranch8">8 cyfr bank/oddział; null → losowe.</param>
-    /// <param name="account16">16 cyfr rachunku; null → losowe.</param>
-    /// <returns>IBAN w formacie: PLkkBBBBBBBBAAAAAAAAAAAAAAAA.</returns>    
-    public static string GeneratePolishIban(string bankBranch8 = "", string account16 = "")
+    /// <param name="nip">10-cyfrowy NIP podmiotu</param>
+    /// <param name="uniqueDigits">4 cyfry unikalnie identyfikujących jednostkę (opcjonalne, domyślnie losowe)</param>
+    /// <returns>Pełny identyfikator wewnętrzny z sumą kontrolną</returns>
+    public static string GenerateInternalIdentifier(string? nip = null, string? uniqueDigits = null)
+    {
+        if (string.IsNullOrWhiteSpace(nip))
+        {
+            nip = GetRandomNip();
+        }
+
+        if (string.IsNullOrWhiteSpace(nip) || nip.Length != 10 || !nip.All(char.IsDigit))
+        {
+			throw new ArgumentException("NIP musi składać się z dokładnie 10 cyfr", nameof(nip));
+		}
+
+		// Jeśli nie podano cyfr unikalnych, wygeneruj losowe 4 cyfry
+		if (string.IsNullOrWhiteSpace(uniqueDigits))
+        {
+            Random random = new();
+            uniqueDigits = random.Next(1000, 9999).ToString();
+        }
+
+        if (uniqueDigits.Length != 4 || !uniqueDigits.All(char.IsDigit))
+        {
+			throw new ArgumentException("Unikalne cyfry muszą składać się z dokładnie 4 cyfr", nameof(uniqueDigits));
+		}
+
+		string baseIdentifier = $"{nip}-{uniqueDigits}";
+        int checksum = CalculateChecksum(baseIdentifier);
+
+        return $"{baseIdentifier}{checksum}";
+    }
+
+	/// <summary>
+	/// Oblicza cyfrę kontrolną dla identyfikatora wewnętrznego.
+	/// Algorytm: naprzemienne wagi (1×, 3×, 1×, 3×, ...), suma % 10
+	/// </summary>
+	/// <param name="identifierWithoutChecksum">Identyfikator bez cyfry kontrolnej (format: NIP-4cyfry)</param>
+	/// <returns>Cyfra kontrolna (0-9)</returns>
+	public static int CalculateChecksum(string identifierWithoutChecksum)
+	{
+		// Usuń myślnik i zostaw tylko cyfry
+		string digits = identifierWithoutChecksum.Replace("-", "");
+
+		if (digits.Length != 14 || !digits.All(char.IsDigit))
+        {
+			throw new ArgumentException(
+	            "Identyfikator bez sumy kontrolnej musi zawierać dokładnie 14 cyfr (10 NIP + 4 unikalne)",
+	            nameof(identifierWithoutChecksum));
+		}
+
+		int sum = digits
+			.Select((c, i) => int.Parse(c.ToString()) * ((i % 2 == 0) ? 1 : 3))
+			.Sum();
+
+		return sum % 10;
+	}
+
+	/// <summary>
+	/// Weryfikuje poprawność pełnego identyfikatora wewnętrznego.
+	/// </summary>
+	/// <param name="fullIdentifier">Pełny identyfikator z sumą kontrolną (format: NIP-XXXXZ)</param>
+	/// <returns>True jeśli suma kontrolna jest poprawna</returns>
+	public static bool ValidateInternalIdentifier(string fullIdentifier)
+	{
+		if (string.IsNullOrWhiteSpace(fullIdentifier))
+        {
+			return false;
+		}
+
+		// Format: XXXXXXXXXX-XXXXZ gdzie Z to cyfra kontrolna
+		string digitsOnly = fullIdentifier.Replace("-", "");
+
+		if (digitsOnly.Length != 15 || !digitsOnly.All(char.IsDigit))
+        {
+			return false;
+		}
+
+		string withoutChecksum = fullIdentifier[..^1]; // Wszystko oprócz ostatniej cyfry
+		int expectedChecksum = CalculateChecksum(withoutChecksum);
+		int actualChecksum = int.Parse(digitsOnly[^1].ToString()); // Ostatnia cyfra
+
+		return expectedChecksum == actualChecksum;
+	}
+
+	/// <summary>
+	/// Generuje polski IBAN (PL) z prawidłowymi cyframi kontrolnymi (ISO 13616 / mod 97)
+	/// na podstawie 26 cyfr NRB: 8 cyfr bank/oddział + 16 cyfr rachunku (losowo, jeśli null).
+	/// </summary>
+	/// <param name="bankBranch8">8 cyfr bank/oddział; null → losowe.</param>
+	/// <param name="account16">16 cyfr rachunku; null → losowe.</param>
+	/// <returns>IBAN w formacie: PLkkBBBBBBBBAAAAAAAAAAAAAAAA.</returns>    
+	public static string GeneratePolishIban(string bankBranch8 = "", string account16 = "")
     {
         // Zbuduj 26-cyfrowy BBAN (NRB): 8 cyfr bank/oddział + 16 cyfr numeru rachunku
         string bban = (!string.IsNullOrEmpty(bankBranch8) ? bankBranch8 : RandomDigits(8)) + (!string.IsNullOrEmpty(account16) ? account16 : RandomDigits(16));

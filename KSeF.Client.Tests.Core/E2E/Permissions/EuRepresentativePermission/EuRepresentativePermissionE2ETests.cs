@@ -158,12 +158,13 @@ public class EuRepresentativePermissionE2ETests : TestBase
         // 7) Odpytywanie aż uprawnienia reprezentanta będą widoczne
         PagedPermissionsResponse<Client.Core.Models.Permissions.EuEntityPermission> grantedRepresentativePermission = await AsyncPollingUtils.PollAsync(
             action: async () => await KsefClient.SearchGrantedEuEntityPermissionsAsync(permissionsQueryRequest, euAuthInfo.AccessToken.Token).ConfigureAwait(false),
-            condition: result => result is not null && result.Permissions is { Count: > 0 },
+            condition: result => result is not null 
+                       && result.Permissions is { Count: > 0} 
+                       && result.Permissions.Any(p => p.AuthorizedFingerprintIdentifier == euRepresentativeEntityCertificateFingerprint),
             delay: TimeSpan.FromSeconds(1),
             maxAttempts: 60,
             cancellationToken: CancellationToken
         );
-
 
         // 8) Odwołaj uprawnienia reprezentanta (wszystkie zwrócone)
         foreach (Client.Core.Models.Permissions.EuEntityPermission? permission in grantedRepresentativePermission.Permissions)

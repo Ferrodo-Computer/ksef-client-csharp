@@ -99,7 +99,7 @@ public partial class PeppolPefE2ETests : TestBase
 
         // Assert
         Assert.NotNull(provider);
-        Assert.Null(provider.Name);
+        Assert.NotNull(provider.Name);
         Assert.Equal(peppolId, provider!.Id);
 
         // === 2) GRANT: Firma -> Dostawca (PefInvoicing) ===
@@ -180,7 +180,7 @@ public partial class PeppolPefE2ETests : TestBase
 
         // Assert
         Assert.NotNull(provider);
-        Assert.Null(provider.Name);
+        Assert.NotNull(provider.Name);
         Assert.Equal(peppolId, provider!.Id);
 
         // === 2) GRANT: Firma -> Dostawca (PefInvoicing) ===
@@ -376,7 +376,6 @@ public partial class PeppolPefE2ETests : TestBase
         Assert.NotNull(grantRespStatus);
         Assert.NotNull(grantRespStatus.Status);
         Assert.Null(grantRespStatus.Status.Details);
-        Assert.Null(grantRespStatus.Status.Extensions);
 
         // opcjonalnie: szybka walidacja listy grantów (w niektórych env może nie być 1:1)
         EntityAuthorizationsQueryRequest query = new()

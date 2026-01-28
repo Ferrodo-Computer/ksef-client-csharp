@@ -48,7 +48,8 @@ namespace KSeF.Client.Tests.Features
                 nip,
                 invoiceTemplatePath,
                 encryptionData,
-                CryptographyService);
+                CryptographyService,
+                true);
             Assert.NotNull(sendInvoiceResponse);
             Assert.NotNull(sendInvoiceResponse.ReferenceNumber);
 
@@ -120,7 +121,8 @@ namespace KSeF.Client.Tests.Features
             wrongNIP,
             invoiceTemplatePath,
             encryptionData,
-            CryptographyService);
+            CryptographyService,
+            true);
             Assert.NotNull(sendInvoiceResponse);
             Assert.NotNull(sendInvoiceResponse.ReferenceNumber);
 
@@ -303,7 +305,8 @@ namespace KSeF.Client.Tests.Features
                 thirdSubjectIdentifier,
                 "invoice-template-fa-3-with-custom-Subject3.xml",
                 encryptionData,
-                CryptographyService);
+                CryptographyService,
+                true);
 
             Assert.NotNull(sendInvoiceResponse);
 
@@ -336,8 +339,8 @@ namespace KSeF.Client.Tests.Features
                 SubjectType = InvoiceSubjectType.Subject3,
                 DateRange = new DateRange
                 {
-                    From = DateTime.UtcNow.AddMonths(-2),
-                    To = DateTime.UtcNow.AddMonths(1),
+                    From = DateTime.UtcNow.AddDays(-2),
+                    To = DateTime.UtcNow.AddDays(1),
                     DateType = DateType.PermanentStorage
                 }
             };

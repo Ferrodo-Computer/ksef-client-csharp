@@ -14,6 +14,7 @@ namespace KSeF.Client.Tests.Core.E2E;
 public abstract class TestBase : IDisposable
 {
     internal const int SleepTime = 2000;
+    private const string LighthouseBaseUrlSettingKey = "LighthouseSettings:BaseUrl";
 
     private readonly IServiceScope _scope;
     private readonly ServiceProvider _root;
@@ -52,10 +53,19 @@ public abstract class TestBase : IDisposable
                 ?? [];
         }
 
+        string lighthouseBaseUrlFromConfig = TestConfig.Load()[LighthouseBaseUrlSettingKey] ?? string.Empty;
+
         services.AddKSeFClient(options =>
         {
             options.BaseUrl = apiSettings.BaseUrl!;
             options.CustomHeaders = apiSettings.CustomHeaders ?? [];
+        });
+
+        services.AddLighthouseClient(options =>
+        {
+            options.BaseUrl = string.IsNullOrWhiteSpace(lighthouseBaseUrlFromConfig)
+                ? LighthouseEnvironmentsUris.TEST
+                : lighthouseBaseUrlFromConfig;
         });
 
         // UWAGA! w testach nie używamy AddCryptographyClient tylko rejestrujemy ręcznie, bo on uruchamia HostedService w tle

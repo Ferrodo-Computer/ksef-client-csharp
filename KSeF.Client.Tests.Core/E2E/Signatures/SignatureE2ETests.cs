@@ -1,14 +1,8 @@
 ﻿using KSeF.Client.Api.Builders.Auth;
 using KSeF.Client.Api.Builders.X509Certificates;
+using KSeF.Client.Api.Services;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Tests.Utils;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography.Pkcs;
-using System.Security.Cryptography.Xml;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace KSeF.Client.Tests.Core.E2E.Signatures;
 public class SignatureE2ETests : TestBase
@@ -18,12 +12,12 @@ public class SignatureE2ETests : TestBase
     /// </summary>
     /// <returns></returns>
     [Fact]
-    public async Task CreateSignedXmlDocument_ValidInput_Success()
+    public async Task CreateSignedXmlDocumentValidInputSuccess()
     {
         // Arrange
         string pesel = MiscellaneousUtils.GetRandomPesel();
 
-        AuthenticationChallengeResponse challengeResponse = await KsefClient.GetAuthChallengeAsync();
+        AuthenticationChallengeResponse challengeResponse = await AuthorizationClient.GetAuthChallengeAsync();
 
         AuthenticationTokenRequest authTokenRequest = AuthTokenRequestBuilder
            .Create()
@@ -55,12 +49,12 @@ public class SignatureE2ETests : TestBase
     /// </summary>
     /// <returns></returns>
     [Fact]
-    public async Task SubmitXadesAuthRequestAsync_E2E_Positive()
+    public async Task SubmitXadesAuthRequestAsyncE2EPositive()
     {
         // Arrange
         string pesel = MiscellaneousUtils.GetRandomPesel();
 
-        AuthenticationChallengeResponse challengeResponse = await KsefClient.GetAuthChallengeAsync();
+        AuthenticationChallengeResponse challengeResponse = await AuthorizationClient.GetAuthChallengeAsync();
 
         AuthenticationTokenRequest authTokenRequest = AuthTokenRequestBuilder
            .Create()
@@ -83,7 +77,7 @@ public class SignatureE2ETests : TestBase
         string signedXml = SignatureService.Sign(unsignedXml, certificate);
 
         // Act
-        SignatureResponse authOperationInfo = await KsefClient
+        SignatureResponse authOperationInfo = await AuthorizationClient
             .SubmitXadesAuthRequestAsync(signedXml, false, CancellationToken.None);
 
         // Assert

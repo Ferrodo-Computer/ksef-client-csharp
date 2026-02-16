@@ -3,23 +3,18 @@ using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
+using KSeF.Client.Api.Builders.Online;
 
 
-namespace WebApplication.Controllers;
+namespace KSeF.DemoWebApp.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class OnlineSessionController : ControllerBase
+public class OnlineSessionController(IKSeFClient ksefClient, ICryptographyService cryptographyService) : ControllerBase
 {
-    private readonly ICryptographyService cryptographyService;
+    private readonly ICryptographyService cryptographyService = cryptographyService;
     private static EncryptionData? encryptionData;
-    private readonly IKSeFClient ksefClient;
-
-    public OnlineSessionController(IKSeFClient ksefClient, ICryptographyService cryptographyService)
-    {
-        this.cryptographyService = cryptographyService;
-        this.ksefClient = ksefClient;
-    }
+    private readonly IKSeFClient ksefClient = ksefClient;
 
     [HttpPost("open-session")]
     public async Task<ActionResult<OpenOnlineSessionResponse>> OpenOnlineSessionAsync(string accessToken, CancellationToken cancellationToken)
@@ -33,12 +28,12 @@ public class OnlineSessionController : ControllerBase
              initializationVector: encryptionData.EncryptionInfo.InitializationVector)
          .Build();
 
-        OpenOnlineSessionResponse openSessionResponse = await ksefClient.OpenOnlineSessionAsync(request, accessToken, cancellationToken);
+        OpenOnlineSessionResponse openSessionResponse = await ksefClient.OpenOnlineSessionAsync(request, accessToken, cancellationToken: cancellationToken).ConfigureAwait(false);
         return Ok(openSessionResponse);
     }
 
     [HttpPost("send-invoice")]
-    public async Task<ActionResult<SendInvoiceResponse>> SendInvoiceOnlineSessionAsync(string sessionReferenceNumber, string accesToken, CancellationToken cancellationToken)
+    public async Task<ActionResult<SendInvoiceResponse>> SendInvoiceOnlineSessionAsync(string sessionReferenceNumber, string accessToken, CancellationToken cancellationToken)
     {
         byte[] invoice = System.IO.File.ReadAllBytes("faktura-online-fa(3).xml");
 
@@ -56,14 +51,14 @@ public class OnlineSessionController : ControllerBase
             .WithOfflineMode(false)
             .Build();
 
-        SendInvoiceResponse sendInvoiceResponse = await ksefClient.SendOnlineSessionInvoiceAsync(sendOnlineInvoiceRequest, sessionReferenceNumber, accesToken, cancellationToken)
+        SendInvoiceResponse sendInvoiceResponse = await ksefClient.SendOnlineSessionInvoiceAsync(sendOnlineInvoiceRequest, sessionReferenceNumber, accessToken, cancellationToken)
             .ConfigureAwait(false);
         return sendInvoiceResponse;
     }
 
 
     [HttpPost("send-technical-correction")]
-    public async Task<ActionResult<SendInvoiceResponse>> SendTechnicalCorrectionAsync(string sessionReferenceNumber, string hashOfCorrectedInvoice, string accesToken, CancellationToken cancellationToken)
+    public async Task<ActionResult<SendInvoiceResponse>> SendTechnicalCorrectionAsync(string sessionReferenceNumber, string hashOfCorrectedInvoice, string accessToken, CancellationToken cancellationToken)
     {
         byte[] invoice = System.IO.File.ReadAllBytes("faktura-online-fa(3).xml");
         byte[] encryptedInvoice = cryptographyService.EncryptBytesWithAES256(invoice, encryptionData!.CipherKey, encryptionData!.CipherIv);
@@ -81,16 +76,16 @@ public class OnlineSessionController : ControllerBase
             .WithHashOfCorrectedInvoice(hashOfCorrectedInvoice)
             .Build();
 
-        SendInvoiceResponse sendInvoiceResponse = await ksefClient.SendOnlineSessionInvoiceAsync(sendOnlineInvoiceRequest, sessionReferenceNumber, accesToken, cancellationToken)
+        SendInvoiceResponse sendInvoiceResponse = await ksefClient.SendOnlineSessionInvoiceAsync(sendOnlineInvoiceRequest, sessionReferenceNumber, accessToken, cancellationToken)
             .ConfigureAwait(false);
 
         return sendInvoiceResponse;
     }
 
     [HttpPost("close-session")]
-    public async Task CloseOnlineSessionAsync(string sessionReferenceNumber, string accesToken, CancellationToken cancellationToken)
+    public async Task CloseOnlineSessionAsync(string sessionReferenceNumber, string accessToken, CancellationToken cancellationToken)
     {
-        await ksefClient.CloseOnlineSessionAsync(sessionReferenceNumber, accesToken, cancellationToken)
+        await ksefClient.CloseOnlineSessionAsync(sessionReferenceNumber, accessToken, cancellationToken)
             .ConfigureAwait(false);
     }
 }

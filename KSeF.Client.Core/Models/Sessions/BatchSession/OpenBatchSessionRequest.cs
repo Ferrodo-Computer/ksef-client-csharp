@@ -5,6 +5,6 @@ namespace KSeF.Client.Core.Models.Sessions.BatchSession
         public FormCode FormCode { get; set; }
         public BatchFileInfo BatchFile { get; set; }
         public EncryptionInfo Encryption { get; set; }
-        public bool OfflineMode { get; set; } = false;
+        public bool OfflineMode { get; set; }
     }
 }

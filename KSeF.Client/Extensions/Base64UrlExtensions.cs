@@ -6,6 +6,39 @@ namespace KSeF.Client.Extensions;
 
     public static class Base64UrlExtensions
 {
+    public static byte[] DecodeBase64OrBase64Url(this string base64String)
+    {
+        if (string.IsNullOrWhiteSpace(base64String))
+        {
+            throw new FormatException("invoiceHash is empty.");
+        }
+
+        base64String = base64String.Trim();
+
+        // jeśli wygląda na Base64URL -> zamień na Base64
+        if (base64String.Contains('-') || base64String.Contains('_'))
+        {
+            base64String = base64String.Replace('-', '+').Replace('_', '/');
+        }
+
+        // dopełnij padding do %4
+        int mod = base64String.Length % 4;
+        if (mod == 2)
+        {
+            base64String += "==";
+        }
+        else if (mod == 3)
+        {
+            base64String += "=";
+        }
+        else if (mod != 0)
+        {
+            throw new FormatException("Invalid Base64/Base64Url length.");
+        }
+
+        return Convert.FromBase64String(base64String);
+    }
+
     public static string EncodeBase64UrlToString(this byte[] blob)
     {
 #if NET9_0_OR_GREATER

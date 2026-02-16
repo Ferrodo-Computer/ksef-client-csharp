@@ -5,17 +5,22 @@ namespace KSeF.Client.Core.Models.Invoices
     public class InvoiceExportStatusResponse
     {
         /// <summary>
-        /// Aktualny status operacji (np. IN_PROGRESS, READY, ERROR).
+        /// Status eksportu.
         /// </summary>
-        public StatusInfo Status { get; set; }
+        public OperationStatusInfo Status { get; set; }
 
         /// <summary>
-        /// Data zakończenia przetwarzania żądania.
+        /// Data zakończenia przetwarzania żądania eksportu faktur.
         /// </summary>
         public DateTimeOffset? CompletedDate { get; set; }
 
         /// <summary>
-        /// Paczka faktur (InvoicePackage) – obecna tylko jeśli status = READY.
+        /// Data wygaśnięcia paczki faktur przygotowanej do pobrania. Po upływie tej daty paczka nie będzie już dostępna do pobrania.
+        /// </summary>
+        public DateTimeOffset? PackageExpirationDate { get; set; }
+
+        /// <summary>
+        /// Dane paczki faktur przygotowanej do pobrania.
         /// </summary>
         public InvoiceExportPackage Package { get; set; }
     }

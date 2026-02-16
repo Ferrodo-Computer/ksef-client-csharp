@@ -42,7 +42,7 @@ xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
 	</Podmiot2>
 	<Fa>
 		<KodWaluty>PLN</KodWaluty>
-		<P_1>2025-09-01</P_1>
+		<P_1>2025-12-08</P_1>
 		<P_1M>Warszawa</P_1M>
 		<P_2>FA/GRQMB-#invoice_number#/05/2025</P_2>
 		<OkresFa>
@@ -71,17 +71,23 @@ xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
 		<RodzajFaktury>VAT</RodzajFaktury>
 		<DodatkowyOpis>
 			<Klucz>Informacja o akcyzie</Klucz>
-			<Wartosc>Od 20 kWh energii elektrycznej czynnej naliczono akcyzę w kwocie 0,10 zł</Wartosc>	
+			<Wartosc>Od 20 kWh energii elektrycznej czynnej naliczono akcyzę w kwocie 0,10 zł</Wartosc>
 		</DodatkowyOpis>
 		<FaWiersz>
 			<NrWierszaFa>1</NrWierszaFa>
 			<P_7>Razem za energię czynną</P_7>
+			<P_8A>kWh</P_8A>
+			<P_8B>20.00</P_8B>
+			<P_9A>0.90</P_9A>
 			<P_11>18.00</P_11>
 			<P_12>23</P_12>
 		</FaWiersz>
 		<FaWiersz>
 			<NrWierszaFa>2</NrWierszaFa>
 			<P_7>Razem za usługi dystrybucji</P_7>
+			<P_8A>okres</P_8A>
+			<P_8B>1.00</P_8B>
+			<P_9A>25.60</P_9A>
 			<P_11>25.60</P_11>
 			<P_12>23</P_12>
 		</FaWiersz>
@@ -95,8 +101,8 @@ xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
 				<Kwota>0.00</Kwota>
 				<Powod>Nadpłata</Powod>
 			</Odliczenia>
-			<SumaOdliczen>0.00</SumaOdliczen>	
-			<DoZaplaty>53.63</DoZaplaty>	
+			<SumaOdliczen>0.00</SumaOdliczen>
+			<DoZaplaty>53.63</DoZaplaty>
 		</Rozliczenie>
 		<Platnosc>
 			<TerminPlatnosci>
@@ -121,4 +127,3 @@ xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
 		</Rejestry>
 	</Stopka>
 </Faktura>
-		

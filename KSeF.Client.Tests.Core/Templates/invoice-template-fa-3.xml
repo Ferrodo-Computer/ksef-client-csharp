@@ -76,12 +76,18 @@ xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
 		<FaWiersz>
 			<NrWierszaFa>1</NrWierszaFa>
 			<P_7>Razem za energię czynną</P_7>
+			<P_8A>kWh</P_8A>
+			<P_8B>20.00</P_8B>
+			<P_9A>0.90</P_9A>
 			<P_11>18.00</P_11>
 			<P_12>23</P_12>
 		</FaWiersz>
 		<FaWiersz>
 			<NrWierszaFa>2</NrWierszaFa>
 			<P_7>Razem za usługi dystrybucji</P_7>
+			<P_8A>okres</P_8A>
+			<P_8B>1.00</P_8B>
+			<P_9A>25.60</P_9A>
 			<P_11>25.60</P_11>
 			<P_12>23</P_12>
 		</FaWiersz>

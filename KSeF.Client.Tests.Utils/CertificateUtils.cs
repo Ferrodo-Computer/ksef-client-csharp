@@ -4,6 +4,7 @@ using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Certificates;
+using KSeF.Client.Extensions;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -11,10 +12,10 @@ namespace KSeF.Client.Tests.Utils;
 
 public static class CertificateUtils
 {
-    public static async Task<(string csrBase64Encoded, string privateKeyBase64Encoded)> GenerateCsrAndPrivateKeyWithRsaAsync(IKSeFClient ksefClient, string accessToken, ICryptographyService cryptographyService, RSASignaturePadding padding = null)
+    public static async Task<(string csrBase64Encoded, string privateKeyBase64Encoded)> GenerateCsrAndPrivateKeyWithRsaAsync(IKSeFClient ksefClient, string accessToken, ICryptographyService cryptographyService, RSASignaturePadding? padding = null)
     {
         CertificateEnrollmentsInfoResponse enrollmentData = await ksefClient
-            .GetCertificateEnrollmentDataAsync(accessToken);
+            .GetCertificateEnrollmentDataAsync(accessToken).ConfigureAwait(false);
 
         return cryptographyService.GenerateCsrWithRsa(enrollmentData, padding);
     }
@@ -22,7 +23,7 @@ public static class CertificateUtils
     public static async Task<(string csrBase64Encoded, string privateKeyBase64Encoded)> GenerateCsrAndPrivateKeyWithEcdsaAsync(IKSeFClient ksefClient, string accessToken, ICryptographyService cryptographyService)
     {
         CertificateEnrollmentsInfoResponse enrollmentData = await ksefClient
-            .GetCertificateEnrollmentDataAsync(accessToken);
+            .GetCertificateEnrollmentDataAsync(accessToken).ConfigureAwait(false);
 
         return cryptographyService.GenerateCsrWithEcdsa(enrollmentData);
     }
@@ -36,7 +37,7 @@ public static class CertificateUtils
                    .WithValidFrom(DateTimeOffset.UtcNow)
                    .Build();
 
-        CertificateEnrollmentResponse certificateEnrollmentResponse = await ksefClient.SendCertificateEnrollmentAsync(request, accessToken);
+        CertificateEnrollmentResponse certificateEnrollmentResponse = await ksefClient.SendCertificateEnrollmentAsync(request, accessToken).ConfigureAwait(false);
 
         return certificateEnrollmentResponse;
     }
@@ -46,13 +47,14 @@ public static class CertificateUtils
         CertificateRevokeRequest request = RevokeCertificateRequestBuilder.Create()
             .Build();
 
-        await ksefClient.RevokeCertificateAsync(request, certificateSerialNumber, accessToken);
+        await ksefClient.RevokeCertificateAsync(request, certificateSerialNumber, accessToken).ConfigureAwait(false);
     }
 
     public static X509Certificate2 CreateCertificateWithPrivateKey(CertificateResponse response, string privateKeyBase64Encoded)
     {
         byte[] certBytes = Convert.FromBase64String(response.Certificate);
-        X509Certificate2 certificate = new X509Certificate2(certBytes);
+        X509Certificate2 certificate =
+        certBytes.LoadPkcs12();
 
         using RSA rsa = RSA.Create();
         rsa.ImportRSAPrivateKey(Convert.FromBase64String(privateKeyBase64Encoded), out _);
@@ -119,7 +121,7 @@ public static class CertificateUtils
     {
         byte[] raw = certificate.RawData;
         byte[] sha256Bytes = SHA256.HashData(raw);
-        string sha256Fingerprint = BitConverter.ToString(sha256Bytes).Replace("-", "").ToUpperInvariant();
+        string sha256Fingerprint = Convert.ToHexString(sha256Bytes).ToUpperInvariant();
 
         return sha256Fingerprint;
     }

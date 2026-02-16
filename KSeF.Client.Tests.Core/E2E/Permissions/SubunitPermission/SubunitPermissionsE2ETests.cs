@@ -1,17 +1,20 @@
 using KSeF.Client.Api.Builders.PersonPermissions;
-using KSeF.Client.Api.Builders.SubUnitPermissions;
+using KSeF.Client.Api.Builders.SubEntityPermissions;
 using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Permissions;
+using KSeF.Client.Core.Models.Permissions.EUEntity;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Core.Models.Permissions.SubUnit;
 using KSeF.Client.Tests.Utils;
 using System.Security.Cryptography.X509Certificates;
 
-namespace KSeF.Client.Tests.Core.E2E.Permissions.SubunitPermissions;
+namespace KSeF.Client.Tests.Core.E2E.Permissions.SubunitPermission;
 
 /// <summary>
-/// Testy end-to-end dla uprawnień jednostek podrzędnych w systemie KSeF.
+/// Testy end-to-end uprawnień jednostek podrzędnych w systemie KSeF.
 /// Obejmuje scenariusze nadawania i odwoływania uprawnień oraz ich weryfikację.
 /// </summary>
 
@@ -20,23 +23,34 @@ public class SubunitPermissionsE2ETests : TestBase
 {
     private readonly SubunitPermissionsScenarioE2EFixture _fixture;
 
-    private const int OperationSuccessfulStatusCode = 200;
     private const int DefaultPageOffset = 0;
     private const int DefaultPageSize = 10;
 
+    private const string GivenNameJan = "Jan";
+    private const string SurnameTestowy = "Testowy";
+    private const string PersonCertSerialPrefixTinpl = "TINPL";
+    private const string PersonCertCommonNameJanTestowy = "Certyfikat Jana Testowego";
+
+    private const string E2EGrantPersonPermissionsDescription = "Test E2E – nadanie uprawnień osobowych do zarządzania jednostką podrzędną";
+    private const string E2EGrantSubunitPermissionsDescription = "Test E2E – nadanie uprawnień jednostce podrzędnej";
+    private const string E2ESubunitName = "Jednostka podrzędna – Test E2E";
+    private const string E2EGrantMinimalSubunitManageDescription = "Test E2E – nadanie SubunitManage w celu włączenia widoczności ról podrzędnych";
+
+    private const string FirstNameJan = "Jan";
+    private const string LastNameTestowy = "Testowy";
+    private const string LastNameKowalski = "Kowalski";
+
     private string _unitAccessToken = string.Empty;
     private string _subunitAccessToken = string.Empty;
-    
+
 
     public SubunitPermissionsE2ETests()
     {
         _fixture = new SubunitPermissionsScenarioE2EFixture();
-
-        _fixture.UnitNipInternal = _fixture.Unit.Value + "-00001";
     }
 
     /// <summary>
-    /// Test end-to-end dla pełnego cyklu zarządzania uprawnieniami jednostki podrzędnej:
+    /// Test end-to-end pełnego cyklu zarządzania uprawnieniami jednostki podrzędnej:
     /// 1. Inicjalizacja i uwierzytelnienie jednostki głównej
     /// 2. Nadanie uprawnień do zarządzania jednostką podrzędną
     /// 3. Uwierzytelnienie w kontekście jednostki podrzędnej
@@ -45,7 +59,7 @@ public class SubunitPermissionsE2ETests : TestBase
     /// 6. Odwołanie uprawnień i weryfikacja
     /// </summary>
     [Fact]
-    public async Task SubUnitPermission_E2E_GrantAndRevoke()
+    public async Task SubUnitPermissionE2EGrantAndRevoke()
     {
         #region Inicjalizuje uwierzytelnienie jednostki głównej.
         // Arrange
@@ -68,13 +82,13 @@ public class SubunitPermissionsE2ETests : TestBase
         // Polling do uzyskania statusu 200 
         PermissionsOperationStatusResponse grantOperationStatus = await AsyncPollingUtils.PollAsync(
             action: () => KsefClient.OperationsStatusAsync(personGrantOperation.ReferenceNumber, _unitAccessToken),
-            condition: status => status?.Status?.Code == OperationSuccessfulStatusCode,
+            condition: status => status?.Status?.Code == OperationStatusCodeResponse.Success,
             delay: TimeSpan.FromSeconds(1),
             maxAttempts: 60,
             cancellationToken: CancellationToken
         );
 
-        Assert.Equal(OperationSuccessfulStatusCode, grantOperationStatus.Status.Code);
+        Assert.Equal(OperationStatusCodeResponse.Success, grantOperationStatus.Status.Code);
         #endregion
 
         #region Uwierzytelnia w kontekście jednostki głównej jako jednostka podrzędna przy użyciu certyfikatu osobistego.
@@ -97,20 +111,26 @@ public class SubunitPermissionsE2ETests : TestBase
         // Polling statusu operacji nadania uprawnień jednostce podrzędnej
         PermissionsOperationStatusResponse grantSubunitStatus = await AsyncPollingUtils.PollAsync(
             action: () => KsefClient.OperationsStatusAsync(_fixture.GrantResponse.ReferenceNumber, _subunitAccessToken),
-            condition: status => status?.Status?.Code == OperationSuccessfulStatusCode,
+            condition: status => status?.Status?.Code == OperationStatusCodeResponse.Success,
             delay: TimeSpan.FromSeconds(1),
             maxAttempts: 60,
             cancellationToken: CancellationToken
         );
 
-        Assert.Equal(OperationSuccessfulStatusCode, grantSubunitStatus.Status.Code);
+        Assert.Equal(OperationStatusCodeResponse.Success, grantSubunitStatus.Status.Code);
         #endregion
 
         #region Wyszukaj uprawnienia nadane administratorowi jednostki podrzędnej
         // Arrange & Act - polling aż pojawią się uprawnienia
-        PagedPermissionsResponse<SubunitPermission> pagedPermissions =
+        PagedPermissionsResponse<Client.Core.Models.Permissions.SubunitPermission> pagedPermissions =
             await AsyncPollingUtils.PollAsync(
-                action: () => SearchSubUnitAsync(),
+                action: () => KsefClient.SearchSubunitAdminPermissionsAsync(
+                    new SubunitPermissionsQueryRequest(),
+                    _subunitAccessToken,
+                    pageOffset: 0,
+                    pageSize: 10,
+                    CancellationToken
+                ),
                 condition: resp => resp is not null && resp.Permissions is not null && resp.Permissions.Count > 0,
                 delay: TimeSpan.FromSeconds(1),
                 maxAttempts: 60,
@@ -122,19 +142,41 @@ public class SubunitPermissionsE2ETests : TestBase
         // Assert
         Assert.NotNull(_fixture.SearchResponse);
         Assert.NotEmpty(_fixture.SearchResponse.Permissions);
-        #endregion
+        Assert.Contains(pagedPermissions.Permissions,
+            x => x.PermissionScope == SubunitPermissionType.CredentialsManage);
 
-        #region Wyszukaj uprawnienia nadane administratorowi jednostki podrzędnej - dedykowana końcówka do wyszukiwania uprawnień
-        SubunitPermissionsQueryRequest request = new SubunitPermissionsQueryRequest
+        Assert.All(pagedPermissions.Permissions, permission =>
+		{
+			Assert.False(string.IsNullOrEmpty(permission.Id));
+
+			Assert.NotNull(permission.AuthorizedIdentifier);
+			Assert.Equal(SubunitPermissionAuthorizedIdentifierType.Nip, permission.AuthorizedIdentifier.Type);
+            Assert.False(string.IsNullOrEmpty(permission.AuthorizedIdentifier.Value));
+
+            Assert.NotNull(permission.SubunitIdentifier);
+			Assert.Equal(SubunitIdentifierType.InternalId, permission.SubunitIdentifier.Type);
+			Assert.False(string.IsNullOrEmpty(permission.SubunitIdentifier.Value));
+
+            Assert.NotNull(permission.AuthorIdentifier);
+			Assert.Equal(AuthorIdentifierType.Nip, permission.AuthorIdentifier.Type);
+			Assert.False(string.IsNullOrEmpty(permission.AuthorIdentifier.Value));
+
+			Assert.False(string.IsNullOrEmpty(permission.Description));
+			Assert.NotEqual(default, permission.StartDate);
+		});
+		#endregion
+
+		#region Wyszukaj uprawnienia nadane administratorowi jednostki podrzędnej - dedykowana końcówka do wyszukiwania uprawnień
+		SubunitPermissionsQueryRequest request = new()
         {
-            SubunitIdentifier = new SubUnitPermissionsSubunitIdentifier
+            SubunitIdentifier = new SubunitPermissionsSubunitIdentifier
             {
-                Type = SubUnitIQuerydentifierType.InternalId,
+                Type = SubunitIQuerydentifierType.InternalId,
                 Value = _fixture.UnitNipInternal
             }
         };
 
-        PagedPermissionsResponse<SubunitPermission> response = await KsefClient.SearchSubunitAdminPermissionsAsync(
+        PagedPermissionsResponse<Client.Core.Models.Permissions.SubunitPermission> response = await KsefClient.SearchSubunitAdminPermissionsAsync(
             new SubunitPermissionsQueryRequest(),
             _subunitAccessToken,
             pageOffset: DefaultPageOffset,
@@ -146,24 +188,35 @@ public class SubunitPermissionsE2ETests : TestBase
         #endregion
 
         #region Pobierz listę podmiotów podrzędnych jeżeli podmiot bieżącego kontekstu ma rolę podmiotu nadrzędnego
-        SubordinateEntityRolesQueryRequest subordinateEntityRolesQueryRequest = new SubordinateEntityRolesQueryRequest
+        SubordinateEntityRolesQueryRequest subordinateEntityRolesQueryRequest = new()
         {
             SubordinateEntityIdentifier = new EntityPermissionsSubordinateEntityIdentifier
             {
-                Type = SubUnitContextIdentifierType.Nip,
+                Type = EntityPermissionsSubordinateEntityIdentifierType.Nip,
                 Value = _fixture.Unit.Value
             }
         };
 
-        PagedRolesResponse<SubordinateEntityRole> searchSubordinateEntityInvoiceRolesResponse = 
+        PagedRolesResponse<SubordinateEntityRole> searchSubordinateEntityInvoiceRolesResponse =
             await KsefClient.SearchSubordinateEntityInvoiceRolesAsync(subordinateEntityRolesQueryRequest, _unitAccessToken);
-        
-        Assert.NotNull(searchSubordinateEntityInvoiceRolesResponse);    
-        #endregion
 
-        #region Cofnij uprawnienia nadane administratorowi jednostki podrzędnej
-        // Arrange &  Act - odwołanie uprawnień + polling statusów każdej operacji
-        List<PermissionsOperationStatusResponse> revokeStatuses =
+        Assert.NotNull(searchSubordinateEntityInvoiceRolesResponse);
+		Assert.All(searchSubordinateEntityInvoiceRolesResponse.Roles, role =>
+		{
+			Assert.NotNull(role.SubordinateEntityIdentifier);
+			Assert.True(Enum.IsDefined(role.SubordinateEntityIdentifier.Type));
+			Assert.False(string.IsNullOrEmpty(role.SubordinateEntityIdentifier.Value));
+
+			Assert.True(Enum.IsDefined(role.Role));
+			Assert.False(string.IsNullOrEmpty(role.Description));
+			Assert.NotEqual(default, role.StartDate);
+		});
+
+		#endregion
+
+		#region Cofnij uprawnienia nadane administratorowi jednostki podrzędnej
+		// Arrange &  Act - odwołanie uprawnień + polling statusów każdej operacji
+		List<PermissionsOperationStatusResponse> revokeStatuses =
             await RevokeSubUnitPermissionsAsync(_fixture.SearchResponse.Permissions);
 
         _fixture.RevokeStatusResults = revokeStatuses;
@@ -173,16 +226,22 @@ public class SubunitPermissionsE2ETests : TestBase
         Assert.NotEmpty(_fixture.RevokeStatusResults);
         Assert.Equal(_fixture.SearchResponse.Permissions.Count, _fixture.RevokeStatusResults.Count);
         Assert.All(_fixture.RevokeStatusResults, r =>
-            Assert.True(r.Status.Code == OperationSuccessfulStatusCode,
+            Assert.True(r.Status.Code == OperationStatusCodeResponse.Success,
                 $"Operacja cofnięcia uprawnień nie powiodła się: {r.Status.Description}, szczegóły: [{string.Join(",", r.Status.Details ?? Array.Empty<string>())}]")
         );
         #endregion
 
         #region Sprawdź czy uprawnienia administratora jednostki podrzędnej zostały cofnięte
         // Arrange & Act - polling aż lista uprawnień będzie pusta
-        PagedPermissionsResponse<SubunitPermission> pagedPermissionsAfterRevoke =
+        PagedPermissionsResponse<Client.Core.Models.Permissions.SubunitPermission> pagedPermissionsAfterRevoke =
             await AsyncPollingUtils.PollAsync(
-                action: () => SearchSubUnitAsync(),
+            action: () => KsefClient.SearchSubunitAdminPermissionsAsync(
+                new SubunitPermissionsQueryRequest(),
+                _subunitAccessToken,
+                pageOffset: 0,
+                pageSize: 10,
+                CancellationToken
+                ),
                 condition: resp => resp is not null && resp.Permissions is not null && resp.Permissions.Count == 0,
                 delay: TimeSpan.FromSeconds(1),
                 maxAttempts: 60,
@@ -197,14 +256,90 @@ public class SubunitPermissionsE2ETests : TestBase
     }
 
     /// <summary>
+    /// Dedykowany test E2E metody SearchSubordinateEntityInvoiceRolesAsync.
+    /// Kroki:
+    /// 1) Uwierzytelnienie jednostki głównej
+    /// 2) Nadanie minimalnych uprawnień osobowych umożliwiających zarządzanie subjednostką
+    /// 3) Weryfikacja statusu nadania
+    /// 4) Wywołanie SearchSubordinateEntityInvoiceRolesAsync i weryfikacja zwróconych ról
+    /// </summary>
+    [Fact]
+    public async Task SearchSubordinateEntityInvoiceRolesReturnsRolesForParentEntity()
+    {
+        // 1) auth parent unit
+        _unitAccessToken = await AuthenticateAsUnitAsync();
+        Assert.False(string.IsNullOrWhiteSpace(_unitAccessToken));
+
+		PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+		{
+			SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+			PersonById = new PersonPermissionPersonById
+			{
+				FirstName = "Anna",
+				LastName = "Testowa"
+			}
+		};
+
+		// 2) Nadanie minimalnych uprawnień osobowych umożliwiających zarządzanie subjednostką
+		GrantPermissionsPersonRequest personGrantRequest = GrantPersonPermissionsRequestBuilder.Create()
+            .WithSubject(new GrantPermissionsPersonSubjectIdentifier
+            {
+                Type = GrantPermissionsPersonSubjectIdentifierType.Nip,
+                Value = _fixture.Subunit.Value
+            })
+            .WithPermissions(PersonPermissionType.SubunitManage)
+            .WithDescription(E2EGrantMinimalSubunitManageDescription)
+            .WithSubjectDetails(subjectDetails)
+            .Build();
+
+        OperationResponse grantResp = await KsefClient.GrantsPermissionPersonAsync(personGrantRequest, _unitAccessToken).ConfigureAwait(true);
+        Assert.NotNull(grantResp);
+        Assert.False(string.IsNullOrWhiteSpace(grantResp.ReferenceNumber));
+
+        // 3) Weryfikacja statusu nadania
+        PermissionsOperationStatusResponse grantStatus = await AsyncPollingUtils.PollAsync(
+            action: () => KsefClient.OperationsStatusAsync(grantResp.ReferenceNumber, _unitAccessToken),
+            condition: s => s?.Status?.Code == OperationStatusCodeResponse.Success,
+            cancellationToken: CancellationToken
+        );
+        Assert.Equal(OperationStatusCodeResponse.Success, grantStatus.Status.Code);
+
+        // 4) Wywołanie SearchSubordinateEntityInvoiceRolesAsync i weryfikacja zwróconych ról
+        SubordinateEntityRolesQueryRequest query = new()
+        {
+            SubordinateEntityIdentifier = new EntityPermissionsSubordinateEntityIdentifier
+            {
+                Type = EntityPermissionsSubordinateEntityIdentifierType.Nip,
+                Value = _fixture.Unit.Value
+            }
+        };
+
+        PagedRolesResponse<SubordinateEntityRole> roles = await AsyncPollingUtils.PollAsync(
+            action: () => KsefClient.SearchSubordinateEntityInvoiceRolesAsync(query, _unitAccessToken,
+                pageOffset: DefaultPageOffset,
+                pageSize: DefaultPageSize,
+                CancellationToken),
+            condition: r => r is not null && r.Roles is not null,
+            cancellationToken: CancellationToken
+        );
+
+        Assert.NotNull(roles);
+        Assert.NotNull(roles.Roles);
+        
+        Assert.All(roles.Roles, r =>
+            Assert.Equal(_fixture.Unit.Value, r.SubordinateEntityIdentifier.Value));
+        Assert.All(roles.Roles, r =>
+            Assert.Equal(SubordinateEntityIdentifierType.Nip, r.SubordinateEntityIdentifier.Type));
+    }
+
+    /// <summary>
     /// Inicjalizuje uwierzytelnienie jednostki głównej.
     /// </summary>
     private async Task<string> AuthenticateAsUnitAsync()
     {
         AuthenticationOperationStatusResponse authInfo = await AuthenticationUtils.AuthenticateAsync(
-            KsefClient,
-            SignatureService,
-            _fixture.Unit.Value);
+            AuthorizationClient,
+            _fixture.Unit.Value).ConfigureAwait(false);
 
         return authInfo.AccessToken.Token;
     }
@@ -215,18 +350,17 @@ public class SubunitPermissionsE2ETests : TestBase
     private async Task<string> AuthenticateAsSubunitAsync()
     {
         X509Certificate2 personalCertificate = CertificateUtils.GetPersonalCertificate(
-            givenName: "Jan",
-            surname: "Testowy",
-            serialNumberPrefix: "TINPL",
+            givenName: GivenNameJan,
+            surname: SurnameTestowy,
+            serialNumberPrefix: PersonCertSerialPrefixTinpl,
             serialNumber: _fixture.Subunit.Value,
-            commonName: "Jan Testowy Certificate");
+            commonName: PersonCertCommonNameJanTestowy);
 
         AuthenticationOperationStatusResponse ownerAuthInfo = await AuthenticationUtils.AuthenticateAsync(
-            KsefClient,
-            SignatureService,
+            AuthorizationClient,
             _fixture.Unit.Value,
             AuthenticationTokenContextIdentifierType.Nip,
-            personalCertificate);
+            personalCertificate).ConfigureAwait(false);
 
         return ownerAuthInfo.AccessToken.Token;
     }
@@ -238,16 +372,25 @@ public class SubunitPermissionsE2ETests : TestBase
     private async Task<OperationResponse> GrantPersonPermissionsAsync()
     {
         GrantPermissionsPersonRequest personGrantRequest = GrantPersonPermissionsRequestBuilder.Create()
-            .WithSubject(new PersonSubjectIdentifier
+            .WithSubject(new GrantPermissionsPersonSubjectIdentifier
             {
-                Type = PersonSubjectIdentifierType.Nip,
+                Type = GrantPermissionsPersonSubjectIdentifierType.Nip,
                 Value = _fixture.Subunit.Value
             })
-            .WithPermissions(PersonStandardPermissionType.SubunitManage, PersonStandardPermissionType.CredentialsManage)
-            .WithDescription("E2E test - nadanie uprawnień osobowych do zarządzania jednostką podrzędną")
+            .WithPermissions(PersonPermissionType.SubunitManage, PersonPermissionType.CredentialsManage)
+            .WithDescription(E2EGrantPersonPermissionsDescription)
+            .WithSubjectDetails(new PersonPermissionSubjectDetails
+            {
+                SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+                PersonById = new PersonPermissionPersonById
+                {
+                    FirstName = FirstNameJan,
+                    LastName = LastNameTestowy
+                },
+            })
             .Build();
 
-        OperationResponse operationResponse = await KsefClient.GrantsPermissionPersonAsync(personGrantRequest, _unitAccessToken);
+        OperationResponse operationResponse = await KsefClient.GrantsPermissionPersonAsync(personGrantRequest, _unitAccessToken).ConfigureAwait(false);
         return operationResponse;
     }
 
@@ -257,80 +400,52 @@ public class SubunitPermissionsE2ETests : TestBase
     /// <returns>Numer referencyjny operacji.</returns>
     private async Task<OperationResponse> GrantSubunitPermissionsAsync()
     {
-        GrantPermissionsSubUnitRequest subunitGrantRequest =
-            GrantSubUnitPermissionsRequestBuilder
+        GrantPermissionsSubunitRequest subunitGrantRequest =
+            GrantSubunitPermissionsRequestBuilder
             .Create()
             .WithSubject(_fixture.SubjectIdentifier)
-            .WithContext(new SubUnitContextIdentifier
+            .WithContext(new SubunitContextIdentifier
             {
-                Type = SubUnitContextIdentifierType.InternalId,
+                Type = SubunitContextIdentifierType.InternalId,
                 Value = _fixture.UnitNipInternal
             })
-            .WithSubunitName("E2E Test Subunit")
-            .WithDescription("E2E test grant sub-unit")
+            .WithSubunitName(E2ESubunitName)
+            .WithDescription(E2EGrantSubunitPermissionsDescription)
+            .WithSubjectDetails(new SubunitSubjectDetails
+            {
+                SubjectDetailsType = PermissionsSubunitSubjectDetailsType.PersonByIdentifier,
+                PersonById = new PermissionsSubunitPersonByIdentifier { FirstName = FirstNameJan, LastName = LastNameKowalski }
+            })
             .Build();
 
         OperationResponse operationResponse = await KsefClient
-            .GrantsPermissionSubUnitAsync(subunitGrantRequest, _subunitAccessToken, CancellationToken);
+            .GrantsPermissionSubUnitAsync(subunitGrantRequest, _subunitAccessToken, CancellationToken).ConfigureAwait(false);
 
         return operationResponse;
     }
 
     /// <summary>
-    /// Wyszukuje uprawnienia nadane jednostce podrzędnej.
-    /// </summary>
-    /// <returns>Stronicowana lista uprawnień nadanych jednostce podrzędnej.</returns>
-    private async Task<PagedPermissionsResponse<SubunitPermission>> SearchSubUnitAsync()
-    {
-        PagedPermissionsResponse<SubunitPermission> pagedSubunitPermissions =
-            await SearchSubUnitAdminPermissionsAsync();
-
-        return pagedSubunitPermissions;
-    }
-
-    /// <summary>
-    /// Wyszukuje uprawnienia administratorskie nadane jednostce podrzędnej.
-    /// </summary>
-    /// <returns>Stronicowana lista uprawnień administratorskich nadanych jednostce podrzędnej.</returns>
-    private async Task<PagedPermissionsResponse<SubunitPermission>> SearchSubUnitAdminPermissionsAsync()
-    {
-        SubunitPermissionsQueryRequest subunitPermissionsQueryRequest = new SubunitPermissionsQueryRequest();
-        PagedPermissionsResponse<SubunitPermission> response =
-            await KsefClient
-            .SearchSubunitAdminPermissionsAsync(
-                subunitPermissionsQueryRequest,
-                _subunitAccessToken,
-                pageOffset: 0,
-                pageSize: 10,
-                CancellationToken);
-
-        return response;
-    }
-
-    /// <summary>
     /// Odwołuje uprawnienia nadane wskazanym uprawnieniom jednostki podrzędnej i zwraca statusy operacji po wypollowaniu.
     /// </summary>
-    private async Task<List<PermissionsOperationStatusResponse>> RevokeSubUnitPermissionsAsync(IEnumerable<SubunitPermission> permissionsToRevoke)
+    private async Task<List<PermissionsOperationStatusResponse>> RevokeSubUnitPermissionsAsync(IEnumerable<Client.Core.Models.Permissions.SubunitPermission> permissionsToRevoke)
     {
-        List<OperationResponse> revokeResponses = new();
-        foreach (SubunitPermission permission in permissionsToRevoke)
+        List<OperationResponse> revokeResponses = [];
+        foreach (Client.Core.Models.Permissions.SubunitPermission permission in permissionsToRevoke)
         {
             OperationResponse response =
-                await KsefClient.RevokeCommonPermissionAsync(permission.Id, _subunitAccessToken, CancellationToken.None);
+                await KsefClient.RevokeCommonPermissionAsync(permission.Id, _subunitAccessToken, CancellationToken.None).ConfigureAwait(false);
 
             revokeResponses.Add(response);
         }
 
-        List<PermissionsOperationStatusResponse> statuses = new();
+        List<PermissionsOperationStatusResponse> statuses = [];
         foreach (OperationResponse revokeResponse in revokeResponses)
         {
             PermissionsOperationStatusResponse revokeStatus = await AsyncPollingUtils.PollAsync(
                 action: () => KsefClient.OperationsStatusAsync(revokeResponse.ReferenceNumber, _subunitAccessToken),
-                condition: status => status?.Status?.Code == OperationSuccessfulStatusCode,
-                delay: TimeSpan.FromSeconds(1),
-                maxAttempts: 60,
+                condition: status => status?.Status?.Code == OperationStatusCodeResponse.Success,
                 cancellationToken: CancellationToken
-            );
+            ).ConfigureAwait(false);
 
             statuses.Add(revokeStatus);
         }

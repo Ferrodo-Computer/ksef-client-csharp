@@ -1,6 +1,8 @@
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Permissions;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.IndirectEntity;
 using KSeF.Client.Core.Models.Permissions.Person;
 using KSeF.Client.Tests.Utils;
@@ -13,7 +15,7 @@ public partial class CredentialsRevokeTests
     /// Pomocnicza klasa do testów unieważniania i nadawania uprawnień (Credentials).
     /// Zawiera metody opakowujące wywołania API oraz ułatwiające sprawdzanie statusu operacji.
     /// </summary>
-    private class CredentialsRevokeHelpers
+    private sealed class CredentialsRevokeHelpers
     {
         /// <summary>
         /// Wyszukuje uprawnienia nadane osobom fizycznym w bieżącym kontekście, filtrowane po stanie uprawnienia.
@@ -29,7 +31,7 @@ public partial class CredentialsRevokeTests
                client,
                token,
                PersonQueryType.PermissionsGrantedInCurrentContext,
-               state);
+               state).ConfigureAwait(false);
 
         /// <summary>
         /// Nadaje uprawnienie CredentialsManage delegatowi zidentyfikowanemu przez NIP.
@@ -41,12 +43,22 @@ public partial class CredentialsRevokeTests
         public static async Task<bool> GrantCredentialsManageToDelegateAsync(
             IKSeFClient client, string ownerToken, string delegateNip)
         {
-            PersonSubjectIdentifier subjectIdentifier = new PersonSubjectIdentifier { Type = PersonSubjectIdentifierType.Nip, Value = delegateNip };
-            PersonStandardPermissionType[] permissions = new[] { PersonStandardPermissionType.CredentialsManage };
+            PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+            {
+                SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+                PersonById = new PersonPermissionPersonById
+                {
+                    FirstName = "Jan",
+                    LastName = "Testowy"
+                }
+            };
 
-            OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(client, ownerToken, subjectIdentifier, permissions);
+            GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new() { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip };
+            PersonPermissionType[] permissions = [PersonPermissionType.CredentialsManage];
 
-            return await ConfirmOperationSuccessAsync(client, operationResponse, ownerToken);
+            OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(client, ownerToken, subjectIdentifier, permissions, subjectDetails).ConfigureAwait(false);
+
+            return await ConfirmOperationSuccessAsync(client, operationResponse, ownerToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -59,9 +71,9 @@ public partial class CredentialsRevokeTests
         public static async Task<bool> RevokePersonPermissionAsync(
             IKSeFClient client, string token, string permissionId)
         {
-            OperationResponse operationResponse = await PermissionsUtils.RevokePersonPermissionAsync(client, token, permissionId);
+            OperationResponse operationResponse = await PermissionsUtils.RevokePersonPermissionAsync(client, token, permissionId).ConfigureAwait(false);
 
-            return await ConfirmOperationSuccessAsync(client, operationResponse, token);
+            return await ConfirmOperationSuccessAsync(client, operationResponse, token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -76,23 +88,23 @@ public partial class CredentialsRevokeTests
         public static async Task<bool> GrantInvoiceWriteToPeselAsManagerAsync(
             IKSeFClient client, string delegateToken, string nipOwner, string pesel)
         {
-            IndirectEntitySubjectIdentifier subjectIdentifier = new IndirectEntitySubjectIdentifier
+            IndirectEntitySubjectIdentifier subjectIdentifier = new()
             {
                 Type = IndirectEntitySubjectIdentifierType.Pesel,
                 Value = pesel
             };
 
-            IndirectEntityTargetIdentifier targetIdentifier = new IndirectEntityTargetIdentifier
+            IndirectEntityTargetIdentifier targetIdentifier = new()
             {
                 Type = IndirectEntityTargetIdentifierType.Nip,
                 Value = nipOwner
             };
 
-            IndirectEntityStandardPermissionType[] permissions = new[] { IndirectEntityStandardPermissionType.InvoiceWrite };
+            IndirectEntityStandardPermissionType[] permissions = [IndirectEntityStandardPermissionType.InvoiceWrite];
 
-            OperationResponse operationResponse = await PermissionsUtils.GrantIndirectPermissionsAsync(client, delegateToken, subjectIdentifier, targetIdentifier, permissions);
+            OperationResponse operationResponse = await PermissionsUtils.GrantIndirectPermissionsAsync(client, delegateToken, subjectIdentifier, targetIdentifier, permissions).ConfigureAwait(false);
 
-            return await ConfirmOperationSuccessAsync(client, operationResponse, delegateToken);
+            return await ConfirmOperationSuccessAsync(client, operationResponse, delegateToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -107,13 +119,15 @@ public partial class CredentialsRevokeTests
             IKSeFClient client, OperationResponse operationResponse, string token)
         {
             if (string.IsNullOrWhiteSpace(operationResponse?.ReferenceNumber))
+            {
                 return false;
+            }
 
             // Krótkie odczekanie, aby backend zdążył przetworzyć operację
-            await Task.Delay(1000);
+            await Task.Delay(1000).ConfigureAwait(false);
 
-            PermissionsOperationStatusResponse status = await PermissionsUtils.GetPermissionsOperationStatusAsync(client, operationResponse.ReferenceNumber!, token);
-            return status?.Status?.Code == 200;
+            PermissionsOperationStatusResponse status = await PermissionsUtils.GetPermissionsOperationStatusAsync(client, operationResponse.ReferenceNumber!, token).ConfigureAwait(false);
+            return status?.Status?.Code == OperationStatusCodeResponse.Success;
         }
     }
 }

@@ -1,11 +1,12 @@
 using KSeF.Client.Api.Services;
 using KSeF.Client.Core.Models.QRCode;
 using KSeF.Client.DI;
+using KSeF.Client.Extensions;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace KSeF.Client.Tests.Features;
+namespace KSeF.Client.Tests.Features.QrCode;
 
 public class QrCodeTests
 {
@@ -13,16 +14,16 @@ public class QrCodeTests
 
     public QrCodeTests()
     {
-        _linkSvc = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnviromentsUris.TEST });
+        _linkSvc = new VerificationLinkService(new KSeFClientOptions()  {BaseUrl = KsefEnvironmentsUris.TEST, BaseQRUrl = KsefQREnvironmentsUris.TEST });
     }
 
     [Theory]
     [InlineData("RSA", "TestRsaPublic")]
     [InlineData("ECC", "TestEccPublic")]
     [Trait("Category", "QRCode")]
-    [Trait("Scenario", "Zbuduj link weryfikujący uzywając publiczny certyfikat")]
+    [Trait("Scenario", "Zbuduj link weryfikujący używając certyfikatu publicznego")]
     [Trait("Expected", "InvalidOperationException")]
-    public void GivenPublicOnlyCertificate_WhenBuildingVerificationUrl_ThenThrowsInvalidOperationException(
+    public void GivenPublicOnlyCertificateWhenBuildingVerificationUrlThenThrowsInvalidOperationException(
         string keyType, string subjectName)
     {
         // Arrange
@@ -30,24 +31,22 @@ public class QrCodeTests
         if (keyType == "RSA")
         {
             using RSA rsa = RSA.Create(2048);
-            CertificateRequest req = new CertificateRequest($"CN={subjectName}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            CertificateRequest req = new($"CN={subjectName}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1));
-            publicCert = new X509Certificate2(cert.Export(X509ContentType.Cert));
+            publicCert = cert.Export(X509ContentType.Cert).LoadCertificate();
         }
         else
         {
             using ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            CertificateRequest req = new CertificateRequest($"CN={subjectName}", ecdsa, HashAlgorithmName.SHA256);
+            CertificateRequest req = new($"CN={subjectName}", ecdsa, HashAlgorithmName.SHA256);
             X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1));
-            publicCert = new X509Certificate2(cert.Export(X509ContentType.Cert));
+            publicCert = cert.Export(X509ContentType.Cert).LoadCertificate();
         }
 
         string nip = "0000000000";
         string xml = "<x/>";
-        string serial = Guid.NewGuid().ToString();
         string invoiceHash;
-        using (SHA256 sha256 = SHA256.Create())
-            invoiceHash = Convert.ToBase64String(sha256.ComputeHash(Encoding.UTF8.GetBytes(xml)));
+        invoiceHash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(xml)));
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>
@@ -55,7 +54,6 @@ public class QrCodeTests
                 nip,
                 QRCodeContextIdentifierType.Nip,
                 nip,
-                serial,
                 invoiceHash,
                 publicCert
             )

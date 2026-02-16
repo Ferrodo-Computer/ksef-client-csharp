@@ -4,7 +4,7 @@ namespace KSeF.Client.Core.Models.Sessions
 {
     public class SessionStatusResponse
     {
-        public StatusInfo Status { get; set; }
+        public OperationStatusInfo Status { get; set; }
 
         public UpoResponse Upo { get; set; }
 
@@ -14,6 +14,10 @@ namespace KSeF.Client.Core.Models.Sessions
 
         public int? FailedInvoiceCount { get; set; }
 
-        public DateTimeOffset ValidUntil { get; set; }
+        public DateTimeOffset? ValidUntil { get; set; }
+
+        public DateTimeOffset DateCreated { get; set; }
+
+        public DateTimeOffset DateUpdated { get; set; }
     }
 }

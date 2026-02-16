@@ -1,4 +1,3 @@
-using KSeF.Client.Api.Builders.AuthorizationPermissions;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models.Permissions.Authorizations;
@@ -11,16 +10,9 @@ namespace KSeF.DemoWebApp.Controllers;
 public class AuthorizationPermissionsEntityController(IKSeFClient ksefClient) : ControllerBase
 {
     [HttpPost("grant-authorization-permissions-for-entity")]
-    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, AuthorizationSubjectIdentifier subjectIdentifier, CancellationToken cancellationToken)
+    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, GrantPermissionsAuthorizationRequest request, CancellationToken cancellationToken)
     {
-        GrantPermissionsAuthorizationRequest request = GrantAuthorizationPermissionsRequestBuilder
-            .Create()
-            .WithSubject(subjectIdentifier)
-            .WithPermission(AuthorizationPermissionType.TaxRepresentative)
-            .WithDescription("Access for quarterly review")
-            .Build();
-
-        return await ksefClient.GrantsAuthorizationPermissionAsync(request, accessToken, cancellationToken);
+        return await ksefClient.GrantsAuthorizationPermissionAsync(request, accessToken, cancellationToken).ConfigureAwait(false);
     }
 
     [HttpPost("revoke-authorization-permissions-for-entity")]
@@ -30,6 +22,6 @@ public class AuthorizationPermissionsEntityController(IKSeFClient ksefClient) : 
     CancellationToken cancellationToken)
     {
 
-        return await ksefClient.RevokeAuthorizationsPermissionAsync(permissionId, accessToken, cancellationToken);
+        return await ksefClient.RevokeAuthorizationsPermissionAsync(permissionId, accessToken, cancellationToken).ConfigureAwait(false);
     }
 }

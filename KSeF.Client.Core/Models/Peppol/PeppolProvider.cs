@@ -1,9 +1,11 @@
+using System;
+
 namespace KSeF.Client.Core.Models.Peppol
 {
     public class PeppolProvider
     {
         /// <summary>
-        /// Identyfikator dostawcy (np. kod w rejestrze Peppol).
+        /// Identyfikator dostawcy usług Peppol (np. kod w rejestrze Peppol).
         /// </summary>
         public string Id { get; set; }
 
@@ -13,8 +15,8 @@ namespace KSeF.Client.Core.Models.Peppol
         public string Name { get; set; }
 
         /// <summary>
-        /// Adres URL lub endpoint dostawcy.
+        /// Data rejestracji dostawcy usług Peppol w systemie.
         /// </summary>
-        public string Endpoint { get; set; }
+        public DateTimeOffset DateCreated { get; set; }
     }
 }

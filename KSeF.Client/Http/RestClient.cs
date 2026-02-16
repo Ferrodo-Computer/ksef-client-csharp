@@ -2,43 +2,80 @@ using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Infrastructure.Rest;
 using KSeF.Client.Core.Interfaces.Rest;
 using KSeF.Client.Http.Helpers;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Linq;
 
 namespace KSeF.Client.Http;
 
-/// <summary>
-/// Generyczny klient REST obsługujący żądania GET, POST i DELETE z opcjonalną autoryzacją,
-/// serializacją/deserializacją treści oraz strukturalną obsługą błędów.
-/// </summary>
-public sealed class RestClient : IRestClient
+
+/// <inheritdoc />
+public sealed class RestClient(HttpClient httpClient) : IRestClient
 {
-    private readonly HttpClient httpClient;
-
-    public const string DefaultContentType = "application/json";
-    public const string XmlContentType = "application/xml";
-
-    public RestClient(HttpClient httpClient)
-    {
-        this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-    }
+    private readonly HttpClient httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
     /// <summary>
-    /// Wysyła żądanie HTTP i zwraca odpowiedź w postaci obiektu typu TResponse.
+    /// Domyślny typ treści żądania REST.
     /// </summary>
+    public const string DefaultContentType = "application/json";
+
+    /// <summary>
+    /// Typ treści XML.
+    /// </summary>
+    public const string XmlContentType = "application/xml";
+
+    /// <inheritdoc />
+    public async Task<TResponse> SendAsync<TResponse, TRequest>(
+        HttpMethod method, 
+        string url, 
+        TRequest requestBody = default, 
+        string token = null, 
+        string contentType = "application/json", 
+        CancellationToken cancellationToken = default)
+    {
+        return await SendAsync<TResponse, TRequest>(method, url, requestBody, token, contentType, additionalHeaders: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async Task<TResponse> SendAsync<TResponse, TRequest>(
         HttpMethod method,
         string url,
         TRequest requestBody = default,
-        string bearerToken = null,
+        string token = null,
         string contentType = RestContentTypeExtensions.DefaultContentType,
-        CancellationToken cancellationToken = default,
-        Dictionary<string, string> additionalHeaders = null)
+        Dictionary<string, string> additionalHeaders = null,
+        CancellationToken cancellationToken = default)
     {
-        if (method is null) throw new ArgumentNullException(nameof(method));
-        if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("URL cannot be null or empty.", nameof(url));
+        RestResponse<TResponse> response = await SendWithHeadersAsync<TResponse, TRequest>(
+            method,
+            url,
+            requestBody,
+            token,
+            contentType,
+            additionalHeaders,
+            cancellationToken).ConfigureAwait(false);
 
-        using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(method, url);
+        return response.Body;
+    }
+
+    /// <inheritdoc />
+    public async Task<RestResponse<TResponse>> SendWithHeadersAsync<TResponse, TRequest>(
+        HttpMethod method,
+        string url,
+        TRequest requestBody = default,
+        string token = null,
+        string contentType = RestContentTypeExtensions.DefaultContentType,
+        Dictionary<string, string> additionalHeaders = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(method);
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            throw new ArgumentException("Adres URL nie może być pusty.", nameof(url));
+        }
+
+        using HttpRequestMessage httpRequestMessage = new(method, url);
 
         bool shouldSendBody = method != HttpMethod.Get &&
                               !EqualityComparer<TRequest>.Default.Equals(requestBody, default);
@@ -55,9 +92,9 @@ public sealed class RestClient : IRestClient
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(bearerToken))
+        if (!string.IsNullOrWhiteSpace(token))
         {
-            httpRequestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+            httpRequestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
 
         if (additionalHeaders is not null)
@@ -68,14 +105,10 @@ public sealed class RestClient : IRestClient
             }
         }
 
-        return await SendCoreAsync<TResponse>(httpRequestMessage, cancellationToken).ConfigureAwait(false);
+        return await SendCoreWithHeadersAsync<TResponse>(httpRequestMessage, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Wysyła żądanie HTTP z podanym HttpContent, bez serializacji obiektów.
-    /// Przeznaczone do ręcznego przesyłania danych binarnych (np. plików, strumieni).
-    /// Nie modyfikuje zawartości ani nie zmienia nagłówków.
-    /// </summary>
+    /// <inheritdoc />
     public async Task SendAsync(
         HttpMethod method,
         string url,
@@ -83,11 +116,15 @@ public sealed class RestClient : IRestClient
         IDictionary<string, string> additionalHeaders = null,
         CancellationToken cancellationToken = default)
     {
-        if (method is null) throw new ArgumentNullException(nameof(method));
-        if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("URL cannot be null or empty.", nameof(url));
-        if (content is null) throw new ArgumentNullException(nameof(content));
+        ArgumentNullException.ThrowIfNull(method);
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            throw new ArgumentException("Adres URL nie może być pusty.", nameof(url));
+        }
 
-        using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(method, url)
+        ArgumentNullException.ThrowIfNull(content);
+
+        using HttpRequestMessage httpRequestMessage = new(method, url)
         {
             Content = content
         };
@@ -103,6 +140,7 @@ public sealed class RestClient : IRestClient
         await SendCoreAsync<object>(httpRequestMessage, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task SendAsync<TRequest>(
         HttpMethod method,
         string url,
@@ -111,10 +149,11 @@ public sealed class RestClient : IRestClient
         string contentType = RestContentTypeExtensions.DefaultContentType,
         CancellationToken cancellationToken = default)
     {
-        await SendAsync<object, TRequest>(method, url, requestBody, token, contentType, cancellationToken, additionalHeaders: null)
+        await SendAsync<object, TRequest>(method, url, requestBody, token, contentType, additionalHeaders: null, cancellationToken)
             .ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task SendAsync(
         HttpMethod method,
         string url,
@@ -122,10 +161,13 @@ public sealed class RestClient : IRestClient
         string contentType = RestContentTypeExtensions.DefaultContentType,
         CancellationToken cancellationToken = default)
     {
-        if (method is null) throw new ArgumentNullException(nameof(method));
-        if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("URL cannot be null or empty.", nameof(url));
+        ArgumentNullException.ThrowIfNull(method);
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            throw new ArgumentException("Adres URL nie może być pusty.", nameof(url));
+        }
 
-        using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(method, url);
+        using HttpRequestMessage httpRequestMessage = new(method, url);
 
         if (!string.IsNullOrWhiteSpace(token))
         {
@@ -136,41 +178,45 @@ public sealed class RestClient : IRestClient
     }
 
     // ================== RestRequest overloads ==================
+    /// <inheritdoc />
     public async Task<TResponse> SendAsync<TResponse>(RestRequest request, CancellationToken cancellationToken = default)
     {
-        if (request is null) throw new ArgumentNullException(nameof(request));
+        ArgumentNullException.ThrowIfNull(request);
 
         using HttpRequestMessage httpRequestMessage = request.ToHttpRequestMessage(httpClient);
         using CancellationTokenSource cancellationTokenSource = CreateTimeoutCancellationTokenSource(request.Timeout, cancellationToken);
 
-        return await SendCoreAsync<TResponse>(httpRequestMessage, cancellationTokenSource.Token).ConfigureAwait(false);        
+        return await SendCoreAsync<TResponse>(httpRequestMessage, cancellationTokenSource.Token).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Wysyła żądanie zdefiniowane przez <see cref="RestRequest"/> bez deserializacji zwróconego obiektu.
-    /// </summary>
+    /// <inheritdoc />
     public Task SendAsync(RestRequest request, CancellationToken cancellationToken = default)
         => SendAsync<object>(request, cancellationToken);
 
+    /// <inheritdoc />
     public Task<TResponse> ExecuteAsync<TResponse>(RestRequest request, CancellationToken cancellationToken = default)
         => SendAsync<TResponse>(request, cancellationToken);
 
+    /// <inheritdoc />
     public Task ExecuteAsync(RestRequest request, CancellationToken cancellationToken = default)
         => SendAsync(request, cancellationToken);
 
+    /// <inheritdoc />
     public Task<TResponse> ExecuteAsync<TResponse, TRequest>(RestRequest<TRequest> request, CancellationToken cancellationToken = default)
         => SendAsync<TResponse, TRequest>(request, cancellationToken);
 
+    /// <inheritdoc />
     public async Task<TResponse> SendAsync<TResponse, TRequest>(RestRequest<TRequest> request, CancellationToken cancellationToken = default)
     {
-        if (request is null) throw new ArgumentNullException(nameof(request));
+        ArgumentNullException.ThrowIfNull(request);
 
         using HttpRequestMessage httpRequestMessage = request.ToHttpRequestMessage(httpClient, DefaultContentType);
         using CancellationTokenSource cancellationTokenSource = CreateTimeoutCancellationTokenSource(request.Timeout, cancellationToken);
 
-        return await SendCoreAsync<TResponse>(httpRequestMessage, cancellationTokenSource.Token).ConfigureAwait(false);        
+        return await SendCoreAsync<TResponse>(httpRequestMessage, cancellationTokenSource.Token).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public Task SendAsync<TRequest>(RestRequest<TRequest> request, CancellationToken cancellationToken = default)
         => SendAsync<object, TRequest>(request, cancellationToken);
 
@@ -196,12 +242,12 @@ public sealed class RestClient : IRestClient
                 return (T)(object)(responseText ?? string.Empty);
             }
 
-            MediaTypeHeaderValue? contentTypeHeader = httpResponseMessage.Content?.Headers?.ContentType;
-            string? mediaType = contentTypeHeader?.MediaType;
+            MediaTypeHeaderValue contentTypeHeader = httpResponseMessage.Content?.Headers?.ContentType;
+            string mediaType = contentTypeHeader?.MediaType;
 
             if (!IsJsonMediaType(mediaType))
             {
-                throw new KsefApiException($"Unexpected content type '{mediaType ?? "unknown"}' for {typeof(T).Name}.", httpResponseMessage.StatusCode);
+                throw new KsefApiException($"Nieoczekiwany typ treści '{mediaType ?? "nieznany"}' dla {typeof(T).Name}.", httpResponseMessage.StatusCode);
             }
 
             using Stream responseStream = await httpResponseMessage.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -209,7 +255,60 @@ public sealed class RestClient : IRestClient
         }
 
         await HandleInvalidStatusCode(httpResponseMessage, cancellationToken).ConfigureAwait(false);
-        throw new InvalidOperationException("HandleInvalidStatusCode must throw.");
+        throw new InvalidOperationException("HandleInvalidStatusCode musi zgłosić wyjątek.");
+    }
+
+    private async Task<RestResponse<T>> SendCoreWithHeadersAsync<T>(HttpRequestMessage httpRequestMessage, CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage httpResponseMessage = await httpClient
+            .SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+
+        bool hasContent = httpResponseMessage.HasBody(httpRequestMessage.Method);
+
+        Dictionary<string, IEnumerable<string>> headers = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in httpResponseMessage.Headers)
+        {
+            headers[header.Key] = header.Value;
+        }
+
+        if (httpResponseMessage.Content is not null)
+        {
+            foreach (KeyValuePair<string, IEnumerable<string>> header in httpResponseMessage.Content.Headers)
+            {
+                headers[header.Key] = header.Value;
+            }
+        }
+
+        if (httpResponseMessage.IsSuccessStatusCode)
+        {
+            if (!hasContent || typeof(T) == typeof(object))
+            {
+                return new RestResponse<T>(default!, headers);
+            }
+
+            if (typeof(T) == typeof(string))
+            {
+                string responseText = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                return new RestResponse<T>((T)(object)(responseText ?? string.Empty), headers);
+            }
+
+            MediaTypeHeaderValue contentTypeHeader = httpResponseMessage.Content?.Headers?.ContentType;
+            string mediaType = contentTypeHeader?.MediaType;
+
+            if (!IsJsonMediaType(mediaType))
+            {
+                throw new KsefApiException($"Nieoczekiwany typ treści '{mediaType ?? "nieznany"}' dla {typeof(T).Name}.", httpResponseMessage.StatusCode);
+            }
+
+            using Stream responseStream = await httpResponseMessage.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            T body = await JsonUtil.DeserializeAsync<T>(responseStream).ConfigureAwait(false);
+            return new RestResponse<T>(body, headers);
+        }
+
+        await HandleInvalidStatusCode(httpResponseMessage, cancellationToken).ConfigureAwait(false);
+        throw new InvalidOperationException("HandleInvalidStatusCode musi zgłosić wyjątek.");
     }
 
     /// <summary>
@@ -217,28 +316,28 @@ public sealed class RestClient : IRestClient
     /// Guard na Content-Type.
     /// </summary>
     private static async Task HandleInvalidStatusCode(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
+    {  
         switch (response.StatusCode)
         {
             case System.Net.HttpStatusCode.NotFound:
                 throw new KsefApiException("Not found", response.StatusCode);
 
             case System.Net.HttpStatusCode.TooManyRequests:
-                await HandleTooManyRequestsAsync(response, cancellationToken);
+                await HandleTooManyRequestsAsync(response, cancellationToken).ConfigureAwait(false);
                 return;
 
             default:
-                await HandleOtherErrorsAsync(response, cancellationToken);
+                await HandleOtherErrorsAsync(response, cancellationToken).ConfigureAwait(false);
                 return;
-        }
+        }        
 
-        static bool TryExtractRetryAfterHeaderValue(HttpResponseMessage responseMessage, out string? retryAfterHeaderValue)
+        static bool TryExtractRetryAfterHeaderValue(HttpResponseMessage responseMessage, out string retryAfterHeaderValue)
         {
             retryAfterHeaderValue = null;
 
             if (responseMessage.Headers.RetryAfter?.Delta is TimeSpan delta)
             {
-                retryAfterHeaderValue = ((int)delta.TotalSeconds).ToString();
+                retryAfterHeaderValue = ((int)delta.TotalSeconds).ToString(CultureInfo.InvariantCulture);
                 return true;
             }
             if (responseMessage.Headers.RetryAfter?.Date is DateTimeOffset date)
@@ -246,9 +345,9 @@ public sealed class RestClient : IRestClient
                 retryAfterHeaderValue = date.ToString("R");
                 return true;
             }
-            if (responseMessage.Headers.TryGetValues("Retry-After", out IEnumerable<string>? values))
+            if (responseMessage.Headers.TryGetValues("Retry-After", out IEnumerable<string> values))
             {
-                string? headerValue = values.FirstOrDefault();
+                string headerValue = values.FirstOrDefault();
                 if (!string.IsNullOrWhiteSpace(headerValue))
                 {
                     retryAfterHeaderValue = headerValue;
@@ -258,22 +357,24 @@ public sealed class RestClient : IRestClient
             return false;
         }
 
-        static bool IsJsonMediaType(string? mediaType)
+        static bool IsJsonMediaType(string mediaType)
         {
             return !string.IsNullOrEmpty(mediaType) &&
-                   mediaType.IndexOf("json", StringComparison.OrdinalIgnoreCase) >= 0;
+                   mediaType.Contains("json", StringComparison.OrdinalIgnoreCase);
         }
 
         static bool IsJsonContent(HttpResponseMessage responseMessage)
         {
-            MediaTypeHeaderValue? contentTypeHeader = responseMessage.Content?.Headers?.ContentType;
+            MediaTypeHeaderValue contentTypeHeader = responseMessage.Content?.Headers?.ContentType;
             return IsJsonMediaType(contentTypeHeader?.MediaType);
         }
 
-        static string BuildErrorMessageFromDetails(ApiErrorResponse? apiErrorResponse)
+        static string BuildErrorMessageFromDetails(ApiErrorResponse apiErrorResponse)
         {
             if (apiErrorResponse?.Exception?.ExceptionDetailList is not { Count: > 0 })
+            {
                 return string.Empty;
+            }
 
             IEnumerable<string> parts = apiErrorResponse.Exception.ExceptionDetailList.Select(detail =>
             {
@@ -286,7 +387,7 @@ public sealed class RestClient : IRestClient
             return string.Join(" | ", parts);
         }
 
-        static bool TryDeserializeJson<T>(string json, out T? result)
+        static bool TryDeserializeJson<T>(string json, out T result)
         {
             try
             {
@@ -304,27 +405,20 @@ public sealed class RestClient : IRestClient
         {
             string rateLimitMessage = "Przekroczono limit ilości zapytań do API (HTTP 429)";
 
-            TryExtractRetryAfterHeaderValue(responseMessage, out string? retryAfterHeaderValue);
+            TryExtractRetryAfterHeaderValue(responseMessage, out string retryAfterHeaderValue);
 
-            string? responseBody = responseMessage.Content is null
+            string responseBody = responseMessage.Content is null
                 ? null
                 : await responseMessage.Content.ReadAsStringAsync(innerCancellationToken).ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(responseBody) && IsJsonContent(responseMessage))
             {
-                if (TryDeserializeJson<ApiErrorResponse>(responseBody, out ApiErrorResponse? apiErrorResponse) && apiErrorResponse is not null)
+                if (TryDeserializeJson<TooManyRequestsErrorResponse>(
+                        responseBody,
+                        out TooManyRequestsErrorResponse statusErrorResponse)
+                    && statusErrorResponse?.Status?.Details?.Any() == true)
                 {
-                    string detailedMessage = BuildErrorMessageFromDetails(apiErrorResponse);
-                    if (!string.IsNullOrWhiteSpace(detailedMessage))
-                    {
-                        rateLimitMessage = detailedMessage;
-                    }
-
-                    throw KsefRateLimitException.FromRetryAfterHeader(
-                        rateLimitMessage,
-                        retryAfterHeaderValue,
-                        apiErrorResponse.Exception?.ServiceCode,
-                        apiErrorResponse);
+                    rateLimitMessage = string.Join(" ", statusErrorResponse.Status.Details);
                 }
             }
 
@@ -333,7 +427,7 @@ public sealed class RestClient : IRestClient
 
         static async Task HandleOtherErrorsAsync(HttpResponseMessage responseMessage, CancellationToken innerCancellationToken)
         {
-            string? responseBody = responseMessage.Content is null
+            string responseBody = responseMessage.Content is null
                 ? null
                 : await responseMessage.Content.ReadAsStringAsync(innerCancellationToken).ConfigureAwait(false);
 
@@ -355,21 +449,26 @@ public sealed class RestClient : IRestClient
             {
                 ApiErrorResponse apiErrorResponse = JsonUtil.Deserialize<ApiErrorResponse>(responseBody);
                 string fullMessage = BuildErrorMessageFromDetails(apiErrorResponse);
-                throw new KsefApiException(fullMessage, responseMessage.StatusCode, apiErrorResponse?.Exception?.ServiceCode, apiErrorResponse);
+                throw new KsefApiException(fullMessage, responseMessage.StatusCode, apiErrorResponse);
+            }
+            catch (KsefApiException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 throw new KsefApiException(
                     $"HTTP {(int)responseMessage.StatusCode}: {responseMessage.ReasonPhrase ?? "Unknown"}, AdditionalInfo: {ex.Message}",
-                    responseMessage.StatusCode);
+                    responseMessage.StatusCode,
+                    innerException: ex);
             }
         }
     }
 
-    private static bool IsJsonMediaType(string? mediaType)
+    private static bool IsJsonMediaType(string mediaType)
     {
         return !string.IsNullOrEmpty(mediaType) &&
-               mediaType.IndexOf("json", StringComparison.OrdinalIgnoreCase) >= 0;
+               mediaType.Contains("json", StringComparison.OrdinalIgnoreCase);
     }
 
     private static CancellationTokenSource CreateTimeoutCancellationTokenSource(TimeSpan? perRequestTimeout, CancellationToken cancellationToken)

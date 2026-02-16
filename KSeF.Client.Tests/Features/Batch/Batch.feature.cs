@@ -1,4 +1,5 @@
 using KSeF.Client.Core.Exceptions;
+using KSeF.Client.Core.Models.ApiResponses;
 using KSeF.Client.Core.Models.Invoices;
 using KSeF.Client.Core.Models.Sessions;
 using KSeF.Client.Core.Models.Sessions.BatchSession;
@@ -6,10 +7,10 @@ using KSeF.Client.Tests.Utils;
 using System.IO.Compression;
 using System.Security.Cryptography;
 
-namespace KSeF.Client.Tests.Features;
+namespace KSeF.Client.Tests.Features.Batch;
 
 /// <summary>
-/// Testy integracyjne dla funkcjonalności wysyłki wsadowej faktur do systemu KSeF.
+/// Testy integracyjne funkcjonalności wysyłki wsadowej faktur do systemu KSeF.
 /// Weryfikują proces otwierania sesji, wysyłania zaszyfrowanych paczek i zamykania sesji wsadowej.
 /// </summary>
 [CollectionDefinition("Batch.feature")]
@@ -19,25 +20,17 @@ public class BatchTests : KsefIntegrationTestBase
 {
     private const int DefaultInvoiceCount = 5;
     private const int MultiPartCount = 5;
-    private const int MaxInvoiceCountLimit = 10000;
     private const int ExceedingInvoiceCount = 10001;
-    private const int MaxPartCountLimit = 50;
     private const int ExceedingPartCount = 51;
-    private const long PaddingSafetyMarginInBytes = 1024 * 1024; // 1 MB
-    private const long MaxPartSizeInBytes = 105L * PaddingSafetyMarginInBytes; // 100 MiB
-    private const long MaxTotalPackageSizeInBytes = 5_368_709_120L; // 5 GiB
-    private const long ExceededTotalPackageSizeInBytes = MaxTotalPackageSizeInBytes + 1; // 5 GiB + 1 bajt
+    // Jednostki komunikowane i egzekwowane przez API w MB/GB (dziesiętne: 1 MB = 1_000_000 B, 1 GB = 1_000_000_000 B).
+    private const long PaddingSafetyMarginInBytes = 100_000; // +100 KB zapasu (dziesiętne)
+    // Efektywny limit na część przed szyfrowaniem: 100 MB = 100_000_000 bajtów
+    private const long MaxPartSizeInBytes = 100_000_000L; // 100 MB (dziesiętnie)
+    // Efektywny limit całej paczki: 5 GB = 5_000_000_000 bajtów
+    private const long MaxTotalPackageSizeInBytes = 5_000_000_000L; // 5 GB (dziesiętnie)
+    private const long ExceededTotalPackageSizeInBytes = MaxTotalPackageSizeInBytes + 1; // przekroczenie o 1 bajt
     private const int EncryptionKeySize = 256; // bytes dla RSA
     private const int InitializationVectorSize = 16; // bytes
-
-
-    // Kody statusów sesji KSeF
-    private const int StatusCodeProcessing = 150;
-    private const int StatusCodeDecryptionError = 405;
-    private const int StatusCodeInvalidEncryptionKey = 415;
-    private const int StatusCodeExceededInvoiceLimit = 420;
-    private const int StatusCodeInvalidInitializationVector = 430;
-    private const int StatusCodeInvalidInvoices = 445;
 
     private string authenticatedNip;
     private string accessToken;
@@ -45,7 +38,7 @@ public class BatchTests : KsefIntegrationTestBase
     public BatchTests()
     {
         authenticatedNip = MiscellaneousUtils.GetRandomNip();
-        accessToken = AuthenticationUtils.AuthenticateAsync(KsefClient, SignatureService, authenticatedNip)
+        accessToken = AuthenticationUtils.AuthenticateAsync(AuthorizationClient, authenticatedNip)
             .GetAwaiter()
             .GetResult()
             .AccessToken.Token;
@@ -56,10 +49,10 @@ public class BatchTests : KsefIntegrationTestBase
     /// Oczekuje pomyślnego przetworzenia wszystkich faktur i możliwości pobrania UPO.
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
     [Trait("Scenario", "Wysłanie dokumentów w jednoczęściowej paczce (happy path)")]
-    public async Task Batch_SendSinglePart_ShouldSucceed(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    public async Task BatchSendSinglePartShouldSucceed(SystemCode systemCode, string invoiceTemplatePath)
     {
         // Arrange
         List<(string FileName, byte[] Content)> invoices = BatchUtils.GenerateInvoicesInMemory(
@@ -99,7 +92,7 @@ public class BatchTests : KsefIntegrationTestBase
             openSessionResponse.ReferenceNumber,
             accessToken);
 
-        Assert.True(sessionStatus.Status.Code != StatusCodeProcessing);
+        Assert.True(sessionStatus.Status.Code != BatchSessionCodeResponse.Processing);
         Assert.Equal(DefaultInvoiceCount, sessionStatus.SuccessfulInvoiceCount);
 
         SessionInvoicesResponse sessionInvoices = await BatchUtils.GetSessionInvoicesAsync(
@@ -109,7 +102,7 @@ public class BatchTests : KsefIntegrationTestBase
         Assert.NotNull(sessionInvoices);
         Assert.NotEmpty(sessionInvoices.Invoices);
 
-        // Weryfikacja możliwości pobrania UPO (Urzędowego Poświadczenia Odbioru) dla pierwszej faktury
+        // Weryfikacja możliwości pobrania UPO (Urzędowego Poświadczenia Odbioru) pierwszej faktury
         SessionInvoice firstInvoice = sessionInvoices.Invoices.First();
         string upoDocument = await BatchUtils.GetSessionInvoiceUpoByKsefNumberAsync(
             KsefClient,
@@ -125,10 +118,10 @@ public class BatchTests : KsefIntegrationTestBase
     /// Oczekuje statusu błędu i zliczenia wszystkich faktur jako niepoprawnych.
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
     [Trait("Scenario", "Wysłanie dokumentów w jednoczęściowej paczce z niepoprawnym NIP w fakturach (negatywny)")]
-    public async Task Batch_SendWithIncorrectNip_ShouldFail(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    public async Task BatchSendWithIncorrectNipShouldFail(SystemCode systemCode, string invoiceTemplatePath)
     {
         // Arrange
         // Generowanie faktury z NIP-em innym niż użyty do uwierzytelnienia
@@ -167,7 +160,7 @@ public class BatchTests : KsefIntegrationTestBase
             accessToken);
 
         // Kod 445 Błąd weryfikacji, brak poprawnych faktur
-        Assert.True(sessionStatus.Status.Code == StatusCodeInvalidInvoices);
+        Assert.True(sessionStatus.Status.Code == BatchSessionCodeResponse.NoValidInvoices);
         Assert.Equal(DefaultInvoiceCount, sessionStatus.FailedInvoiceCount);
     }
 
@@ -176,11 +169,11 @@ public class BatchTests : KsefIntegrationTestBase
     /// Oczekuje zwrócenia błędu o przekroczonym limicie.
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml", ExceedingInvoiceCount)]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml", ExceedingInvoiceCount)]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml", ExceedingInvoiceCount)]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml", ExceedingInvoiceCount)]
     [Trait("Scenario", "Przekroczona liczba faktur > 10000 (MaxInvoiceCountLimit)")]
-    public async Task Batch_SendWithExceededInvoiceLimit_ShouldFail(
-        SystemCodeEnum systemCode,
+    public async Task BatchSendWithExceededInvoiceLimitShouldFail(
+        SystemCode systemCode,
         string invoiceTemplatePath,
         int invoiceCount)
     {
@@ -219,19 +212,19 @@ public class BatchTests : KsefIntegrationTestBase
             accessToken);
 
         // Kod 420 Przekroczony limit faktur w sesji
-        Assert.Equal(StatusCodeExceededInvoiceLimit, sessionStatus.Status.Code);
+        Assert.Equal(BatchSessionCodeResponse.InvoiceLimitExceeded, sessionStatus.Status.Code);
     }
 
     /// <summary>
-    /// Weryfikuje odrzucenie paczki przekraczającej maksymalny rozmiar 5 GiB.
-    /// Oczekuje wyjątku podczas próby otwarcia sesji z fileSize > 5368709120 bajtów (MaxTotalPackageSizeInBytes).
+    /// Weryfikuje odrzucenie paczki przekraczającej maksymalny rozmiar 5 GB.
+    /// Oczekuje wyjątku podczas próby otwarcia sesji z fileSize > 5_000_000_000 bajtów (MaxTotalPackageSizeInBytes).
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
-    [Trait("Scenario", "Rozmiar całej paczki (fileSize) > 5GiB (MaxTotalPackageSizeInBytes)")]
-    public async Task Batch_SendWithExceededTotalPackageSize_ShouldFail(
-        SystemCodeEnum systemCode,
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    [Trait("Scenario", "Rozmiar całej paczki (fileSize) > 5GB (MaxTotalPackageSizeInBytes)")]
+    public async Task BatchSendWithExceededTotalPackageSizeShouldFail(
+        SystemCode systemCode,
         string invoiceTemplatePath)
     {
         // Arrange
@@ -242,8 +235,8 @@ public class BatchTests : KsefIntegrationTestBase
 
         (byte[] zipBytes, FileMetadata zipMetadata) = BatchUtils.BuildZip(invoices, CryptographyService);
 
-        // Modyfikacja metadaty aby symulować paczkę o rozmiarze przekraczającym 5 GiB
-        FileMetadata manipulatedMetadata = new FileMetadata
+        // Modyfikacja metadaty aby symulować paczkę o rozmiarze przekraczającym 5 GB (dziesiętnie)
+        FileMetadata manipulatedMetadata = new()
         {
             FileSize = ExceededTotalPackageSizeInBytes,
             HashSHA = zipMetadata.HashSHA
@@ -258,26 +251,28 @@ public class BatchTests : KsefIntegrationTestBase
 
         // Act & Assert
         OpenBatchSessionRequest openSessionRequest = BatchUtils.BuildOpenBatchRequest(
-            manipulatedMetadata, // Użycie zmanipulowanych metadanych z fileSize > 5 GiB
+            manipulatedMetadata,
             encryptionData,
             encryptedParts,
             systemCode);
 
         // API KSeF powinno odrzucić żądanie ze względu na przekroczony limit fileSize
         await Assert.ThrowsAnyAsync<KsefApiException>(async () =>
-            await BatchUtils.OpenBatchAsync(KsefClient, openSessionRequest, accessToken));
+            await BatchUtils.OpenBatchAsync(KsefClient, openSessionRequest, accessToken).ConfigureAwait(false));
     }
 
     /// <summary>
-    /// Weryfikuje odrzucenie paczki przekraczającej limit rozmiaru 100 MiB (przed szyfrowaniem).
-    /// Oczekuje wyjątku podczas próby otwarcia sesji.
+    /// Weryfikuje odrzucenie paczki przekraczającej limit rozmiaru 100 MB (przed szyfrowaniem).
+    /// Jeśli API nie zwróci błędu przy zamykaniu (202 Accepted), weryfikujemy status sesji.
+    /// Akceptujemy dwa możliwe wyniki: odrzucenie całej paczki przed przetwarzaniem (0/0) albo odrzucenie wszystkich faktur (0/5).
+    /// Dla stabilności zwiększamy czas oczekiwania na finalny status (do 3 minut).
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
-    [Trait("Scenario", "Rozmiar part (przed szyfrowaniem) > 100MiB")]
-    public async Task Batch_SendWithExceededPartSize_ShouldFail(
-        SystemCodeEnum systemCode,
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    [Trait("Scenario", "Rozmiar part (przed szyfrowaniem) > 100MB")]
+    public async Task BatchSendWithExceededPartSizeShouldFail(
+        SystemCode systemCode,
         string invoiceTemplatePath)
     {
         // Arrange
@@ -288,9 +283,10 @@ public class BatchTests : KsefIntegrationTestBase
 
         (byte[] zipBytes, FileMetadata zipMetadata) = BatchUtils.BuildZip(invoices, CryptographyService);
 
-        // Dodanie sztucznego wypełnienia, aby paczka przekroczyła 100 MiB
-        // Limit KSeF to 100 MiB dla pojedynczej części PRZED szyfrowaniem
+        // Dodanie sztucznego wypełnienia, aby paczka przekroczyła efektywny limit (100 MB)
         byte[] paddedZipBytes = AddPaddingToZipArchive(zipBytes, MaxPartSizeInBytes);
+        // Metadane muszą odpowiadać rozmiarowi PRZED szyfrowaniem, więc licz je po dodaniu paddingu
+        FileMetadata paddedZipMetadata = CryptographyService.GetMetaData(paddedZipBytes);
 
         EncryptionData encryptionData = CryptographyService.GetEncryptionData();
         List<BatchPartSendingInfo> encryptedParts = BatchUtils.EncryptAndSplit(
@@ -299,16 +295,49 @@ public class BatchTests : KsefIntegrationTestBase
             CryptographyService,
             partCount: 1);
 
-        // Act & Assert
         OpenBatchSessionRequest openSessionRequest = BatchUtils.BuildOpenBatchRequest(
-            zipMetadata,
+            paddedZipMetadata,
             encryptionData,
             encryptedParts,
             systemCode);
 
-        // API KSeF odrzuca żądanie już na etapie otwarcia sesji
-        await Assert.ThrowsAnyAsync<KsefApiException>(async () =>
-            await BatchUtils.OpenBatchAsync(KsefClient, openSessionRequest, accessToken));
+        // Act: open i upload mogą przejść, limit może ujawnić się dopiero po przetworzeniu
+        OpenBatchSessionResponse openSessionResponse = await BatchUtils.OpenBatchAsync(
+            KsefClient,
+            openSessionRequest,
+            accessToken);
+
+        await BatchUtils.SendBatchPartsAsync(KsefClient, openSessionResponse, encryptedParts);
+
+        bool closedWithError = false;
+        try
+        {
+            await BatchUtils.CloseBatchAsync(KsefClient, openSessionResponse.ReferenceNumber, accessToken);
+        }
+        catch (KsefApiException)
+        {
+            closedWithError = true;
+        }
+
+        // Assert: jeżeli nie było wyjątku przy zamykaniu, to sesja powinna zakończyć się niepowodzeniem.
+        // Akceptowany rezultat: (0 sukcesów, 5 błędów) lub (0 sukcesów, 0 błędów) w przypadku odrzucenia całej paczki.
+        if (!closedWithError)
+        {
+            // Zwiększone oczekiwanie na finalny status
+            SessionStatusResponse sessionStatus = await BatchUtils.WaitForBatchStatusAsync(
+                KsefClient,
+                openSessionResponse.ReferenceNumber,
+                accessToken,
+                maxAttempts: 1200);
+
+            Assert.NotNull(sessionStatus);
+
+            int success = sessionStatus.SuccessfulInvoiceCount ?? 0;
+            int failed = sessionStatus.FailedInvoiceCount ?? 0;
+
+            Assert.Equal(0, success);
+            Assert.True(failed == 0 || failed == DefaultInvoiceCount);
+        }
     }
 
     /// <summary>
@@ -316,10 +345,10 @@ public class BatchTests : KsefIntegrationTestBase
     /// Oczekuje wyjątku podczas wysyłania niepełnego zestawu części.
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
     [Trait("Scenario", "Zamknięcie sesji bez wysłania wszystkich części")]
-    public async Task Batch_CloseWithoutAllParts_ShouldFail(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    public async Task BatchCloseWithoutAllPartsShouldFail(SystemCode systemCode, string invoiceTemplatePath)
     {
         // Arrange
         List<(string FileName, byte[] Content)> invoices = BatchUtils.GenerateInvoicesInMemory(
@@ -351,10 +380,10 @@ public class BatchTests : KsefIntegrationTestBase
         // Assert
         // Próba wysłania tylko pierwszej części, mimo że zadeklarowano 5
         // API powinno wykryć niezgodność i odrzucić żądanie
-        List<BatchPartSendingInfo> incompletePartsList = new List<BatchPartSendingInfo> { encryptedParts[0] };
+        List<BatchPartSendingInfo> incompletePartsList = [encryptedParts[0]];
 
         await Assert.ThrowsAnyAsync<AggregateException>(async () =>
-            await BatchUtils.SendBatchPartsAsync(KsefClient, openSessionResponse, incompletePartsList));
+            await BatchUtils.SendBatchPartsAsync(KsefClient, openSessionResponse, incompletePartsList).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -362,11 +391,11 @@ public class BatchTests : KsefIntegrationTestBase
     /// Oczekuje wyjątku podczas próby otwarcia sesji.
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml", ExceedingPartCount)]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml", ExceedingPartCount)]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml", ExceedingPartCount)]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml", ExceedingPartCount)]
     [Trait("Scenario", "Próba wysłania z przekroczoną liczbą części (>50)")]
-    public async Task Batch_SendWithExceededPartCount_ShouldFail(
-        SystemCodeEnum systemCode,
+    public async Task BatchSendWithExceededPartCountShouldFail(
+        SystemCode systemCode,
         string invoiceTemplatePath,
         int partCount)
     {
@@ -395,7 +424,7 @@ public class BatchTests : KsefIntegrationTestBase
 
         // API KSeF odrzuca żądanie z przekroczoną liczbą części
         await Assert.ThrowsAnyAsync<KsefApiException>(async () =>
-            await BatchUtils.OpenBatchAsync(KsefClient, openSessionRequest, accessToken));
+            await BatchUtils.OpenBatchAsync(KsefClient, openSessionRequest, accessToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -403,10 +432,10 @@ public class BatchTests : KsefIntegrationTestBase
     /// Oczekuje błędu deszyfrowania po przetworzeniu sesji przez system KSeF.
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
     [Trait("Scenario", "Wysłanie paczki z nieprawidłowo zaszyfrowanym kluczem")]
-    public async Task Batch_SendWithInvalidEncryptedKey_ShouldFail(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    public async Task BatchSendWithInvalidEncryptedKeyShouldFail(SystemCode systemCode, string invoiceTemplatePath)
     {
         // Arrange
         List<(string FileName, byte[] Content)> invoices = BatchUtils.GenerateInvoicesInMemory(
@@ -427,7 +456,7 @@ public class BatchTests : KsefIntegrationTestBase
         byte[] corruptedEncryptedKey = new byte[EncryptionKeySize];
         RandomNumberGenerator.Fill(corruptedEncryptedKey);
 
-        EncryptionData corruptedEncryptionData = new EncryptionData
+        EncryptionData corruptedEncryptionData = new()
         {
             CipherKey = encryptionData.CipherKey,
             CipherIv = encryptionData.CipherIv,
@@ -459,7 +488,7 @@ public class BatchTests : KsefIntegrationTestBase
             accessToken);
 
         // Kod 415 Błąd odszyfrowania dostarczonego klucza
-        Assert.Equal(StatusCodeInvalidEncryptionKey, sessionStatus.Status.Code);
+        Assert.Equal(BatchSessionCodeResponse.KeyDecryptionError, sessionStatus.Status.Code);
     }
 
     /// <summary>
@@ -467,10 +496,10 @@ public class BatchTests : KsefIntegrationTestBase
     /// Oczekuje błędu deszyfrowania po przetworzeniu sesji przez system KSeF.
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
     [Trait("Scenario", "Wysłanie paczki z nieprawidłowo zaszyfrowanymi danymi")]
-    public async Task Batch_SendWithCorruptedEncryptedData_ShouldFail(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    public async Task BatchSendWithCorruptedEncryptedDataShouldFail(SystemCode systemCode, string invoiceTemplatePath)
     {
         // Arrange
         List<(string FileName, byte[] Content)> invoices = BatchUtils.GenerateInvoicesInMemory(
@@ -488,11 +517,11 @@ public class BatchTests : KsefIntegrationTestBase
 
         // Celowe uszkodzenie zaszyfrowanych danych poprzez inwersję bitów w środkowej pozycji
         // To symuluje uszkodzenie podczas transmisji lub manipulację danymi
-        byte[] corruptedData = encryptedParts[0].Data.ToArray();
+        byte[] corruptedData = [.. encryptedParts[0].Data];
         int corruptionPosition = corruptedData.Length / 2;
         corruptedData[corruptionPosition] ^= 0xFF;
 
-        BatchPartSendingInfo corruptedPart = new BatchPartSendingInfo
+        BatchPartSendingInfo corruptedPart = new()
         {
             OrdinalNumber = encryptedParts[0].OrdinalNumber,
             Data = corruptedData,
@@ -500,7 +529,7 @@ public class BatchTests : KsefIntegrationTestBase
         };
 
         // Act
-        List<BatchPartSendingInfo> corruptedPartsList = new List<BatchPartSendingInfo> { corruptedPart };
+        List<BatchPartSendingInfo> corruptedPartsList = [corruptedPart];
         OpenBatchSessionRequest openSessionRequest = BatchUtils.BuildOpenBatchRequest(
             zipMetadata,
             encryptionData,
@@ -520,7 +549,7 @@ public class BatchTests : KsefIntegrationTestBase
             accessToken);
 
         // Kod 405 Błąd weryfikacji poprawności dostarczonych elementów paczki
-        Assert.Equal(StatusCodeDecryptionError, sessionStatus.Status.Code);
+        Assert.Equal(BatchSessionCodeResponse.ValidationError, sessionStatus.Status.Code);
     }
 
     /// <summary>
@@ -528,11 +557,11 @@ public class BatchTests : KsefIntegrationTestBase
     /// Oczekuje błędu deszyfrowania po przetworzeniu sesji przez system KSeF.
     /// </summary>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
     [Trait("Scenario", "Wysłanie paczki z nieprawidłowym wektorem inicjującym")]
-    public async Task Batch_SendWithInvalidInitializationVector_ShouldFail(
-        SystemCodeEnum systemCode,
+    public async Task BatchSendWithInvalidInitializationVectorShouldFail(
+        SystemCode systemCode,
         string invoiceTemplatePath)
     {
         // Arrange
@@ -554,7 +583,7 @@ public class BatchTests : KsefIntegrationTestBase
         byte[] corruptedInitializationVector = new byte[InitializationVectorSize];
         RandomNumberGenerator.Fill(corruptedInitializationVector);
 
-        EncryptionData corruptedEncryptionData = new EncryptionData
+        EncryptionData corruptedEncryptionData = new()
         {
             CipherKey = encryptionData.CipherKey,
             CipherIv = encryptionData.CipherIv,
@@ -586,7 +615,7 @@ public class BatchTests : KsefIntegrationTestBase
             accessToken);
 
         // Kod 430 Błąd dekompresji pierwotnego archiwum
-        Assert.Equal(StatusCodeInvalidInitializationVector, sessionStatus.Status.Code);
+        Assert.Equal(BatchSessionCodeResponse.ArchiveDecompressionError, sessionStatus.Status.Code);
     }
 
     /// <summary>
@@ -595,22 +624,22 @@ public class BatchTests : KsefIntegrationTestBase
     /// Wypełnienie składa się z losowych danych w pliku bez kompresji, aby zachować kontrolę nad rozmiarem.
     /// </summary>
     /// <param name="zipBytes">Oryginalne bajty archiwum ZIP.</param>
-    /// <param name="minimumSizeInBytes">Minimalny wymagany rozmiar w bajtach.</param>
+    /// <param name="minimumSizeInBytes">Minimalny wymagany rozmiar w bajtach (przed szyfrowaniem).</param>
     /// <returns>Archiwum ZIP z dodanym wypełnieniem.</returns>
     private static byte[] AddPaddingToZipArchive(byte[] zipBytes, long minSizeBytes)
     {
-        using MemoryStream memoryStream = new MemoryStream();
+        using MemoryStream memoryStream = new();
         memoryStream.Write(zipBytes, 0, zipBytes.Length);
 
-        using ZipArchive archive = new ZipArchive(memoryStream, ZipArchiveMode.Update, leaveOpen: true);
+        using ZipArchive archive = new(memoryStream, ZipArchiveMode.Update, leaveOpen: true);
 
         if (memoryStream.Length < minSizeBytes)
         {
-            long paddingSize = minSizeBytes - memoryStream.Length + 1024 * 1024; // +1 MB zapasu
+            long paddingSize = (minSizeBytes - memoryStream.Length) + PaddingSafetyMarginInBytes; // +100 KB zapasu
             ZipArchiveEntry paddingEntry = archive.CreateEntry("padding.bin", CompressionLevel.NoCompression);
             using Stream entryStream = paddingEntry.Open();
             RandomNumberGenerator randomGenerator = RandomNumberGenerator.Create();
-            byte[] buffer = new byte[1024 * 1024];
+            byte[] buffer = new byte[1_000_000];
             long bytesWritten = 0;
 
             while (bytesWritten < paddingSize)

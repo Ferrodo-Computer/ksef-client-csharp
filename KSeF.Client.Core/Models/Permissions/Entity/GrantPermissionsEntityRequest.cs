@@ -1,13 +1,15 @@
 
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using System.Collections.Generic;
 
 namespace KSeF.Client.Core.Models.Permissions.Entity
 {
     public class GrantPermissionsEntityRequest
     {
-        public EntitySubjectIdentifier SubjectIdentifier { get; set; }
+        public GrantPermissionsEntitySubjectIdentifier SubjectIdentifier { get; set; }
         public ICollection<EntityPermission> Permissions { get; set; }
         public string Description { get; set; }
+        public PermissionsEntitySubjectDetails SubjectDetails { get; set; }
     }
 
     public enum EntityStandardPermissionType
@@ -33,15 +35,8 @@ namespace KSeF.Client.Core.Models.Permissions.Entity
         }
     }
 
-    public partial class EntitySubjectIdentifier
+    public class PermissionsEntitySubjectDetails
     {
-        public EntitySubjectIdentifierType Type { get; set; }
-        public string Value { get; set; }
-    }
-
-    public enum EntitySubjectIdentifierType
-    {
-        Nip,
-        PeppolId
+        public string FullName { get; set; }
     }
 }

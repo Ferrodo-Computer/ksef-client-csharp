@@ -1,3 +1,5 @@
+using KSeF.Client.Core.Models.Permissions.Identifiers;
+
 namespace KSeF.Client.Core.Models.Permissions.Authorizations
 {
     public class GrantPermissionsAuthorizationRequest
@@ -5,6 +7,7 @@ namespace KSeF.Client.Core.Models.Permissions.Authorizations
         public AuthorizationSubjectIdentifier SubjectIdentifier { get; set; }
         public AuthorizationPermissionType Permission { get; set; }
         public string Description { get; set; }
+        public PermissionsAuthorizationSubjectDetails SubjectDetails { get; set; }
     }
 
     public enum AuthorizationPermissionType
@@ -15,15 +18,8 @@ namespace KSeF.Client.Core.Models.Permissions.Authorizations
         PefInvoicing
     }
 
-    public partial class AuthorizationSubjectIdentifier
+    public class PermissionsAuthorizationSubjectDetails
     {
-        public AuthorizationSubjectIdentifierType Type { get; set; }
-        public string Value { get; set; }
-    }
-
-    public enum AuthorizationSubjectIdentifierType
-    {
-        Nip,
-        PeppolId
+        public string FullName { get; set; }
     }
 }

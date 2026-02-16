@@ -1,4 +1,4 @@
-namespace WebApplication.Services;
+namespace KSeF.DemoWebApp.Services;
 
 public static class XadeSDummy
 {
@@ -16,7 +16,7 @@ public static class XadeSDummy
         try
         {
             // 2. Zapisz oryginalny plik do podpisu
-            await File.WriteAllTextAsync(fileToSignPath, xml);
+            await File.WriteAllTextAsync(fileToSignPath, xml).ConfigureAwait(false);
 
             Console.WriteLine($"File written: {fileToSignPath}. Waiting for signed version...");
 
@@ -27,9 +27,9 @@ public static class XadeSDummy
                 if (File.Exists(fileSignedPath))
                 {
                     // #GreenFlag: plik podpisany jest, odczytujemy i zwracamy zawartość
-                    return await File.ReadAllTextAsync(fileSignedPath);
+                    return await File.ReadAllTextAsync(fileSignedPath).ConfigureAwait(false);
                 }
-                await Task.Delay(pollInterval);
+                await Task.Delay(pollInterval).ConfigureAwait(false);
             }
 
             // #RedFlag: Timeout – plik się nie pojawił

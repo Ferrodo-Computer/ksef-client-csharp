@@ -1,9 +1,11 @@
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Permissions;
+using KSeF.Client.Core.Models.Permissions.Identifiers;
 using KSeF.Client.Core.Models.Permissions.Person;
+using KSeF.Client.Core.Models.Token;
 using KSeF.Client.Tests.Utils;
 
-namespace KSeF.Client.Tests.Features
+namespace KSeF.Client.Tests.Features.Credentials
 {
     [Collection("CredentialsGrantScenario")]
     [Trait("Category", "Features")]
@@ -11,101 +13,170 @@ namespace KSeF.Client.Tests.Features
     public class CredentialsGrantTests : KsefIntegrationTestBase
     {
         [Theory]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.InvoiceWrite })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.InvoiceRead, PersonStandardPermissionType.InvoiceWrite })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.CredentialsManage })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.CredentialsRead })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.Introspection })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.SubunitManage })]
-
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.InvoiceWrite })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.InvoiceRead })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.CredentialsManage })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.CredentialsRead })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.Introspection })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.InvoiceWrite, PersonStandardPermissionType.InvoiceRead })]
+        [InlineData("90091309123", new[] { PersonPermissionType.InvoiceWrite, PersonPermissionType.InvoiceRead, PersonPermissionType.Introspection, PersonPermissionType.CredentialsRead, PersonPermissionType.CredentialsManage })]
+        [InlineData("6651887777", new[] { PersonPermissionType.InvoiceWrite, PersonPermissionType.InvoiceRead, PersonPermissionType.Introspection, PersonPermissionType.CredentialsRead, PersonPermissionType.CredentialsManage })]
         [Trait("Scenario", "Nadanie uprawnienia wystawianie faktur")]
-        public async Task GivenOwnerIsAuthenticated_WhenGrantInvoiceIssuingPermissionToEntity_ThenPermissionIsConfirmed(string identyficator, PersonStandardPermissionType[] permissions)
+        public async Task GivenOwnerIsAuthenticatedWhenGrantInvoiceIssuingPermissionToEntityThenPermissionIsConfirmed(string identyficator, PersonPermissionType[] permissions)
         {
-            string ownerNIP = MiscellaneousUtils.GetRandomNip();
+            string ownerNip = MiscellaneousUtils.GetRandomNip();
 
-            await TestGrantPermissions(identyficator, permissions, ownerNIP);
-        }
+            string authToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip)).AccessToken.Token;
 
-        [Theory]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.InvoiceWrite })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.InvoiceRead, PersonStandardPermissionType.InvoiceWrite })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.CredentialsManage })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.CredentialsRead })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.Introspection })]
-        [InlineData("90091309123", new[] { PersonStandardPermissionType.SubunitManage })]
+            bool isNIP = identyficator.Length == 10; //zmienna identifier obsługuje dwa typy podmiotów. nr. NIP oraz nr. PESEL. Zmienne rozróżniane są po długości.
 
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.InvoiceWrite })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.InvoiceRead })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.CredentialsManage })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.CredentialsRead })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.Introspection })]
-        [InlineData("6651887777", new[] { PersonStandardPermissionType.InvoiceWrite, PersonStandardPermissionType.InvoiceRead })]
-        [Trait("Scenario", "Nadanie uprawnień przez osobę z uprawnieniem do zarządzania uprawnieniami")]
-        public async Task GivenDelegatedByOwnerIsAuthenticated_WhenGrantInvoiceIssuingPermissionToEntity_ThenPermissionIsConfirmed(string identyficator, PersonStandardPermissionType[] permissions)
-        {
-            string ownerNIP = MiscellaneousUtils.GetRandomNip();
-            string authToken = (await AuthenticationUtils.AuthenticateAsync(KsefClient, SignatureService, ownerNIP)).AccessToken.Token;
+            GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new() { Type = isNIP ? GrantPermissionsPersonSubjectIdentifierType.Nip : GrantPermissionsPersonSubjectIdentifierType.Pesel, Value = identyficator };
 
-            string nipWhichWillDelegatePermissions = MiscellaneousUtils.GetRandomNip();
+			PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			};
 
-            PersonSubjectIdentifier subjectIdentifier = new PersonSubjectIdentifier { Type = PersonSubjectIdentifierType.Nip, Value = nipWhichWillDelegatePermissions };
-
-            PersonStandardPermissionType[] managePermission = new[] { PersonStandardPermissionType.CredentialsManage };
-
-            OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient, authToken, subjectIdentifier, permissions);
-
-            await Task.Delay(1000);
-            //tests
-            await TestGrantPermissions(identyficator, permissions, nipWhichWillDelegatePermissions);
-
-            //revoke permissions to delegate
-            IReadOnlyList<PersonPermission> grantedPermissions = await PermissionsUtils.SearchPersonPermissionsAsync(KsefClient, authToken, PersonPermissionState.Active);
-            Assert.True(grantedPermissions.Any());
-
-            foreach (PersonPermission item in grantedPermissions)
-            {
-                OperationResponse revokeSuccessful = await PermissionsUtils.RevokePersonPermissionAsync(KsefClient, authToken, item.Id);
-                Assert.NotNull(revokeSuccessful);
-                await Task.Delay(3000);
-            }
-
-            IReadOnlyList<PersonPermission> activePermissionsAfterRevoke = await PermissionsUtils.SearchPersonPermissionsAsync(KsefClient, authToken, PersonPermissionState.Active);
-            Assert.Empty(activePermissionsAfterRevoke);
-        }
-
-        private async Task TestGrantPermissions(string identyficator, PersonStandardPermissionType[] permissions, string nip)
-        {
-            string authToken = (await AuthenticationUtils.AuthenticateAsync(KsefClient, SignatureService, nip)).AccessToken.Token;
-
-            bool isNIP = identyficator.Length == 10;
-
-            PersonSubjectIdentifier subjectIdentifier = new PersonSubjectIdentifier { Type = isNIP ? PersonSubjectIdentifierType.Nip : PersonSubjectIdentifierType.Pesel, Value = identyficator };
-            OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
+			OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
                     authToken,
                     subjectIdentifier,
-                    permissions, "CredentialsGrantTests");
+                    permissions, 
+                    subjectDetails, 
+                    "CredentialsGrantTests"
+            );
 
-            PermissionsOperationStatusResponse grantPermissionsActionStatus = await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, grantPermissionsResponse.ReferenceNumber, authToken);
+            PermissionsOperationStatusResponse operationStatus = await AsyncPollingUtils.PollAsync(
+                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, grantPermissionsResponse.ReferenceNumber, authToken).ConfigureAwait(false),
+                status => status is not null &&
+                         status.Status is not null &&
+                         status.Status.Code == 200,
+                delay: TimeSpan.FromSeconds(5),
+                maxAttempts: 60,
+                cancellationToken: CancellationToken.None);
 
-            await Task.Delay(3000);
             IReadOnlyList<PersonPermission> grantedPermissions = await PermissionsUtils.SearchPersonPermissionsAsync(KsefClient, authToken, PersonPermissionState.Active);
             Assert.True(grantedPermissions.Count == permissions.Length);
 
+            //uwierzytelnienie w kontekście w którym otrzymano uprawnienia
+            Core.Models.Authorization.AuthenticationOperationStatusResponse authContext = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, identyficator, ownerNip);
+            Assert.NotNull(authContext);
+            PersonToken personToken = TokenService.MapFromJwt(authContext.AccessToken.Token);
+            Assert.True(personToken.Permissions.Length == permissions.Length);
+
             foreach (PersonPermission item in grantedPermissions)
             {
                 OperationResponse revokeSuccessful = await PermissionsUtils.RevokePersonPermissionAsync(KsefClient, authToken, item.Id);
                 Assert.NotNull(revokeSuccessful);
-                await Task.Delay(3000);
+
+                PermissionsOperationStatusResponse revokePermissionsActionStatus = await AsyncPollingUtils.PollAsync(
+                    async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, revokeSuccessful.ReferenceNumber, authToken).ConfigureAwait(false),
+                    status => status is not null &&
+                             status.Status is not null &&
+                             status.Status.Code == 200,
+                    delay: TimeSpan.FromSeconds(2),
+                    maxAttempts: 60,
+                    cancellationToken: CancellationToken.None);
             }
 
             IReadOnlyList<PersonPermission> activePermissionsAfterRevoke = await PermissionsUtils.SearchPersonPermissionsAsync(KsefClient, authToken, PersonPermissionState.Active);
             Assert.Empty(activePermissionsAfterRevoke);
+        }
+
+        [Theory]
+        [InlineData("90091309123", new[] { PersonPermissionType.InvoiceRead, PersonPermissionType.InvoiceWrite, PersonPermissionType.CredentialsManage,PersonPermissionType.CredentialsRead, PersonPermissionType.Introspection, PersonPermissionType.SubunitManage })]
+        [InlineData("6651887777", new[] { PersonPermissionType.InvoiceWrite, PersonPermissionType.InvoiceRead, PersonPermissionType.Introspection, PersonPermissionType.CredentialsRead, PersonPermissionType.CredentialsManage  })]
+        [Trait("Scenario", "Nadanie uprawnień przez osobę z uprawnieniem do zarządzania uprawnieniami")]
+        public async Task GivenDelegatedByOwnerIsAuthenticated_WhenGrantInvoiceIssuingPermissionToEntity_ThenPermissionIsConfirmed(string identifier, PersonPermissionType[] permissions)
+        {
+            bool isNip = identifier.Length == 10; //zmienna identifier obsługuje dwa typy podmiotów. nr. NIP oraz nr. PESEL. Zmienne rozróżniane są po długości.
+            //Arange
+            string ownerNip = MiscellaneousUtils.GetRandomNip();
+            string authToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, ownerNip)).AccessToken.Token;
+
+            string delegateNip = MiscellaneousUtils.GetRandomNip();
+
+            // nadanie uprawnień CredentialsManage
+            GrantPermissionsPersonSubjectIdentifier subjectIdentifier = new() { Type = GrantPermissionsPersonSubjectIdentifierType.Nip, Value = delegateNip };
+            PersonPermissionType[] managePermission = new[] { PersonPermissionType.CredentialsManage };
+
+			PersonPermissionSubjectDetails subjectDetails = new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Anna",
+					LastName = "Testowa"
+				}
+			};
+
+			OperationResponse operationResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient, authToken, subjectIdentifier, managePermission, subjectDetails);
+
+            PermissionsOperationStatusResponse operationStatus = await AsyncPollingUtils.PollAsync(
+                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, operationResponse.ReferenceNumber, authToken).ConfigureAwait(false),
+                status => status is not null &&
+                         status.Status is not null &&
+                         status.Status.Code == 200,
+                delay: TimeSpan.FromMilliseconds(SleepTime),
+                maxAttempts: 60,
+                cancellationToken: CancellationToken.None);
+
+            //Nadanie uprawnień jako menadżer uprawnień
+            string delegateAuthToken = (await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, delegateNip, ownerNip)).AccessToken.Token;
+
+            GrantPermissionsPersonSubjectIdentifier grantPermissionsPersonSubjectIdentifier = new() { Type = isNip ? GrantPermissionsPersonSubjectIdentifierType.Nip : GrantPermissionsPersonSubjectIdentifierType.Pesel, Value = identifier };
+
+			PersonPermissionSubjectDetails targetPersonDetails = new PersonPermissionSubjectDetails
+			{
+				SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
+				PersonById = new PersonPermissionPersonById
+				{
+					FirstName = "Jan",
+					LastName = "Testowy"
+				}
+			};
+
+			OperationResponse grantPermissionsResponse = await PermissionsUtils.GrantPersonPermissionsAsync(KsefClient,
+                    delegateAuthToken,
+                    grantPermissionsPersonSubjectIdentifier,
+                    permissions,
+					targetPersonDetails,
+					"CredentialsGrantTests");
+
+            PermissionsOperationStatusResponse grantPermissionsActionStatus = await AsyncPollingUtils.PollAsync(
+                async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, operationResponse.ReferenceNumber, delegateAuthToken).ConfigureAwait(false),
+                status => status is not null &&
+                         status.Status is not null &&
+                         status.Status.Code == 200,
+                delay: TimeSpan.FromSeconds(5),
+                maxAttempts: 60,
+                cancellationToken: CancellationToken.None);
+
+            IReadOnlyList<PersonPermission> grantedPermissions = await PermissionsUtils.SearchPersonPermissionsAsync(KsefClient, delegateAuthToken, PersonPermissionState.Active);
+            Assert.True(grantedPermissions.Count(x=> x.AuthorizedIdentifier.Value == identifier) == permissions.Length);
+
+            //uwierzytelnienie w kontekście w którym otrzymano uprawnienia
+            Core.Models.Authorization.AuthenticationOperationStatusResponse authContext = await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, identifier, ownerNip);
+            Assert.NotNull(authContext);
+            PersonToken personToken = TokenService.MapFromJwt(authContext.AccessToken.Token);
+            Assert.True(personToken.Permissions.Length == permissions.Length);
+
+            foreach (PersonPermission item in grantedPermissions)
+            {
+                OperationResponse revokeSuccessful = await PermissionsUtils.RevokePersonPermissionAsync(KsefClient, authToken, item.Id);
+                Assert.NotNull(revokeSuccessful);
+
+                PermissionsOperationStatusResponse revokePermissionsActionStatus = await AsyncPollingUtils.PollAsync(
+                    async () => await PermissionsUtils.GetPermissionsOperationStatusAsync(KsefClient, revokeSuccessful.ReferenceNumber, authToken).ConfigureAwait(false),
+                    status => status is not null &&
+                             status.Status is not null &&
+                             status.Status.Code == 200,
+                    delay: TimeSpan.FromMilliseconds(SleepTime),
+                    maxAttempts: 60,
+                    cancellationToken: CancellationToken.None);
+            }
+
+            //wyszukanie uprawnień z poziomu delegata
+            IReadOnlyList<PersonPermission> activePermissionsFromSubjectAfterRevoke = await PermissionsUtils.SearchPersonPermissionsAsync(KsefClient, delegateAuthToken, PersonPermissionState.Active);
+            Assert.Empty(activePermissionsFromSubjectAfterRevoke);
         }
     }
 }

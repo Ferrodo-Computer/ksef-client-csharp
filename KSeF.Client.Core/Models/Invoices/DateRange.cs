@@ -8,5 +8,12 @@ namespace KSeF.Client.Core.Models.Invoices
         public DateType DateType { get; set; }
         public DateTime From { get; set; }
         public DateTime? To { get; set; }
+        public bool? RestrictToPermanentStorageHwmDate { get; set; }
+    }
+    public enum DateType
+    {
+        Issue,
+        Invoicing,
+        PermanentStorage
     }
 }

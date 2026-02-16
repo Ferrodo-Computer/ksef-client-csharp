@@ -2,63 +2,63 @@
 Potrzeba biznesowa: Operacje na sesji wsadowej
 
 @smoke @Batch @regresja
-Scenariusz: Wys³anie dokumentów w jednoczêœciowej paczce
-  Zak³adaj¹c, ¿e mam 5 faktur z poprawnym NIP
-  Je¿eli wyœlê je w jednoczêœciowej zaszyfrowanej paczce
-  Wtedy wszystkie faktury powinny byæ przetworzone pomyœlnie
-  Oraz powinienem móc pobraæ UPO
+Scenariusz: WysÅ‚anie dokumentÃ³w w jednoczÄ™Å›ciowej paczce
+  ZakÅ‚adajÄ…c, Å¼e mam 5 faktur z poprawnym NIP
+  JeÅ¼eli wyÅ›lÄ™ je w jednoczÄ™Å›ciowej zaszyfrowanej paczce
+  Wtedy wszystkie faktury powinny byÄ‡ przetworzone pomyÅ›lnie
+  Oraz powinienem mÃ³c pobraÄ‡ UPO
 
 @smoke @Batch @regresja @Negative
-Scenariusz: Wys³anie jednoczêœciowej paczki dokumentów ze z³ym NIP
-  Zak³adaj¹c, ¿e mam 5 faktur z niepoprawnym NIP
-  Je¿eli wyœlê je w jednoczêœciowej zaszyfrowanej paczce
-  Wtedy proces powinien zakoñczyæ siê b³êdem 445
-  Oraz wszystkie faktury powinny byæ odrzucone
+Scenariusz: WysÅ‚anie jednoczÄ™Å›ciowej paczki dokumentÃ³w ze zÅ‚ym NIP
+  ZakÅ‚adajÄ…c, Å¼e mam 5 faktur z niepoprawnym NIP
+  JeÅ¼eli wyÅ›lÄ™ je w jednoczÄ™Å›ciowej zaszyfrowanej paczce
+  Wtedy proces powinien zakoÅ„czyÄ‡ siÄ™ bÅ‚Ä™dem 445
+  Oraz wszystkie faktury powinny byÄ‡ odrzucone
 
 @Batch @regresja @Negative
 Scenariusz: Przekroczenie limitu liczby faktur
-  Zak³adaj¹c, ¿e mam 10001 faktur
-  Je¿eli wyœlê je w paczce
-  Wtedy system powinien zwróciæ b³¹d 420
+  ZakÅ‚adajÄ…c, Å¼e mam 10001 faktur
+  JeÅ¼eli wyÅ›lÄ™ je w paczce
+  Wtedy system powinien zwrÃ³ciÄ‡ bÅ‚Ä…d 420
 
 @Batch @regresja @Negative
-Scenariusz: Przekroczenie maksymalnego rozmiaru ca³ej paczki
-  Zak³adaj¹c, ¿e przygotowa³em paczkê o deklarowanym rozmiarze wiêkszym ni¿ 5 GiB
-  Je¿eli spróbujê nawi¹zaæ sesjê wsadow¹
-  Wtedy system odrzuci ¿¹danie ze wzglêdu na przekroczenie limitu fileSize
+Scenariusz: Przekroczenie maksymalnego rozmiaru caÅ‚ej paczki
+  ZakÅ‚adajÄ…c, Å¼e przygotowaÅ‚em paczkÄ™ o deklarowanym rozmiarze wiÄ™kszym niÅ¼ 5 GiB
+  JeÅ¼eli sprÃ³bujÄ™ nawiÄ…zaÄ‡ sesjÄ™ wsadowÄ…
+  Wtedy system odrzuci Å¼Ä…danie ze wzglÄ™du na przekroczenie limitu fileSize
 
 @Batch @regresja @Negative
 Scenariusz: Przekroczenie rozmiaru paczki
-  Zak³adaj¹c, ¿e mam paczkê o rozmiarze 101 MiB
-  Je¿eli spróbujê otworzyæ sesjê wsadow¹
-  Wtedy system powinien odrzuciæ ¿¹danie
+  ZakÅ‚adajÄ…c, Å¼e mam paczkÄ™ o rozmiarze 101 MiB
+  JeÅ¼eli sprÃ³bujÄ™ otworzyÄ‡ sesjÄ™ wsadowÄ…
+  Wtedy system powinien odrzuciÄ‡ Å¼Ä…danie
 
 @Batch @regresja @Negative
-Scenariusz: Zamkniêcie sesji bez wys³ania wszystkich czêœci
-  Zak³adaj¹c, ¿e zadeklarowa³em 3 czêœci paczki
-  Je¿eli wyœlê tylko 1 czêœæ
-  Wtedy system powinien odrzuciæ próbê wys³ania
+Scenariusz: ZamkniÄ™cie sesji bez wysÅ‚ania wszystkich czÄ™Å›ci
+  ZakÅ‚adajÄ…c, Å¼e zadeklarowaÅ‚em 3 czÄ™Å›ci paczki
+  JeÅ¼eli wyÅ›lÄ™ tylko 1 czÄ™Å›Ä‡
+  Wtedy system powinien odrzuciÄ‡ prÃ³bÄ™ wysÅ‚ania
 
-@Batch @regresja @Negative  
-Scenariusz: Przekroczenie limitu liczby czêœci
-  Zak³adaj¹c, ¿e zadeklarowa³em 51 czêœci paczki
-  Je¿eli spróbujê otworzyæ sesjê wsadow¹
-  Wtedy system powinien odrzuciæ ¿¹danie
+@Batch @regresja @Negative 
+Scenariusz: Przekroczenie limitu liczby czÄ™Å›ci
+  ZakÅ‚adajÄ…c, Å¼e zadeklarowaÅ‚em 51 czÄ™Å›ci paczki
+  JeÅ¼eli sprÃ³bujÄ™ otworzyÄ‡ sesjÄ™ wsadowÄ…
+  Wtedy system powinien odrzuciÄ‡ Å¼Ä…danie
 
 @Batch @regresja @Encryption @Negative
-Scenariusz: Nieprawid³owy zaszyfrowany klucz
-  Zak³adaj¹c, ¿e mam paczkê z uszkodzonym kluczem szyfrowania
-  Je¿eli wyœlê paczkê i zamknê sesjê
-  Wtedy system powinien zwróciæ b³¹d 415
+Scenariusz: NieprawidÅ‚owy zaszyfrowany klucz
+  ZakÅ‚adajÄ…c, Å¼e mam paczkÄ™ z uszkodzonym kluczem szyfrowania
+  JeÅ¼eli wyÅ›lÄ™ paczkÄ™ i zamknÄ™ sesjÄ™
+  Wtedy system powinien zwrÃ³ciÄ‡ bÅ‚Ä…d 415
 
 @Batch @regresja @Encryption @Negative
 Scenariusz: Uszkodzone zaszyfrowane dane
-  Zak³adaj¹c, ¿e mam paczkê z uszkodzonymi danymi
-  Je¿eli wyœlê paczkê i zamknê sesjê
-  Wtedy system powinien zwróciæ b³¹d 405
+  ZakÅ‚adajÄ…c, Å¼e mam paczkÄ™ z uszkodzonymi danymi
+  JeÅ¼eli wyÅ›lÄ™ paczkÄ™ i zamknÄ™ sesjÄ™
+  Wtedy system powinien zwrÃ³ciÄ‡ bÅ‚Ä…d 405
 
 @Batch @regresja @Encryption @Negative
-Scenariusz: Nieprawid³owy wektor inicjuj¹cy
-  Zak³adaj¹c, ¿e mam paczkê z nieprawid³owym IV
-  Je¿eli wyœlê paczkê i zamknê sesjê
-  Wtedy system powinien zwróciæ b³¹d 430
+Scenariusz: NieprawidÅ‚owy wektor inicjujÄ…cy
+  ZakÅ‚adajÄ…c, Å¼e mam paczkÄ™ z nieprawidÅ‚owym IV
+  JeÅ¼eli wyÅ›lÄ™ paczkÄ™ i zamknÄ™ sesjÄ™
+  Wtedy system powinien zwrÃ³ciÄ‡ bÅ‚Ä…d 430

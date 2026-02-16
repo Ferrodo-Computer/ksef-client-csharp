@@ -61,7 +61,12 @@ namespace KSeF.Client.Core.Models.Sessions
         /// <summary>
         /// Sesja nie przetworzona z powodu błędów.
         /// </summary>
-        Failed
+        Failed,
+
+        /// <summary>
+        /// Sesja anulowana.
+        /// </summary>
+        Cancelled
     }
 
     public enum SessionType
@@ -71,7 +76,7 @@ namespace KSeF.Client.Core.Models.Sessions
         /// </summary>
         Online,
         /// <summary>
-        /// Sesjs wsadowa.
+        /// Sesja wsadowa.
         /// </summary>
         Batch
     }

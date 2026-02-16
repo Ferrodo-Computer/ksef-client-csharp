@@ -1,4 +1,3 @@
-using KSeF.Client.Api.Builders.EUEntityPermissions;
 using KSeF.Client.Core.Models.Permissions.EUEntity;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
@@ -11,24 +10,16 @@ namespace KSeF.DemoWebApp.Controllers;
 public class EUEntityPermissionsController(IKSeFClient ksefClient) : ControllerBase
 {
     [HttpPost("grant-eu-entity-permissions")]
-    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, GrantPermissionsEUEntityRequest grantPermissionsRequest, CancellationToken cancellationToken)
+    public async Task<ActionResult<OperationResponse>> GrantPermissionsEntity(string accessToken, GrantPermissionsEuEntityRequest grantPermissionsRequest, CancellationToken cancellationToken)
     {
-        GrantPermissionsEUEntityRequest request = GrantEUEntityPermissionsRequestBuilder
-            .Create()
-            .WithSubject(grantPermissionsRequest.SubjectIdentifier)
-            .WithSubjectName("Sample Subject Name")
-            .WithContext(grantPermissionsRequest.ContextIdentifier)
-            .WithDescription("Access for quarterly review")
-            .Build();
-
-        return await ksefClient.GrantsPermissionEUEntityAsync(request, accessToken, cancellationToken);
+        return await ksefClient.GrantsPermissionEUEntityAsync(grantPermissionsRequest, accessToken, cancellationToken).ConfigureAwait(false);
     }
 
     [HttpPost("revoke-eu-entity-permissions")]
     public async Task<ActionResult<OperationResponse>> RevokePermissionsEntity(string permissionId, string accessToken, CancellationToken cancellationToken)
     {
       
-        return await ksefClient.RevokeCommonPermissionAsync(permissionId, accessToken, cancellationToken);
+        return await ksefClient.RevokeCommonPermissionAsync(permissionId, accessToken, cancellationToken).ConfigureAwait(false);
     }
 
 }

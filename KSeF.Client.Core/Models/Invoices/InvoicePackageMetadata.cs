@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace KSeF.Client.Core.Models.Invoices

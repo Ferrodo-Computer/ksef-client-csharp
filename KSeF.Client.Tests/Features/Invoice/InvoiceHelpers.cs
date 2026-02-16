@@ -10,7 +10,7 @@ public partial class InvoiceTests
     /// Pomocnicza klasa do pracy z szablonami faktur w testach.
     /// Umożliwia odczyt szablonu, podmianę wartości elementów oraz formatowanie dat.
     /// </summary>
-    private class InvoiceHelpers
+    private sealed class InvoiceHelpers
     {
         /// <summary>
         /// Wczytuje treść pliku szablonu z folderu "Templates", a następnie
@@ -24,7 +24,9 @@ public partial class InvoiceTests
         {
             string path = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
             if (!File.Exists(path))
+            {
                 throw new DirectoryNotFoundException($"Templates nie znaleziono pod: {path}");
+            }
 
             return File.ReadAllText(path, Encoding.UTF8)
                 .Replace("#nip#", nip)

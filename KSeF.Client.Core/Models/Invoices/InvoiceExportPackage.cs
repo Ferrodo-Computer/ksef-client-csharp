@@ -42,5 +42,10 @@ namespace KSeF.Client.Core.Models.Invoices
         /// Data trwałego przechowywania ostatniej faktury w paczce.
         /// </summary>
         public DateTimeOffset? LastPermanentStorageDate { get; set; }
+
+        /// <summary>
+        /// Dotyczy wyłącznie zapytań filtrowanych po typie daty PermanentStorage. Jeśli zapytanie dotyczyło najnowszego okresu, wartość ta może być wartością nieznacznie skorygowaną względem górnej granicy podanej w warunkach zapytania.
+        /// </summary>
+        public DateTimeOffset? PermanentStorageHwmDate { get; set; }
     }
 }

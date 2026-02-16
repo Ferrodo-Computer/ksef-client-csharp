@@ -1,7 +1,7 @@
 namespace KSeF.Client.Tests.Core.Utils.RateLimit;
 
 /// <summary>
-/// Reprezentuje limity dla konkretnego endpointu API KSeF.
+/// Reprezentuje limity konkretnego endpointu API KSeF.
 /// </summary>
 public record ApiLimits
 {

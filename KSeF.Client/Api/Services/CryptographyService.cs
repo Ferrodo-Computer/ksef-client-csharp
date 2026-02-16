@@ -1,6 +1,7 @@
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Certificates;
 using KSeF.Client.Core.Models.Sessions;
+using KSeF.Client.Extensions;
 using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -8,10 +9,10 @@ using System.Security.Cryptography.X509Certificates;
 namespace KSeF.Client.Api.Services;
 
 /// <inheritdoc />
-public class CryptographyService : ICryptographyService
+public class CryptographyService : ICryptographyService, IDisposable
 {
-    // JEDYNA zewnętrzna zależność: delegat do pobrania listy certów
-    private readonly Func<CancellationToken, Task<ICollection<PemCertificateInfo>>> _fetcher;
+    // JEDYNA zewnętrzna zależność: interfejs do pobrania listy certyfikatów
+    private readonly ICertificateFetcher _fetcher;
 
     private readonly TimeSpan _staleGrace = TimeSpan.FromHours(6);  // przy chwilowej awarii
 
@@ -19,35 +20,98 @@ public class CryptographyService : ICryptographyService
     private CertificateMaterials _materials;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Timer _refreshTimer;
-    private bool isInitialized;
+    private bool _isInitialized;
+    private bool _isExternallyManaged;
+    private bool _disposedValue;
 
-    public CryptographyService(
-        Func<CancellationToken, Task<ICollection<PemCertificateInfo>>> fetcher)
+    /// <summary>
+    /// Inicjuje nową instancję klasy <see cref="CryptographyService"/> z określonym mechanizmem pobierania certyfikatów.
+    /// </summary>
+    /// <param name="fetcher">Mechanizm pobierania certyfikatów używany do ich odzyskiwania na potrzeby operacji kryptograficznych. Nie może mieć wartości <see langword="null"/>.</param>
+    /// <exception cref="ArgumentNullException">Zwracany, jeśli <paramref name="fetcher"/> ma wartość <see langword="null"/>.</exception>
+    public CryptographyService(ICertificateFetcher fetcher)
     {
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
     }
 
+    /// <summary>
+    /// Inicjuje nową instancję klasy <see cref="CryptographyService"/> przy użyciu określonej funkcji pobierającej certyfikaty.
+    /// </summary>
+    /// <remarks>Zaleca się używanie głównego konstruktora, który
+    /// akceptuje <see cref="ICertificateFetcher"/>, aby ułatwić wstrzykiwanie zależności i testowanie.</remarks>
+    /// <param name="fetcher">Delegat, który asynchronicznie pobiera kolekcję obiektów <see cref="PemCertificateInfo"/>. Funkcja
+    /// przyjmuje <see cref="CancellationToken"/></param>
+    /// <exception cref="ArgumentNullException">Zwracany, jeśli <paramref name="fetcher"/> ma wartość <see langword="null"/>.</exception>
+    [Obsolete("Zaleca się użycie głównego konstruktora z podaniem ICertificateFetcher, ułatwia to DI i testowanie.")]
+    public CryptographyService(Func<CancellationToken, Task<ICollection<PemCertificateInfo>>> fetcher)
+    {
+        _fetcher = new CertificateFetcher(fetcher ?? throw new ArgumentNullException(nameof(fetcher)));
+    }
+
+    /// <inheritdoc />
+    public bool IsWarmedUp() => Volatile.Read(ref _materials) != null;
+
+    /// <summary>
+    /// Certyfikat używany do szyfrowania klucza symetrycznego.
+    /// </summary>
     public X509Certificate2 SymmetricKeyCertificate =>
         (_materials ?? throw NotReady()).SymmetricKeyCert;
 
+    /// <summary>
+    /// Certyfikat używany do szyfrowania tokenu KSeF.
+    /// </summary>
     public X509Certificate2 KsefTokenCertificate =>
         (_materials ?? throw NotReady()).KsefTokenCert;
 
+    /// <summary>
+    /// Certyfikat używany do szyfrowania klucza symetrycznego w formacie PEM.
+    /// </summary>
     public string SymmetricKeyEncryptionPem => ToPem(SymmetricKeyCertificate);
+
+    /// <summary>
+    /// Certyfikat używany do szyfrowania tokenu KSeF w formacie PEM.
+    /// </summary>
     public string KsefTokenPem => ToPem(KsefTokenCertificate);
 
+    /// <inheritdoc />
     public async Task WarmupAsync(CancellationToken cancellationToken = default)
     {
-        await RefreshAsync(cancellationToken); // pobierz po raz pierwszy
-        ScheduleNextRefresh();  // ustaw timer
+        if (_isExternallyManaged)
+        {
+            return; // Nie wykonuj, jeśli zarządzane zewnętrznie
+        }
+
+        await RefreshAsync(cancellationToken).ConfigureAwait(false); // pobierz po raz pierwszy
+        ScheduleNextRefresh();  // ustaw czas następnego odświeżania
     }
 
-    public async Task ForceRefreshAsync(CancellationToken cancellationTokem = default)
+    /// <inheritdoc />
+    public async Task ForceRefreshAsync(CancellationToken cancellationToken = default)
     {
-        await RefreshAsync(cancellationTokem);
+        if (_isExternallyManaged)
+        {
+            return; // Nie wykonuj, jeśli zarządzane zewnętrznie
+        }
+
+        await RefreshAsync(cancellationToken).ConfigureAwait(false);
         ScheduleNextRefresh();
     }
-    
+
+    /// <inheritdoc />
+    public void SetExternalMaterials(X509Certificate2 symmetricKeyCert, X509Certificate2 ksefTokenCert)
+    {
+        ArgumentNullException.ThrowIfNull(symmetricKeyCert);
+        ArgumentNullException.ThrowIfNull(ksefTokenCert);
+
+        _refreshTimer?.Dispose(); // Wyłącz automatyczne odświeżanie
+        _isExternallyManaged = true; // Oznacz jako zarządzane zewnętrznie
+
+        // Tworzy materiały bez daty wygaśnięcia i odświeżania
+        CertificateMaterials materials = new(symmetricKeyCert, ksefTokenCert, DateTimeOffset.MaxValue, DateTimeOffset.MaxValue);
+        Volatile.Write(ref _materials, materials);
+        _isInitialized = true; // Oznacz jako zainicjalizowane
+    }
+
     /// <inheritdoc />
     public EncryptionData GetEncryptionData()
     {
@@ -55,7 +119,7 @@ public class CryptographyService : ICryptographyService
         byte[] iv = GenerateRandom16BytesIv();
 
         byte[] encryptedKey = EncryptWithRSAUsingPublicKey(key, RSAEncryptionPadding.OaepSHA256);
-        EncryptionInfo encryptionInfo = new EncryptionInfo()
+        EncryptionInfo encryptionInfo = new()
         {
             EncryptedSymmetricKey = Convert.ToBase64String(encryptedKey),
 
@@ -77,25 +141,28 @@ public class CryptographyService : ICryptographyService
         using Stream input = BinaryData.FromBytes(content).ToStream();
         using MemoryStream output = new();
         using CryptoStream cryptoWriter = new(output, encryptor, CryptoStreamMode.Write);
-        
+
         input.CopyTo(cryptoWriter);
         cryptoWriter.FlushFinalBlock();
         output.Position = 0;
-        
+
         return BinaryData.FromStream(output).ToArray();
     }
 
+    /// <inheritdoc />
     public void EncryptStreamWithAES256(Stream input, Stream output, byte[] key, byte[] iv)
     {
         using Aes aes = CreateConfiguredAes(key, iv);
         using ICryptoTransform encryptor = aes.CreateEncryptor();
         using CryptoStream cryptoStream = new(output, encryptor, CryptoStreamMode.Write, leaveOpen: true);
-        
+
         input.CopyTo(cryptoStream);
         cryptoStream.FlushFinalBlock();
-        
+
         if (output.CanSeek)
+        {
             output.Position = 0;
+        }
     }
 
     /// <inheritdoc />
@@ -104,12 +171,14 @@ public class CryptographyService : ICryptographyService
         using Aes aes = CreateConfiguredAes(key, iv);
         using ICryptoTransform encryptor = aes.CreateEncryptor();
         using CryptoStream cryptoStream = new(output, encryptor, CryptoStreamMode.Write, leaveOpen: true);
-        
+
         await input.CopyToAsync(cryptoStream, 81920, cancellationToken).ConfigureAwait(false);
         await cryptoStream.FlushFinalBlockAsync(cancellationToken).ConfigureAwait(false);
-        
+
         if (output.CanSeek)
+        {
             output.Position = 0;
+        }
     }
 
     /// <inheritdoc />
@@ -120,10 +189,10 @@ public class CryptographyService : ICryptographyService
         using Stream input = BinaryData.FromBytes(content).ToStream();
         using MemoryStream output = new();
         using CryptoStream cryptoReader = new(input, decryptor, CryptoStreamMode.Read);
-        
+
         cryptoReader.CopyTo(output);
         output.Position = 0;
-        
+
         return BinaryData.FromStream(output).ToArray();
     }
 
@@ -133,11 +202,13 @@ public class CryptographyService : ICryptographyService
         using Aes aes = CreateConfiguredAes(key, iv);
         using ICryptoTransform decryptor = aes.CreateDecryptor();
         using CryptoStream cryptoStream = new(input, decryptor, CryptoStreamMode.Read);
-        
+
         cryptoStream.CopyTo(output);
-        
+
         if (output.CanSeek)
+        {
             output.Position = 0;
+        }
     }
 
     /// <inheritdoc />
@@ -146,25 +217,29 @@ public class CryptographyService : ICryptographyService
         using Aes aes = CreateConfiguredAes(key, iv);
         using ICryptoTransform decryptor = aes.CreateDecryptor();
         using CryptoStream cryptoStream = new(input, decryptor, CryptoStreamMode.Read);
-        
+
         await cryptoStream.CopyToAsync(output, 81920, cancellationToken).ConfigureAwait(false);
-        
+
         if (output.CanSeek)
+        {
             output.Position = 0;
+        }
     }
 
     /// <inheritdoc />
     public (string, string) GenerateCsrWithRsa(CertificateEnrollmentsInfoResponse certificateInfo, RSASignaturePadding padding = null)
     {
-        if(padding == null)
+        if (padding == null)
+        {
             padding = RSASignaturePadding.Pss;
+        }
 
         using RSA rsa = RSA.Create(2048);
         byte[] privateKey = rsa.ExportRSAPrivateKey();
 
         X500DistinguishedName subject = CreateSubjectDistinguishedName(certificateInfo);
 
-        CertificateRequest request = new CertificateRequest(subject, rsa, HashAlgorithmName.SHA256, padding);
+        CertificateRequest request = new(subject, rsa, HashAlgorithmName.SHA256, padding);
 
         byte[] csrDer = request.CreateSigningRequest();
         return (Convert.ToBase64String(csrDer), Convert.ToBase64String(privateKey));
@@ -173,12 +248,8 @@ public class CryptographyService : ICryptographyService
     /// <inheritdoc />
     public FileMetadata GetMetaData(byte[] file)
     {
-        string base64Hash = "";
-        using (SHA256 sha256 = SHA256.Create())
-        {
-            byte[] hash = sha256.ComputeHash(file);
-            base64Hash = Convert.ToBase64String(hash);
-        }
+        byte[] hash = SHA256.HashData(file);
+        string base64Hash = Convert.ToBase64String(hash);
 
         int fileSize = file.Length;
 
@@ -207,7 +278,7 @@ public class CryptographyService : ICryptographyService
         }
         else
         {
-            fileSize = 0; 
+            fileSize = 0;
         }
 
         using SHA256 sha256 = SHA256.Create();
@@ -217,14 +288,18 @@ public class CryptographyService : ICryptographyService
         {
             sha256.TransformBlock(buffer, 0, read, null, 0);
             if (!fileStream.CanSeek)
+            {
                 fileSize += read;
+            }
         }
-        sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+        sha256.TransformFinalBlock([], 0, 0);
 
         string base64Hash = Convert.ToBase64String(sha256.Hash!);
 
         if (restorePosition)
+        {
             fileStream.Position = originalPosition;
+        }
 
         return new FileMetadata
         {
@@ -233,6 +308,7 @@ public class CryptographyService : ICryptographyService
         };
     }
 
+    /// <inheritdoc />
     public async Task<FileMetadata> GetMetaDataAsync(Stream fileStream, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(fileStream);
@@ -260,13 +336,17 @@ public class CryptographyService : ICryptographyService
         {
             hasher.AppendData(buffer, 0, read);
             if (!fileStream.CanSeek)
+            {
                 fileSize += read;
+            }
         }
 
         string base64Hash = Convert.ToBase64String(hasher.GetHashAndReset());
 
         if (restorePosition)
+        {
             fileStream.Position = originalPosition;
+        }
 
         return new FileMetadata
         {
@@ -311,11 +391,18 @@ public class CryptographyService : ICryptographyService
         aes.Encrypt(nonce, content, cipherText, tag);
 
         byte[] subjectPublicKeyInfo = ecdhEphemeral.PublicKey.ExportSubjectPublicKeyInfo();
-        return subjectPublicKeyInfo
-            .Concat(nonce)
-            .Concat(tag)
-            .Concat(cipherText)
-            .ToArray();
+        return [.. subjectPublicKeyInfo
+, .. nonce, .. tag, .. cipherText];
+    }
+    /// <summary>
+    /// Zapewnia funkcjonalność do asynchronicznego pobierania kolekcji informacji o certyfikatach PEM.
+    /// </summary>
+    /// <remarks>Ta klasa jest implementacją interfejsu <see cref="ICertificateFetcher"/>,
+    /// zaprojektowaną do pobierania certyfikatów przy użyciu określonej funkcji asynchronicznej.
+    /// Służy wyłącznie utrzymaniu kompatybilności wstecznej (użyciu konstruktora z delegatem)</remarks>
+    private sealed class CertificateFetcher(Func<CancellationToken, Task<ICollection<PemCertificateInfo>>> func) : ICertificateFetcher
+    {   
+        public Task<ICollection<PemCertificateInfo>> GetCertificatesAsync(CancellationToken cancellationToken) => func(cancellationToken);
     }
 
     private static Aes CreateConfiguredAes(byte[] key, byte[] iv)
@@ -330,7 +417,7 @@ public class CryptographyService : ICryptographyService
         return aes;
     }
 
-    private byte[] GenerateRandom256BitsKey()
+    private static byte[] GenerateRandom256BitsKey()
     {
         byte[] key = new byte[256 / 8];
         RandomNumberGenerator rng = RandomNumberGenerator.Create();
@@ -339,7 +426,7 @@ public class CryptographyService : ICryptographyService
         return key;
     }
 
-    private byte[] GenerateRandom16BytesIv()
+    private static byte[] GenerateRandom16BytesIv()
     {
         byte[] iv = new byte[16];
         RandomNumberGenerator rng = RandomNumberGenerator.Create();
@@ -348,7 +435,7 @@ public class CryptographyService : ICryptographyService
         return iv;
     }
 
-    private string GetRSAPublicPem(string certificatePem)
+    private static string GetRSAPublicPem(string certificatePem)
     {
         X509Certificate2 cert = X509Certificate2.CreateFromPem(certificatePem);
 
@@ -360,11 +447,11 @@ public class CryptographyService : ICryptographyService
         }
         else
         {
-            throw new Exception("Nie znaleziono klucza RSA.");
+            throw new InvalidOperationException("Nie znaleziono klucza RSA.");
         }
     }
 
-    private string GetECDSAPublicPem(string certificatePem)
+    private static string GetECDSAPublicPem(string certificatePem)
     {
         X509Certificate2 cert = X509Certificate2.CreateFromPem(certificatePem);
 
@@ -376,46 +463,56 @@ public class CryptographyService : ICryptographyService
         }
         else
         {
-            throw new Exception("Nie znaleziono klucza ECDSA.");
+            throw new InvalidOperationException("Nie znaleziono klucza ECDSA.");
         }
     }
 
-    private string ExportEcdsaPublicKeyToPem(ECDsa ecdsa)
+    private static string ExportEcdsaPublicKeyToPem(ECDsa ecdsa)
     {
         byte[] pubKeyBytes = ecdsa.ExportSubjectPublicKeyInfo();
         return new string(PemEncoding.Write("PUBLIC KEY", pubKeyBytes));
     }
 
-    private string ExportPublicKeyToPem(RSA rsa)
+    private static string ExportPublicKeyToPem(RSA rsa)
     {
         byte[] pubKeyBytes = rsa.ExportSubjectPublicKeyInfo();
         return new string(PemEncoding.Write("PUBLIC KEY", pubKeyBytes));
     }
 
-    private string ToPem(X509Certificate2 certificate) =>
+    private static string ToPem(X509Certificate2 certificate) =>
     "-----BEGIN CERTIFICATE-----\n" +
     Convert.ToBase64String(certificate.Export(X509ContentType.Cert), Base64FormattingOptions.InsertLineBreaks) +
     "\n-----END CERTIFICATE-----";
 
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
-        if (isInitialized) return;
-        await _gate.WaitAsync(cancellationToken);
+        if (_isInitialized || _isExternallyManaged)
+        {
+            return;
+        }
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (isInitialized) return;
-            ICollection<PemCertificateInfo> list = await _fetcher(cancellationToken);
+            if (_isInitialized)
+            {
+                return;
+            }
+
+            ICollection<PemCertificateInfo> list = await _fetcher.GetCertificatesAsync(cancellationToken).ConfigureAwait(false);
             CertificateMaterials certificateMaterials = BuildMaterials(list);
 
-            // atomowa podmiana referencji wystarcza (właściwości tylko czytają)
             Volatile.Write(ref _materials, certificateMaterials);
+
+            _isInitialized = true;
         }
         catch
         {
-            // Jeżeli mamy stare materiały i nadal mieszczą się w okresie łaski – zostawiamy je.
             CertificateMaterials current = Volatile.Read(ref _materials);
             if (current is null || DateTimeOffset.UtcNow > current.ExpiresAt + _staleGrace)
-                throw; // nie mamy nic albo już po grace – przekaż wyjątek
+            {
+                throw;
+            }
         }
         finally
         {
@@ -425,17 +522,30 @@ public class CryptographyService : ICryptographyService
 
     private void ScheduleNextRefresh()
     {
-        CertificateMaterials certificateMaterials = Volatile.Read(ref _materials)!;
-        TimeSpan due = certificateMaterials.RefreshAt - DateTimeOffset.UtcNow;
-        if (due < TimeSpan.FromSeconds(5)) due = TimeSpan.FromSeconds(5);
+        if (_isExternallyManaged)
+        {
+            return;
+        }
 
-        // pojedynczy strzał; po odświeżeniu harmonogramujemy na nowo
+        CertificateMaterials certificateMaterials = Volatile.Read(ref _materials)!;
+        if (certificateMaterials is null)
+        {
+            return;
+        }
+
+        TimeSpan due = certificateMaterials.RefreshAt - DateTimeOffset.UtcNow;
+        if (due < TimeSpan.FromSeconds(5))
+        {
+            due = TimeSpan.FromSeconds(5);
+        }
+
         _refreshTimer?.Dispose();
         _refreshTimer = new Timer(async _ =>
         {
             try
             {
-                await RefreshAsync(CancellationToken.None);
+                _isInitialized = false;
+                await RefreshAsync(CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {
@@ -448,7 +558,9 @@ public class CryptographyService : ICryptographyService
     private static CertificateMaterials BuildMaterials(ICollection<PemCertificateInfo> certs)
     {
         if (certs.Count == 0)
+        {
             throw new InvalidOperationException("Brak certyfikatów.");
+        }
 
         PemCertificateInfo symmetricDto = certs.FirstOrDefault(c => c.Usage.Contains(PublicKeyCertificateUsage.SymmetricKeyEncryption))
             ?? throw new InvalidOperationException("Brak certyfikatu SymmetricKeyEncryption.");
@@ -456,11 +568,13 @@ public class CryptographyService : ICryptographyService
             .FirstOrDefault(c => c.Usage.Contains(PublicKeyCertificateUsage.KsefTokenEncryption))
             ?? throw new InvalidOperationException("Brak certyfikatu KsefTokenEncryption.");
 
-        X509Certificate2 sym = new X509Certificate2(Convert.FromBase64String(symmetricDto.Certificate));
-        X509Certificate2 tok = new X509Certificate2(Convert.FromBase64String(tokenDto.Certificate));
+        byte[] symetricBytes = Convert.FromBase64String(symmetricDto.Certificate);
+        X509Certificate2 sym = symetricBytes.LoadCertificate();
+        byte[] tokenBytes = Convert.FromBase64String(tokenDto.Certificate);
+        X509Certificate2 tok = tokenBytes.LoadCertificate();
 
         DateTime minNotAfterUtc = new[] { sym.NotAfter.ToUniversalTime(), tok.NotAfter.ToUniversalTime() }.Min();
-        DateTimeOffset expiresAt = new DateTimeOffset(minNotAfterUtc, TimeSpan.Zero);
+        DateTimeOffset expiresAt = new(minNotAfterUtc, TimeSpan.Zero);
 
         // odśwież przed wygaśnięciem lub najpóźniej za maxRevalidateInterval
         TimeSpan safetyMargin = TimeSpan.FromDays(1);
@@ -489,7 +603,7 @@ public class CryptographyService : ICryptographyService
         X500DistinguishedName subject = CreateSubjectDistinguishedName(certificateInfo);
 
         // Budowanie CSR
-        CertificateRequest request = new CertificateRequest(subject, ecdsa, HashAlgorithmName.SHA256);
+        CertificateRequest request = new(subject, ecdsa, HashAlgorithmName.SHA256);
 
         // Eksport CSR do formatu DER (bajtów)
         byte[] csrDer = request.CreateSigningRequest();
@@ -498,12 +612,14 @@ public class CryptographyService : ICryptographyService
 
     private static X500DistinguishedName CreateSubjectDistinguishedName(CertificateEnrollmentsInfoResponse certificateInfo)
     {
-        AsnWriter asnWriter = new AsnWriter(AsnEncodingRules.DER);
+        AsnWriter asnWriter = new(AsnEncodingRules.DER);
 
         void AddRdn(string oid, string value, UniversalTagNumber tag)
         {
             if (string.IsNullOrEmpty(value))
+            {
                 return;
+            }
 
             using AsnWriter.Scope set = asnWriter.PushSetOf();
             using AsnWriter.Scope seq = asnWriter.PushSequence();
@@ -526,9 +642,46 @@ public class CryptographyService : ICryptographyService
         return new X500DistinguishedName(asnWriter.Encode());
     }
 
+    #region Implementacja IDisposable
+
+    /// <summary>
+    /// Zwalnia wszystkie zasoby używane przez bieżącą instancję klasy.
+    /// </summary>
+    /// <remarks>Ta metoda powinna być wywoływana, gdy instancja nie jest już potrzebna, aby zwolnić zasoby. Pomija ona finalizację w celu optymalizacji odśmiecania pamięci.</remarks>
+    public void Dispose()
+    {
+        if (_disposedValue)
+        {
+            return;
+        }
+
+        _refreshTimer?.Dispose();
+        _gate.Dispose();
+
+        CertificateMaterials materials = Volatile.Read(ref _materials);
+        materials?.SymmetricKeyCert.Dispose();
+        materials?.KsefTokenCert.Dispose();
+
+        _disposedValue = true;
+        GC.SuppressFinalize(this);
+    }
+
+    #endregion
+
     private sealed record CertificateMaterials(
     X509Certificate2 SymmetricKeyCert,
     X509Certificate2 KsefTokenCert,
     DateTimeOffset ExpiresAt,
     DateTimeOffset RefreshAt);
+
+    void IDisposable.Dispose()
+    {
+        _gate?.Dispose();
+
+        _refreshTimer?.Dispose();
+
+        _materials = null;
+
+        GC.SuppressFinalize(this);
+    }
 }

@@ -16,12 +16,12 @@ public partial class BatchSessionE2ETests : TestBase
     private const int ExpectedFailedInvoiceCount = 0;
     private const int ExpectedSessionStatusCode = 200;
 
-    private string accessToken = string.Empty;
-    private string sellerNip = string.Empty;
+    private readonly string accessToken = string.Empty;
+    private readonly string sellerNip = string.Empty;
 
-    private string? batchSessionReferenceNumber;
-    private string? ksefNumber;
-    private string? upoReferenceNumber;
+    private string batchSessionReferenceNumber;
+    private string ksefNumber;
+    private string upoReferenceNumber;
     private OpenBatchSessionResponse? openBatchSessionResponse;
     private List<BatchPartSendingInfo>? encryptedParts;
 
@@ -30,7 +30,7 @@ public partial class BatchSessionE2ETests : TestBase
         // Autoryzacja do testów – jednorazowa, dane zapisane w readonly properties
         string nip = MiscellaneousUtils.GetRandomNip();
         AuthenticationOperationStatusResponse authInfo = AuthenticationUtils
-            .AuthenticateAsync(KsefClient, SignatureService, nip)
+            .AuthenticateAsync(AuthorizationClient, nip)
             .GetAwaiter().GetResult();
 
         accessToken = authInfo.AccessToken.Token;
@@ -41,7 +41,7 @@ public partial class BatchSessionE2ETests : TestBase
     /// End-to-end test weryfikujący pełny, poprawny przebieg przetwarzania sesji wsadowej w KSeF.
     /// Generuje 20 faktur z szablonu, szyfruje i dzieli paczkę na części, otwiera sesję,
     /// wysyła wszystkie części, zamyka sesję, sprawdza status przetwarzania oraz pobiera UPO
-    /// dla pojedynczej faktury i UPO zbiorcze sesji.
+    /// pojedynczej faktury i UPO zbiorcze sesji.
     /// </summary>
     /// <remarks>
     /// Kroki:
@@ -54,9 +54,9 @@ public partial class BatchSessionE2ETests : TestBase
     /// 7. Pobranie UPO zbiorczego sesji.
     /// </remarks>
     [Theory]
-    [InlineData(SystemCodeEnum.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCodeEnum.FA3, "invoice-template-fa-3.xml")]
-    public async Task BatchSession_FullIntegrationFlow_ReturnsUpo(SystemCodeEnum systemCode, string invoiceTemplatePath)
+    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
+    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
+    public async Task BatchSessionFullIntegrationFlowReturnsUpo(SystemCode systemCode, string invoiceTemplatePath)
     {
         // 1. Przygotowanie paczki i otwarcie sesji
         OpenBatchSessionResult openResult = await PrepareAndOpenBatchSessionAsync(
@@ -69,10 +69,22 @@ public partial class BatchSessionE2ETests : TestBase
             accessToken
         );
 
-        // Assercje dla kroku 1
+        // Asercje kroku 1
         Assert.NotNull(openResult);
         Assert.False(string.IsNullOrWhiteSpace(openResult.ReferenceNumber));
         Assert.NotNull(openResult.OpenBatchSessionResponse);
+        Assert.False(string.IsNullOrWhiteSpace(openResult.OpenBatchSessionResponse.ReferenceNumber));
+        Assert.NotNull(openResult.OpenBatchSessionResponse.PartUploadRequests);
+
+        foreach (PackagePartSignatureInitResponseType? part in openResult.OpenBatchSessionResponse.PartUploadRequests)
+        {
+            Assert.True(!string.IsNullOrWhiteSpace(part.Method));
+            Assert.NotNull(part.OrdinalNumber);
+            Assert.NotNull(part.Url);
+            Assert.True(!string.IsNullOrWhiteSpace(part.Method));
+            Assert.NotNull(part.Headers);
+        }
+
         Assert.NotNull(openResult.EncryptedParts);
         Assert.NotEmpty(openResult.EncryptedParts);
 
@@ -81,14 +93,14 @@ public partial class BatchSessionE2ETests : TestBase
         encryptedParts = openResult.EncryptedParts;
 
         // 2. Wysłanie wszystkich części
-        await SendAllBatchPartsAsync(openBatchSessionResponse, encryptedParts);
+        await KsefClient.SendBatchPartsAsync(openBatchSessionResponse, encryptedParts);
 
         // 3. Zamknięcie sesji – zamiast stałego opóźnienia użyjemy pollingu aż zamknięcie powiedzie się
         Assert.False(string.IsNullOrWhiteSpace(batchSessionReferenceNumber));
         await AsyncPollingUtils.PollAsync(
             action: async () =>
             {
-                await CloseBatchSessionAsync(batchSessionReferenceNumber!, accessToken);
+                await BatchUtils.CloseBatchAsync(KsefClient, batchSessionReferenceNumber!, accessToken).ConfigureAwait(false);
                 return true; // jeśli dotarliśmy tutaj, zamknięcie się powiodło
             },
             condition: closed => closed,
@@ -100,8 +112,8 @@ public partial class BatchSessionE2ETests : TestBase
         
         // 4. Status sesji
         SessionStatusResponse statusResponse = await AsyncPollingUtils.PollWithBackoffAsync(
-                                action: () => GetBatchSessionStatusAsync(batchSessionReferenceNumber!, accessToken),
-                                condition: s => s.Status.Code is ExpectedSessionStatusCode, 
+                                action: () => KsefClient.GetSessionStatusAsync(batchSessionReferenceNumber!, accessToken),
+                                condition: s => s.Status.Code is ExpectedSessionStatusCode,
                                 initialDelay: TimeSpan.FromSeconds(1),
                                 maxDelay: TimeSpan.FromSeconds(5),
                                 maxAttempts: 30,
@@ -113,41 +125,47 @@ public partial class BatchSessionE2ETests : TestBase
         Assert.True(statusResponse.SuccessfulInvoiceCount == TotalInvoices);
         Assert.Equal(ExpectedFailedInvoiceCount, statusResponse.FailedInvoiceCount);
         Assert.NotNull(statusResponse.Upo);
+        Assert.NotNull(statusResponse.Upo.Pages);
+        Assert.True(statusResponse.Upo.Pages.First().DownloadUrlExpirationDate < DateTime.Now.AddDays(4));
+        Assert.NotNull(statusResponse.Upo.Pages.First().DownloadUrl);
+        Assert.False(string.IsNullOrWhiteSpace(statusResponse.Upo.Pages.First().ReferenceNumber));
+        Assert.NotNull(statusResponse.ValidUntil);
         Assert.Equal(ExpectedSessionStatusCode, statusResponse.Status.Code);
 
         upoReferenceNumber = statusResponse.Upo.Pages.First().ReferenceNumber;
 
         // 5. Dokumenty sesji
-        SessionInvoicesResponse documents = await GetBatchSessionInvoicesAsync(batchSessionReferenceNumber!, accessToken, 0, TotalInvoices);
+        SessionInvoicesResponse documents = await BatchUtils.GetSessionInvoicesAsync(KsefClient, batchSessionReferenceNumber!, accessToken, TotalInvoices);
 
         Assert.NotNull(documents);
+        Assert.Null(documents.ContinuationToken);
         Assert.NotEmpty(documents.Invoices);
         Assert.Equal(TotalInvoices, documents.Invoices.Count);
 
         ksefNumber = documents.Invoices.First().KsefNumber;
 
-        // 6. UPO faktury po numerze KSeF
-        string invoiceUpoXml = await GetInvoiceUpoByKsefNumberAsync(
-            batchSessionReferenceNumber!,
-            ksefNumber!,
-            accessToken
-        );
+        // 6. pobranie UPO faktury z URL zawartego w metadanych faktury
+        Uri upoDownloadUrl = documents.Invoices.First().UpoDownloadUrl;
+        string invoiceUpoXml = await UpoUtils.GetUpoAsync(KsefClient, upoDownloadUrl);
         Assert.False(string.IsNullOrWhiteSpace(invoiceUpoXml));
-        InvoiceUpo invoiceUpo = UpoUtils.UpoParse<InvoiceUpo>(invoiceUpoXml);
+        InvoiceUpoV4_3 invoiceUpo = UpoUtils.UpoParse<InvoiceUpoV4_3>(invoiceUpoXml);
         Assert.Equal(invoiceUpo.Document.KSeFDocumentNumber, ksefNumber);
+        Assert.True(!string.IsNullOrWhiteSpace(invoiceUpo.ReceivingEntityName));
+        Assert.True(!string.IsNullOrWhiteSpace(invoiceUpo.SessionReferenceNumber));
+        Assert.NotNull(invoiceUpo.Authentication);
+        Assert.True(!string.IsNullOrWhiteSpace(invoiceUpo.LogicalStructureName));
+        Assert.True(!string.IsNullOrWhiteSpace(invoiceUpo.FormCode));
+        Assert.NotNull(invoiceUpo.Signature);
+        Assert.Equal(invoiceUpo.Document.SellerNip, sellerNip);
 
-
-
-        // 7. UPO zbiorcze sesji
-        string sessionUpoXml = await GetSessionUpoAsync(
+        // 7. Pobranie UPO zbiorczego sesji
+        string sessionUpo = await KsefClient.GetSessionUpoAsync(
             batchSessionReferenceNumber!,
             upoReferenceNumber!,
-            accessToken
+            accessToken,
+            CancellationToken
         );
-
-        Assert.False(string.IsNullOrWhiteSpace(sessionUpoXml));
-        SessionUpo sessionUpo = UpoUtils.UpoParse<SessionUpo>(sessionUpoXml);
-        Assert.Equal(sessionUpo.ReferenceNumber, openResult.OpenBatchSessionResponse.ReferenceNumber);
+        Assert.False(string.IsNullOrWhiteSpace(sessionUpo));
     }
 
     /// <summary>
@@ -159,7 +177,7 @@ public partial class BatchSessionE2ETests : TestBase
         int invoiceCount,
         int partQuantity,
         string sellerNip,
-        SystemCodeEnum systemCode,
+        SystemCode systemCode,
         string invoiceTemplatePath,
         string accessToken)
     {
@@ -180,76 +198,12 @@ public partial class BatchSessionE2ETests : TestBase
             BatchUtils.BuildOpenBatchRequest(zipMeta, encryptionData, encryptedParts, systemCode);
 
         OpenBatchSessionResponse openBatchSessionResponse =
-            await BatchUtils.OpenBatchAsync(KsefClient, openBatchRequest, accessToken);
+            await BatchUtils.OpenBatchAsync(KsefClient, openBatchRequest, accessToken).ConfigureAwait(false);
 
         return new OpenBatchSessionResult(
             openBatchSessionResponse.ReferenceNumber,
             openBatchSessionResponse,
             encryptedParts
         );
-    }
-
-    /// <summary>
-    /// Wysyła wszystkie zaszyfrowane części paczki dla wcześniej otwartej sesji wsadowej.
-    /// </summary>
-    private async Task SendAllBatchPartsAsync(
-        OpenBatchSessionResponse openBatchSessionResponse,
-        List<BatchPartSendingInfo> encryptedParts)
-    {
-        await KsefClient.SendBatchPartsAsync(openBatchSessionResponse, encryptedParts);
-    }
-
-    /// <summary>
-    /// Zamyka sesję wsadową na podstawie numeru referencyjnego.
-    /// </summary>
-    private async Task CloseBatchSessionAsync(string sessionReferenceNumber, string accessToken)
-    {
-        await BatchUtils.CloseBatchAsync(KsefClient, sessionReferenceNumber, accessToken);
-    }
-
-    /// <summary>
-    /// Pobiera status sesji wsadowej.
-    /// </summary>
-    private async Task<SessionStatusResponse> GetBatchSessionStatusAsync(
-        string sessionReferenceNumber,
-        string accessToken)
-    {
-        return await KsefClient.GetSessionStatusAsync(sessionReferenceNumber, accessToken);
-    }
-
-    /// <summary>
-    /// Pobiera dokumenty (faktury) sesji wsadowej z obsługą parametrów stronicowania.
-    /// </summary>
-    private async Task<SessionInvoicesResponse> GetBatchSessionInvoicesAsync(
-        string sessionReferenceNumber,
-        string accessToken,
-        int offset,
-        int count)
-    {
-        return await BatchUtils.GetSessionInvoicesAsync(KsefClient, sessionReferenceNumber, accessToken, offset, count);
-    }
-
-    /// <summary>
-    /// Pobiera UPO pojedynczej faktury z sesji na podstawie jej numeru KSeF.
-    /// </summary>
-    private async Task<string> GetInvoiceUpoByKsefNumberAsync(
-        string sessionReferenceNumber,
-        string ksefNumber,
-        string accessToken)
-    {
-        return await BatchUtils.GetSessionInvoiceUpoByKsefNumberAsync(
-            KsefClient, sessionReferenceNumber, ksefNumber, accessToken);
-    }
-
-    /// <summary>
-    /// Pobiera zbiorcze UPO sesji na podstawie numeru referencyjnego UPO.
-    /// </summary>
-    private async Task<string> GetSessionUpoAsync(
-        string sessionReferenceNumber,
-        string upoReferenceNumber,
-        string accessToken)
-    {
-        string upoResponse = await KsefClient.GetSessionUpoAsync(sessionReferenceNumber, upoReferenceNumber, accessToken, CancellationToken);
-        return upoResponse;
     }
 }

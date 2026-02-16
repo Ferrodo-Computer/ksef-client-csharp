@@ -1,8 +1,10 @@
+using KSeF.Client.Api.Builders.Online;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Invoices;
 using KSeF.Client.Core.Models.Sessions;
 using KSeF.Client.Core.Models.Sessions.OnlineSession;
+using KSeF.Client.Helpers;
 using System.Globalization;
 using System.Text;
 
@@ -13,7 +15,7 @@ namespace KSeF.Client.Tests.Utils;
 /// </summary>
 public static class OnlineSessionUtils
 {
-    private const SystemCodeEnum DefaultSystemCode = SystemCodeEnum.FA3;
+    private const SystemCode DefaultSystemCode = SystemCode.FA3;
     private const int ProcessingStatusCode = 150;
     private const int DefaultSleepTimeMs = 1000;
     private const int DefaultMaxAttempts = 60;
@@ -31,7 +33,7 @@ public static class OnlineSessionUtils
     public static async Task<OpenOnlineSessionResponse> OpenOnlineSessionAsync(IKSeFClient ksefClient,
         EncryptionData encryptionData,
         string accessToken,
-        SystemCodeEnum systemCode = DefaultSystemCode)
+        SystemCode systemCode = DefaultSystemCode)
     {
         OpenOnlineSessionRequest openOnlineSessionRequest = OpenOnlineSessionRequestBuilder
           .Create()
@@ -41,7 +43,7 @@ public static class OnlineSessionUtils
               initializationVector: encryptionData.EncryptionInfo.InitializationVector)
           .Build();
 
-        return await ksefClient.OpenOnlineSessionAsync(openOnlineSessionRequest, accessToken);
+        return await ksefClient.OpenOnlineSessionAsync(openOnlineSessionRequest, accessToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -54,6 +56,7 @@ public static class OnlineSessionUtils
     /// <param name="templatePath">Ścieżka do pliku szablonu XML.</param>
     /// <param name="encryptionData">Dane szyfrowania.</param>
     /// <param name="cryptographyService">Serwis kryptograficzny.</param>
+    /// <param name="validateInvoice">Czy walidować fakturę przed wysłaniem (domyślnie: false).</param>
     /// <returns>Odpowiedź z informacjami o wysłanej fakturze.</returns>
     public static async Task<SendInvoiceResponse> SendInvoiceAsync(IKSeFClient ksefClient,
         string sessionReferenceNumber,
@@ -61,15 +64,18 @@ public static class OnlineSessionUtils
         string nip,
         string templatePath,
         EncryptionData encryptionData,
-        ICryptographyService cryptographyService)
+        ICryptographyService cryptographyService,
+        bool validateInvoice = false)
     {
         string invoiceFilePath = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
         if (!File.Exists(invoiceFilePath))
+        {
             throw new FileNotFoundException($"Template not found at: {invoiceFilePath}");
+        }
 
         string xml = GetXmlInvoiceFromPath(invoiceFilePath, nip);
 
-        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml);
+        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml, validateInvoice).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -83,32 +89,91 @@ public static class OnlineSessionUtils
     /// <param name="templatePath">Ścieżka do pliku szablonu XML.</param>
     /// <param name="encryptionData">Dane szyfrowania.</param>
     /// <param name="cryptographyService">Serwis kryptograficzny.</param>
+    /// <param name="validateInvoice">Czy walidować fakturę przed wysłaniem (domyślnie: false).</param>
     /// <returns>Odpowiedź z informacjami o wysłanej fakturze.</returns>
     public static async Task<SendInvoiceResponse> SendInvoiceAsync(IKSeFClient ksefClient,
         string sessionReferenceNumber,
         string accessToken,
-        string nip,string subject,
+        string nip, string subject,
         string templatePath,
         EncryptionData encryptionData,
-        ICryptographyService cryptographyService)
+        ICryptographyService cryptographyService,
+        bool validateInvoice = false)
     {
         string invoiceFilePath = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
         if (!File.Exists(invoiceFilePath))
+        {
             throw new FileNotFoundException($"Template not found at: {invoiceFilePath}");
+        }
 
         string xml = GetXmlInvoiceFromPath(invoiceFilePath, nip, subject);
 
-        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml);
+        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml, validateInvoice).ConfigureAwait(false);
     }
 
-    private static string GetXmlInvoiceFromPath(string invoiceFilePath,string nip, string subject = null)
+
+    /// <summary>
+    /// Wysyła fakturę w ramach otwartej sesji online. Faktura zawiera dodatkowo podmiot3 będący jednostką podrzędną podmiotu2. 
+    /// </summary>
+    /// <param name="ksefClient">Klient KSeF.</param>
+    /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
+    /// <param name="accessToken">Token dostępu.</param>
+    /// <param name="nip">NIP podmiotu.</param>
+    /// <param name="subject">identyfikator nabywcy.</param>
+    /// <param name="thirdSubject">identyfikator podmiotu trzeciego.</param>
+    /// <param name="templatePath">Ścieżka do pliku szablonu XML.</param>
+    /// <param name="encryptionData">Dane szyfrowania.</param>
+    /// <param name="cryptographyService">Serwis kryptograficzny.</param>
+    /// <param name="validateInvoice">Czy walidować fakturę przed wysłaniem (domyślnie: false).</param>
+    /// <returns>Odpowiedź z informacjami o wysłanej fakturze.</returns>
+    public static async Task<SendInvoiceResponse> SendInvoiceAsync(IKSeFClient ksefClient,
+       string sessionReferenceNumber,
+       string accessToken,
+       string nip, string subject, string thirdSubject,
+       string templatePath,
+       EncryptionData encryptionData,
+       ICryptographyService cryptographyService,
+       bool validateInvoice = false)
+    {
+        string invoiceFilePath = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
+        if (!File.Exists(invoiceFilePath))
+        {
+            throw new FileNotFoundException($"Template not found at: {invoiceFilePath}");
+        }
+
+        string xml = GetXmlInvoiceFromPath(invoiceFilePath, nip, subject, thirdSubject);
+
+        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml, validateInvoice).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Wysyła fakturę w ramach otwartej sesji online. Faktura zawiera dodatkowo podmiot3 będący jednostką podrzędną podmiotu2. 
+    /// </summary>
+    /// <param name="ksefClient">Klient KSeF.</param>
+    /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
+    /// <param name="accessToken">Token dostępu.</param>
+    /// <param name="nip">NIP podmiotu.</param>
+    /// <param name="subject">identyfikator nabywcy.</param>
+    /// <param name="thirdSubject">identyfikator podmiotu trzeciego.</param>
+    /// <param name="templatePath">Ścieżka do pliku szablonu XML.</param>
+    /// <param name="encryptionData">Dane szyfrowania.</param>
+    /// <param name="cryptographyService">Serwis kryptograficzny.</param>
+    /// <returns>Odpowiedź z informacjami o wysłanej fakturze.</returns>
+    private static string GetXmlInvoiceFromPath(string invoiceFilePath, string nip, string subject = "", string thirdSubject = "")
     {
         string xml = File.ReadAllText(invoiceFilePath, Encoding.UTF8);
         xml = xml.Replace("#nip#", nip);
-        xml = xml.Replace("#invoice_number#", $"{Guid.NewGuid().ToString()}");
+        xml = xml.Replace("#invoice_number#", $"{Guid.NewGuid()}");
 
-        if (subject != null) 
+        if (!string.IsNullOrEmpty(subject))
+        {
             xml = xml.Replace("#nipOdbiorca#", subject);
+        }
+
+        if (!string.IsNullOrEmpty(thirdSubject))
+        {
+            xml = xml.Replace("#idWewnetrzne#", thirdSubject);
+        }
 
         return xml;
     }
@@ -141,15 +206,17 @@ public static class OnlineSessionUtils
     {
         string path = Path.Combine(AppContext.BaseDirectory, "Templates", templatePath);
         if (!File.Exists(path))
+        {
             throw new FileNotFoundException($"Template not found at: {path}");
+        }
 
         string xml = File.ReadAllText(path, Encoding.UTF8);
 
         static string NormalizeIban(string v)
-            => string.IsNullOrWhiteSpace(v) ? v : new string(v.Where(ch => !char.IsWhiteSpace(ch)).ToArray()).ToUpperInvariant();
+            => string.IsNullOrWhiteSpace(v) ? v : new string([.. v.Where(ch => !char.IsWhiteSpace(ch))]).ToUpperInvariant();
 
         // dane wejściowe -> tylko normalizacja
-        
+
         string ibanNorm = NormalizeIban(iban);
 
         // tokeny faktycznie obecne w szablonie
@@ -163,36 +230,55 @@ public static class OnlineSessionUtils
 
         // wymagane wartości JEŚLI token jest w szablonie (bez walidacji)
         if (xml.Contains("#nip#", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(supplierNip))
+        {
             throw new ArgumentException("Template requires #nip# but 'nip' is null/empty.", nameof(supplierNip));
+        }
+
         if (xml.Contains("#supplier_nip#", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(supplierNip))
+        {
             throw new ArgumentException("Template requires #supplier_nip# but 'nip' is null/empty.", nameof(supplierNip));
+        }
+
         if (needBuyerNip && string.IsNullOrWhiteSpace(customerNip))
+        {
             throw new ArgumentException("Template requires #buyer_nip# but 'buyerNip' is null/empty.", nameof(customerNip));
+        }
+
         if (needBuyerRef && string.IsNullOrWhiteSpace(buyerReference))
+        {
             throw new ArgumentException("Template requires #buyer_reference# but 'buyerReference' is null/empty.", nameof(buyerReference));
+        }
+
         if (needIban && string.IsNullOrWhiteSpace(ibanNorm))
+        {
             throw new ArgumentException("Template requires #iban#/#iban_plain#/#iban_masked# but 'iban' is null/empty.", nameof(iban));
+        }
 
         // daty: jeśli są tokeny – ustaw defaulty (Issue=today, Due=Issue+14)
         DateTime issueDate = DateTime.Today;
         DateTime dueDate = issueDate.AddDays(14);
         if (needDue && dueDate < issueDate)
+        {
             throw new ArgumentException("DueDate earlier than IssueDate.");
+        }
 
         // maska IBAN (tylko transformata z dostarczonych danych)
         static string MaskIban(string ibanValue)
         {
-            if (string.IsNullOrEmpty(ibanValue)) return ibanValue;
+            if (string.IsNullOrEmpty(ibanValue))
+            {
+                return ibanValue;
+            }
             // zostaw prefix kraju i 2 cyfry kontrolne, resztę zamaskuj, końcówka 4 cyfry jawne
-            string head = ibanValue.Length >= 4 ? ibanValue.Substring(0, 4) : ibanValue;
-            string tail = ibanValue.Length >= 4 ? ibanValue.Substring(ibanValue.Length - 4) : string.Empty;
+            string head = ibanValue.Length >= 4 ? ibanValue[..4] : ibanValue;
+            string tail = ibanValue.Length >= 4 ? ibanValue[^4..] : string.Empty;
             int midLen = Math.Max(0, ibanValue.Length - head.Length - tail.Length);
             return head + new string('*', midLen) + tail;
         }
 
         // podmiany — tylko na podstawie danych wejściowych
-        (string token, string value)[] replacements = new (string token, string value)[]
-        {
+        (string token, string value)[] replacements =
+        [
         ("#nip#", supplierNip ?? string.Empty),
         ("#supplier_nip#", supplierNip ?? string.Empty),   // alias
         ("#buyer_nip#", customerNip ?? string.Empty),
@@ -203,29 +289,51 @@ public static class OnlineSessionUtils
         ("#invoice_number#", Guid.NewGuid().ToString()),
         ("#issue_date#", issueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
         ("#due_date#", dueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
-        };
+        ];
 
         foreach ((string token, string value) in replacements)
+        {
             if (xml.Contains(token, StringComparison.Ordinal))
+            {
                 xml = xml.Replace(token, value);
+            }
+        }
 
         // fail-fast: nie wysyłaj jeśli zostały markery (wraz z aliasami IBAN/NIP)
         string[] known =
-        {
+        [
         "#nip#", "#supplier_nip#", "#invoice_number#", "#buyer_nip#", "#buyer_reference#",
         "#iban#", "#iban_plain#", "#iban_masked#", "#issue_date#", "#due_date#"
-    };
-        string[] leftovers = known.Where(t => xml.Contains(t, StringComparison.Ordinal)).ToArray();
+    ];
+        string[] leftovers = [.. known.Where(t => xml.Contains(t, StringComparison.Ordinal))];
         if (leftovers.Length > 0)
+        {
             throw new ArgumentException($"Template contains unreplaced token(s): {string.Join(", ", leftovers)}.");
+        }
 
-        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml);
+        return await SendInvoice(ksefClient, sessionReferenceNumber, accessToken, encryptionData, cryptographyService, xml).ConfigureAwait(false);
     }
 
 
-    private static async Task<SendInvoiceResponse> SendInvoice(IKSeFClient ksefClient, string sessionReferenceNumber, string accessToken, EncryptionData encryptionData, ICryptographyService cryptographyService, string xml)
+    private static async Task<SendInvoiceResponse> SendInvoice(
+        IKSeFClient ksefClient,
+        string sessionReferenceNumber,
+        string accessToken,
+        EncryptionData encryptionData,
+        ICryptographyService cryptographyService,
+        string xml,
+        bool validateInvoice = false)
     {
-        using MemoryStream memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        if (validateInvoice)
+        {
+            ValidationResult validationResult = ValidationHelper.ValidateInvoiceBeforeSending(xml).ValidationResult;
+            if (!validationResult.IsValid)
+            {
+                throw new InvoiceValidationException(validationResult.Message);
+            }
+        }
+
+        using MemoryStream memoryStream = new(Encoding.UTF8.GetBytes(xml));
         byte[] invoice = memoryStream.ToArray();
 
         byte[] encryptedInvoice = cryptographyService.EncryptBytesWithAES256(invoice, encryptionData.CipherKey, encryptionData.CipherIv);
@@ -240,7 +348,7 @@ public static class OnlineSessionUtils
             .WithEncryptedDocumentContent(Convert.ToBase64String(encryptedInvoice))
             .Build();
 
-        return await ksefClient.SendOnlineSessionInvoiceAsync(sendOnlineInvoiceRequest, sessionReferenceNumber, accessToken);
+        return await ksefClient.SendOnlineSessionInvoiceAsync(sendOnlineInvoiceRequest, sessionReferenceNumber, accessToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -262,7 +370,10 @@ public static class OnlineSessionUtils
         EncryptionData encryptionData,
         ICryptographyService cryptographyService)
     {
-        if (string.IsNullOrWhiteSpace(xml)) throw new ArgumentException("XML cannot be empty.", nameof(xml));
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            throw new ArgumentException("XML cannot be empty.", nameof(xml));
+        }
 
         byte[] invoiceBytes = Encoding.UTF8.GetBytes(xml);
 
@@ -279,7 +390,7 @@ public static class OnlineSessionUtils
             .WithEncryptedDocumentContent(Convert.ToBase64String(encryptedInvoice))
             .Build();
 
-        return await ksefClient.SendOnlineSessionInvoiceAsync(sendOnlineInvoiceRequest, sessionReferenceNumber, accessToken);
+        return await ksefClient.SendOnlineSessionInvoiceAsync(sendOnlineInvoiceRequest, sessionReferenceNumber, accessToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -298,12 +409,12 @@ public static class OnlineSessionUtils
         int sleepTime = DefaultSleepTimeMs,
         int maxAttempts = DefaultMaxAttempts)
     {
-        SessionStatusResponse? statusResponse = null;
         int attempt = 0;
 
+        SessionStatusResponse statusResponse;
         do
         {
-            statusResponse = await ksefClient.GetSessionStatusAsync(sessionReferenceNumber, accessToken);
+            statusResponse = await ksefClient.GetSessionStatusAsync(sessionReferenceNumber, accessToken).ConfigureAwait(false);
 
             if (attempt >= maxAttempts)
             {
@@ -311,7 +422,7 @@ public static class OnlineSessionUtils
             }
 
             attempt++;
-            await Task.Delay(sleepTime);
+            await Task.Delay(sleepTime).ConfigureAwait(false);
         } while (statusResponse.SuccessfulInvoiceCount is null);
 
         return statusResponse;
@@ -339,14 +450,14 @@ public static class OnlineSessionUtils
 
         for (int i = 0; i < maxAttempts; i++)
         {
-            sessionInvoiceStatus = await kSeFClient.GetSessionInvoiceAsync(sessionReferenceNumber, invoiceReferenceNumber, accessToken);
+            sessionInvoiceStatus = await kSeFClient.GetSessionInvoiceAsync(sessionReferenceNumber, invoiceReferenceNumber, accessToken).ConfigureAwait(false);
 
             if (sessionInvoiceStatus.Status.Code != ProcessingStatusCode) // Trwa przetwarzanie
             {
                 return sessionInvoiceStatus;
             }
 
-            await Task.Delay(sleepTime);
+            await Task.Delay(sleepTime).ConfigureAwait(false);
         }
 
         return sessionInvoiceStatus;
@@ -360,7 +471,7 @@ public static class OnlineSessionUtils
     /// <param name="accessToken">Token dostępu.</param>
     public static async Task CloseOnlineSessionAsync(IKSeFClient kSeFClient, string sessionReferenceNumber, string accessToken)
     {
-        await kSeFClient.CloseOnlineSessionAsync(sessionReferenceNumber, accessToken);
+        await kSeFClient.CloseOnlineSessionAsync(sessionReferenceNumber, accessToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -372,12 +483,12 @@ public static class OnlineSessionUtils
     /// <returns>Odpowiedź z metadanymi faktur sesji.</returns>
     public static async Task<SessionInvoicesResponse> GetSessionInvoicesMetadataAsync(IKSeFClient kSeFClient, string sessionReferenceNumber, string accessToken)
     {
-        SessionInvoicesResponse sessionInvoiceResponse = await kSeFClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken);
+        SessionInvoicesResponse sessionInvoiceResponse = await kSeFClient.GetSessionInvoicesAsync(sessionReferenceNumber, accessToken).ConfigureAwait(false);
         return sessionInvoiceResponse;
     }
 
     /// <summary>
-    /// Pobiera UPO dla faktury z sesji na podstawie numeru KSeF.
+    /// Pobiera UPO faktury z sesji na podstawie numeru KSeF.
     /// </summary>
     /// <param name="ksefClient">Klient KSeF.</param>
     /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
@@ -389,12 +500,12 @@ public static class OnlineSessionUtils
         string ksefInvoiceNumber,
         string accessToken)
     {
-        string upoResponse = await ksefClient.GetSessionInvoiceUpoByKsefNumberAsync(sessionReferenceNumber, ksefInvoiceNumber, accessToken, CancellationToken.None);
+        string upoResponse = await ksefClient.GetSessionInvoiceUpoByKsefNumberAsync(sessionReferenceNumber, ksefInvoiceNumber, accessToken, CancellationToken.None).ConfigureAwait(false);
         return upoResponse;
     }
 
     /// <summary>
-    /// Pobiera zbiorcze UPO dla sesji online.
+    /// Pobiera zbiorcze UPO sesji online.
     /// </summary>
     /// <param name="ksefClient">Klient KSeF.</param>
     /// <param name="sessionReferenceNumber">Numer referencyjny sesji.</param>
@@ -406,7 +517,7 @@ public static class OnlineSessionUtils
         string upoReferenceNumber,
         string accessToken)
     {
-        string upoResponse = await ksefClient.GetSessionUpoAsync(sessionReferenceNumber, upoReferenceNumber, accessToken, CancellationToken.None);
+        string upoResponse = await ksefClient.GetSessionUpoAsync(sessionReferenceNumber, upoReferenceNumber, accessToken, CancellationToken.None).ConfigureAwait(false);
         return upoResponse;
     }
 }

@@ -1,18 +1,13 @@
+namespace KSeF.DemoWebApp.Controllers;
+
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models.Peppol;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("[controller]")]
-public class PeppolController : ControllerBase
+public class PeppolController(IKSeFClient client) : ControllerBase
 {
-    private readonly IKSeFClient _client;
-
-    public PeppolController(IKSeFClient client)
-    {
-        _client = client;
-    }
-
     /// <summary>
     /// Pobranie listy dostawców usług Peppol.
     /// </summary>
@@ -24,7 +19,7 @@ public class PeppolController : ControllerBase
         [FromQuery] int? pageSize,
         CancellationToken cancellationToken)
     {
-        QueryPeppolProvidersResponse result = await _client.QueryPeppolProvidersAsync(accessToken, pageOffset, pageSize, cancellationToken);
+        QueryPeppolProvidersResponse result = await client.QueryPeppolProvidersAsync(accessToken, pageOffset, pageSize, cancellationToken).ConfigureAwait(false);
         return Ok(result);
     }
 }

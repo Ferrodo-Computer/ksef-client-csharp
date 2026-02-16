@@ -1,33 +1,22 @@
 using KSeF.Client.Core.Interfaces.Services;
-using KSeF.Client.DI;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace KSeF.Client.Api.Services;
 
-public sealed class CryptographyWarmupHostedService : IHostedService
+public sealed partial class CryptographyWarmupHostedService(
+    ICryptographyService cryptographyService,
+    CryptographyServiceWarmupMode warmupMode = CryptographyServiceWarmupMode.Blocking) : IHostedService
 {
-    private readonly ICryptographyService _cryptographyService;
-    private readonly IOptions<CryptographyClientOptions> _cryptographyClientOptions;
-
-    public CryptographyWarmupHostedService(
-        ICryptographyService cryptographyService,
-        IOptions<CryptographyClientOptions> cryptographyClientOptions)
-    {
-        _cryptographyService = cryptographyService;
-        _cryptographyClientOptions = cryptographyClientOptions;
-    }
-
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        switch (_cryptographyClientOptions.Value.WarmupOnStart)
+        switch (warmupMode)
         {
-            case WarmupMode.Disabled:
+            case CryptographyServiceWarmupMode.Disabled:
                 return Task.CompletedTask;
-            case WarmupMode.NonBlocking:
+            case CryptographyServiceWarmupMode.NonBlocking:
                 _ = Task.Run(() => SafeWarmup(cancellationToken), CancellationToken.None);
                 return Task.CompletedTask;
-            case WarmupMode.Blocking:
+            case CryptographyServiceWarmupMode.Blocking:
                 return SafeWarmup(cancellationToken);
             default:
                 return Task.CompletedTask;
@@ -40,11 +29,11 @@ public sealed class CryptographyWarmupHostedService : IHostedService
     {
         try
         {
-            await _cryptographyService.WarmupAsync(cancellationToken);
+            await cryptographyService.WarmupAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception)
         {
-            if (_cryptographyClientOptions.Value.WarmupOnStart == WarmupMode.Blocking)
+            if (warmupMode == CryptographyServiceWarmupMode.Blocking)
             {
                 throw;
             }

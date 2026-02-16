@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Net.Http;
 
-namespace KSeF.Client.Core.Infrastructure.Rest
+namespace KSeF.Client.Core.Interfaces.Rest
 {
     public interface IRestRequest
     {

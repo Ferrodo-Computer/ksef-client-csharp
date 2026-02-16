@@ -48,9 +48,11 @@ namespace KSeF.Client.Core.Infrastructure.Rest
         {
             RestContentType result;
             if (TryToRestContentType(mime, out result))
+            {
                 return result;
+            }
 
-            throw new ArgumentException("Unsupported mime type: '" + mime + "'", nameof(mime));
+            throw new ArgumentException("Nieobsługiwany typ MIME: '" + mime + "'", nameof(mime));
         }
 
         /// <summary>
@@ -83,7 +85,9 @@ namespace KSeF.Client.Core.Infrastructure.Rest
         private static string GetBaseMime(string mime)
         {
             if (string.IsNullOrWhiteSpace(mime))
+            {
                 return DefaultContentType;
+            }
 
             string trimmed = mime.Trim();
             int semicolonIndex = trimmed.IndexOf(';');

@@ -10,14 +10,11 @@ namespace KSeF.Client.Core.Models.Authorization
 
     public enum AuthenticationKsefTokenSubjectIdentifierType
     {
-        None,
         [EnumMember(Value = "nip")]
         Nip,
         [EnumMember(Value = "pesel")]
         Pesel,
         [EnumMember(Value = "fingerprint")]
-        Fingerprint,
-        [EnumMember(Value = "token")]
-        Token
+        Fingerprint
     }
 }

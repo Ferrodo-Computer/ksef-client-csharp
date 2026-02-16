@@ -2,7 +2,7 @@ using System.Runtime.Serialization;
 
 namespace KSeF.Client.Core.Models.Invoices
 {
-    public enum SystemCodeEnum
+    public enum SystemCode
     {
         [EnumMember(Value = "FA (2)")] FA2,
         [EnumMember(Value = "FA (3)")] FA3,
@@ -12,51 +12,51 @@ namespace KSeF.Client.Core.Models.Invoices
 
     public static class SystemCodeHelper
     {
-        public static string GetSystemCode(SystemCodeEnum code)
+        public static string GetSystemCode(SystemCode code)
         {
             switch (code)
             {
-                case SystemCodeEnum.FA2:
+                case SystemCode.FA2:
                     return "FA (2)";
-                case SystemCodeEnum.FA3:
+                case SystemCode.FA3:
                     return "FA (3)";
-                case SystemCodeEnum.PEF:
+                case SystemCode.PEF:
                     return "PEF (3)";
-                case SystemCodeEnum.PEFKOR:
+                case SystemCode.PEFKOR:
                     return "PEF_KOR (3)";
                 default:
                     return code.ToString();
             }
         }
 
-        public static string GetValue(SystemCodeEnum code)
+        public static string GetValue(SystemCode code)
         {
             switch (code)
             {
-                case SystemCodeEnum.FA2:
+                case SystemCode.FA2:
                     return "FA";
-                case SystemCodeEnum.FA3:
+                case SystemCode.FA3:
                     return "FA";
-                case SystemCodeEnum.PEF:
+                case SystemCode.PEF:
                     return "PEF";
-                case SystemCodeEnum.PEFKOR:
+                case SystemCode.PEFKOR:
                     return "PEF";
                 default:
                     return code.ToString();
             }
         }
 
-        public static string GetSchemaVersion(SystemCodeEnum code)
+        public static string GetSchemaVersion(SystemCode code)
         {
             switch (code)
             {
-                case SystemCodeEnum.FA2:
+                case SystemCode.FA2:
                     return "1-0E";
-                case SystemCodeEnum.FA3:
+                case SystemCode.FA3:
                     return "1-0E";
-                case SystemCodeEnum.PEF:
+                case SystemCode.PEF:
                     return "2-1";
-                case SystemCodeEnum.PEFKOR:
+                case SystemCode.PEFKOR:
                     return "2-1";
                 default:
                     return code.ToString();

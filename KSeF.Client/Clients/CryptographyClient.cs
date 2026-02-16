@@ -5,20 +5,16 @@ using KSeF.Client.Http;
 
 namespace KSeF.Client.Clients;
 
-public class CryptographyClient : ICryptographyClient
+/// <inheritdoc />
+public class CryptographyClient(IRestClient restClient) : ICryptographyClient
 {
-    private readonly IRestClient _restClient;
-
-    public CryptographyClient(IRestClient restClient)
-    {
-        _restClient = restClient;
-    }
+    private readonly IRestClient _restClient = restClient;
 
     /// <inheritdoc />
-    public async Task<ICollection<PemCertificateInfo>> GetPublicCertificatesAsync(CancellationToken cancellationToken)
+    public async Task<ICollection<PemCertificateInfo>> GetPublicCertificatesAsync(CancellationToken cancellationToken = default)
     {
         return await _restClient.SendAsync<ICollection<PemCertificateInfo>, string>(HttpMethod.Get,
-                                                                      "/api/v2/security/public-key-certificates",
+                                                                      "/v2/security/public-key-certificates",
                                                                       default,
                                                                       default,
                                                                       RestClient.DefaultContentType,

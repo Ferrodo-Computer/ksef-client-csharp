@@ -7,9 +7,12 @@ Repozytorium zawiera:
 - **Implementacja klienta KSeF 2.0**
   - **KSeF.Client** - główna biblioteka klienta z logiką biznesową
   - **KSeF.Client.Core** - modele, interfejsy i wyjątki (wydzielone dla zgodności z .NET Standard 2.0)
+  - **KSeF.Client.ClientFactory** - dodatkowa biblioteka klienta która umożliwia korzystanie z KSeFClient, CertificateFetcherServices oraz CryptographyServices w formie fabryk dla 3 niezależnych środowisk.
+
 - **Testy**
   - **KSeF.Client.Tests** - testy jednostkowe i funkcjonalne
   - **KSeF.Client.Tests.Core** - testy E2E i integracyjne
+  - **KSeF.Client.Tests.ClientFactory** - testy dla fabryk KSeFClient, CryptographyServices i CertificateFetcherServices
   - **KSeF.Client.Tests.Utils** - narzędzia pomocnicze do testów
   - **KSeF.Client.Tests.CertTestApp** - aplikacja konsolowa dla zobrazowania tworzenia przykładowego, testowego certyfikatu oraz podpisu XAdES
 - **Przykładowa aplikacja**
@@ -60,6 +63,18 @@ Biblioteka zawierająca wspólne typy i interfejsy:
 
 Aby użyć biblioteki KSeF.Client w swoim projekcie, dodaj referencję do projektu **KSeF.Client** (zawiera on już referencję do KSeF.Client.Core).
 
+### Pakiety Nuget 
+
+Projekty KSeF.Client i KSeF.Client.Core są dostępne jako pakiety nuget w GitHub Packages organizacji CIRFMF.
+
+Opis paczek:
+* KSeF.Client - główna biblioteka klienta z logiką biznesową
+* KSeF.Client.Core - modele, interfejsy i wyjątki 
+
+Należy najpierw skonfigurować dostęp do paczek NuGet opublikowanych w GitHub Packages organizacji CIRFMF.
+Wymaga to autoryzacji przy pomocy osobistego tokena dostępu (Personal Access Token – PAT) z uprawnieniem read:packages.
+Dokładny poradnik jest dostępny w pliku [*nuget-package.md*](https://github.com/CIRFMF/ksef-client-csharp/blob/main/nuget-package.md).
+
 ### Przykładowa rejestracja klienta KSeF w kontenerze DI
 
 #### Minimalna konfiguracja
@@ -72,14 +87,11 @@ WebApplicationBuilder builder = Microsoft.AspNetCore.Builder.WebApplication.Crea
 // Rejestracja klienta KSeF
 builder.Services.AddKSeFClient(options =>
 {
-    options.BaseUrl = KsefEnviromentsUris.TEST; // lub PRODUCTION, DEMO
+    options.BaseUrl = KsefEnvironmentsUris.TEST; // lub PRODUCTION, DEMO
 });
 
 // Rejestracja serwisu kryptograficznego (wymagane dla operacji wymagających szyfrowania)
-builder.Services.AddCryptographyClient(options =>
-{
-    options.WarmupOnStart = WarmupMode.NonBlocking;
-});
+builder.Services.AddCryptographyClient();
 ```
 
 #### Pełna konfiguracja z dodatkowymi opcjami
@@ -109,26 +121,41 @@ KSeFClientOptions? apiSettings = builder.Configuration.GetSection("ApiSettings")
 // Rejestracja klienta KSeF z konfiguracją z appsettings
 builder.Services.AddKSeFClient(options =>
 {
-    options.BaseUrl = apiSettings?.BaseUrl ?? KsefEnviromentsUris.TEST;
+    options.BaseUrl = apiSettings?.BaseUrl ?? KsefEnvironmentsUris.TEST;
     options.WebProxy = apiSettings?.WebProxy; // opcjonalnie: konfiguracja proxy
     options.CustomHeaders = apiSettings?.CustomHeaders ?? new Dictionary<string, string>();
 });
-
-// Rejestracja klienta kryptograficznego z custom fetcher
-builder.Services.AddCryptographyClient(
-    options =>
-    {
-        options.WarmupOnStart = WarmupMode.NonBlocking;
-    },
-    // Delegat pobierający certyfikaty - będzie wywołany przez bibliotekę, nie od razu
-    pemCertificatesFetcher: async (serviceProvider, cancellationToken) =>
-    {
-        KSeF.Client.Core.Interfaces.Services.ICryptographyClient cryptographyClient = serviceProvider.GetRequiredService<ICryptographyClient>();
-        return await cryptographyClient.GetPublicCertificatesAsync(cancellationToken);
-    });
+// Rejestracja własnej implementacji ICertificateFetcher.
+builder.Services.AddSingleton<ICertificateFetcher, MyCertificateFetcher>();
+// Rejestracja klienta kryptograficznego KSeF w trybie NonBlocking.
+// (automatycznie użyje powyższego MyCertificateFetcher).
+builder.Services.AddCryptographyClient(CryptographyServiceWarmupMode.NonBlocking);
 ```
 
-**Uwaga:** `AddCryptographyClient` jest wymagany jeśli planujesz używać operacji wymagających szyfrowania (np. sesje wsadowe, eksport faktur).
+**Uwaga:** `AddCryptographyClient` jest wymagany dla operacji wymagających szyfrowania (np. sesje wsadowe, eksport faktur).
+
+**Uwaga:** `AddCryptographyClient` rejestruje serwis kryptograficzny `CryptographyService` oraz zapewnia dodanie algorytmu kryptograficznego dla ECDSA z SHA-256 do klasy `CryptoConfig`.
+
+#### Użycie `AddCryptographyClient` z przekazaniem własnego delegata (np. `GetCertificates()`) z własnego serwisu (np. `MyCertificateService`); Ten sposób inicjalizacji nie jest polecany.
+```csharp
+// Rejestracja serwisu w kontenerze DI
+builder.Services.AddSingleton<IMyCCertificateService, MyCertificateService>();
+
+// Przekazanie delegata do AddCryptographyClient
+builder.Services.AddCryptographyClient(
+    pemCertificatesFetcher: async (cancellationToken) =>
+    {
+        // Pobranie serwisu z kontenera DI
+        using var scope = builder.Services.BuildServiceProvider().CreateScope();
+        var myFetcher = scope.ServiceProvider.GetRequiredService<IMyCertificateService>();
+        
+        // Wywołanie metody z pobranego serwisu
+        return await myFetcher.GetCertificates(cancellationToken);
+    },
+    warmupMode: CryptographyServiceWarmupMode.NonBlocking
+);
+```
+**Uwaga:** Sygnatura metody `GetCertificates()` musi zwracać `Task<ICollection<PemCertificateInfo>>` i przyjmować `CancellationToken` jako parametr. Tworzenie scope'a jest konieczne, ponieważ delegat będzie wywołany później, a nie od razu podczas konfiguracji. 
 
 ### Przykład użycia
 
@@ -174,6 +201,52 @@ Projekt zawiera rozbudowany zestaw testów:
 ```bash
 dotnet test KSeF.Client.sln
 ```
+## Rozwiązywanie problemów (Troubleshooting)
+
+### Błąd: "The password may be incorrect" na IIS / Azure
+
+Jeśli podczas ładowania certyfikatu z kluczem prywatnym otrzymujesz wyjątek:
+
+> **System.Security.Cryptography.CryptographicException:** The EncryptedPrivateKeyInfo structure was decoded but was not successfully interpreted, the password may be incorrect.
+
+Oznacza to zazwyczaj problem środowiskowy (brak załadowanego profilu użytkownika na IIS/Azure), a nie błędne hasło. System Windows próbuje zapisać tymczasowy klucz na dysku, ale nie ma do tego uprawnień.
+
+#### Rozwiązanie
+
+Zamiast standardowego `X509Certificate2.CreateFromEncryptedPem`, użyj metody rozszerzającej `X509Certificate2.MergeWithPemKey` dostępnej w bibliotece, która ładuje klucz w pamięci (Ephemeral Key):
+```
+using System.Security.Cryptography.X509Certificates;
+using KSeF.Client.Extensions;
+
+// 1. Wczytaj certyfikat publiczny i treść klucza PEM
+X509Certificate2 publicCert = new X509Certificate2("cert.cer");
+string privateKeyPem = File.ReadAllText("key.pem");
+
+// 2. Połącz bezpiecznie (działa na Azure/IIS bez LoadUserProfile)
+X509Certificate2 cert = publicCert.MergeWithPemKey(privateKeyPem, "TwojeHaslo");
+```
+
+### Generowania kodów QR na środowisku Linux / Błąd: wyjątek inicjalizacji SkiaSharp (`libfontconfig.so.1`)
+
+Jeśli podczas generowania kodów QR pojawia się wyjątek podobny do:
+
+> **TypeInitializationException:** The type initializer for `SkiaSharp.SKImageInfo` threw an exception  
+> `libfontconfig.so.1: cannot open shared object file`
+
+Oznacza to brak systemowej biblioteki `libfontconfig` w środowisku uruchomieniowym (np. w najnowszych obrazach Docker `aspnet/runtime`).
+
+SkiaSharp korzysta z natywnych bibliotek, których obecność jest wymagana już na etapie inicjalizacji i nie może być zapewniona po stronie biblioteki aplikacyjnej.
+
+#### Rozwiązanie
+
+Doinstalować bibliotekę `libfontconfig` w środowisku uruchomieniowym, np. w obrazie Docker:
+
+```
+dockerfile
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libfontconfig1 \
+ && rm -rf /var/lib/apt/lists/*
+ ```
 
 ## Więcej informacji
 

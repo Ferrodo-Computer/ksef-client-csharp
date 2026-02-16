@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace KSeF.Client.Core
@@ -55,7 +56,7 @@ namespace KSeF.Client.Core
                 }
             }
 
-            return crc.ToString("X2"); // zawsze 2-znakowy hex
+            return crc.ToString("X2", CultureInfo.InvariantCulture); // zawsze 2-znakowy hex
         }
     }
 }

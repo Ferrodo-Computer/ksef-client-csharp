@@ -1,4 +1,4 @@
-﻿namespace KSeF.Client.Core.Infrastructure.Rest
+﻿namespace KSeF.Client.Core.Interfaces.Rest
 {
     public interface IRestRequestWithBody<T> : IRestRequest
     {

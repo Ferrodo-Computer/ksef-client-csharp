@@ -8,6 +8,7 @@ using KSeF.Client.Core.Models.Sessions;
 using KSeF.Client.DI;
 using KSeF.Client.Extensions;
 using KSeF.Client.Tests.Utils;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -16,16 +17,24 @@ namespace KSeF.Client.Tests.Core.E2E.QrCode;
 
 public class QrCodeOfflineE2EScenarioFixture
 {
-    public string? AccessToken { get; set; }
-    public string? Nip { get; set; }
-    public string? InvoiceHash { get; set; }
-    public string? PrivateKey { get; set; }
+    public QrCodeOfflineE2EScenarioFixture()
+    {
+        AccessToken = string.Empty;
+        Nip = string.Empty;
+        InvoiceHash = string.Empty;
+        PrivateKey = string.Empty;
+    }
+
+    public string AccessToken { get; set; }
+    public string Nip { get; set; }
+    public string InvoiceHash { get; set; }
+    public string PrivateKey { get; set; }
     public CertificateResponse? Certificate { get; set; }
     public DateTime? InvoiceDate { get; set; }
 }
 
 [CollectionDefinition("QrCodeOfflineE2EScenario")]
-public class QrCodeE2EScenarioCollection
+public class QrCodeE2EScenarios
 : ICollectionFixture<QrCodeOfflineE2EScenarioFixture>
 { }
 [Collection("QrCodeOfflineE2EScenario")]
@@ -33,18 +42,16 @@ public class QrCodeOfflineE2ETests : TestBase
 {
     private readonly QrCodeOfflineE2EScenarioFixture Fixture;
     private readonly VerificationLinkService linkService;
-    private readonly QrCodeService qrCodeService;
 
     public QrCodeOfflineE2ETests(QrCodeOfflineE2EScenarioFixture fixture)
     {
         Fixture = fixture;
         Fixture.Nip = MiscellaneousUtils.GetRandomNip();
 
-        AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(KsefClient, SignatureService, Fixture.Nip).GetAwaiter().GetResult();
+        AuthenticationOperationStatusResponse authInfo = AuthenticationUtils.AuthenticateAsync(AuthorizationClient, Fixture.Nip).GetAwaiter().GetResult();
         Fixture.AccessToken = authInfo.AccessToken.Token;
 
-        linkService = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnviromentsUris.TEST });
-        qrCodeService = new QrCodeService();
+        linkService = new VerificationLinkService(new KSeFClientOptions() { BaseUrl = KsefEnvironmentsUris.TEST, BaseQRUrl = KsefQREnvironmentsUris.TEST });
     }
 
     public record TestScenario(
@@ -54,29 +61,40 @@ public class QrCodeOfflineE2ETests : TestBase
         Func<X509Certificate2, string, X509Certificate2> GetCertWithPrivateKey  // GetCertWithRsaKey lub GetCertWithEcdsaKey
     );
 
-    public static IEnumerable<object[]> TestScenarios => new[]
+    // Replace TheoryData<object[]> with TheoryData<string> and use scenario name as the data row.
+    // Use a static dictionary to map scenario names to TestScenario instances.
+
+    public static readonly Dictionary<string, TestScenario> TestScenarioMap = new()
     {
-        new object[] { new TestScenario("faktura FA(2), szyfrowanie RSA",
+        ["faktura FA(2), szyfrowanie RSA"] = new TestScenario(
+            "faktura FA(2), szyfrowanie RSA",
             async (ksefClient, accessToken, cryptographyService) => await CertificateUtils.GenerateCsrAndPrivateKeyWithRsaAsync(ksefClient, accessToken, cryptographyService, RSASignaturePadding.Pkcs1),
-            "invoice-template-fa-2.xml", 
-            (cert, key) => GetCertWithRsaKey(cert,key)) },
-    
-    
-        new object[] { new TestScenario("faktura FA(2), szyfrowanie ECdsa",
+            "invoice-template-fa-2.xml",
+            (cert, key) => GetCertWithRsaKey(cert, key)),
+        ["faktura FA(2), szyfrowanie ECdsa"] = new TestScenario(
+            "faktura FA(2), szyfrowanie ECdsa",
             async (ksefClient, accessToken, cryptographyService) => await CertificateUtils.GenerateCsrAndPrivateKeyWithEcdsaAsync(ksefClient, accessToken, cryptographyService),
-            "invoice-template-fa-2.xml", 
-            (cert, key) => GetCertWithEcdsaKey(cert, key)) },
-    
-        new object[] { new TestScenario("faktura FA(3), szyfrowanie RSA",
+            "invoice-template-fa-2.xml",
+            (cert, key) => GetCertWithEcdsaKey(cert, key)),
+        ["faktura FA(3), szyfrowanie RSA"] = new TestScenario(
+            "faktura FA(3), szyfrowanie RSA",
             async (ksefClient, accessToken, cryptographyService) => await CertificateUtils.GenerateCsrAndPrivateKeyWithRsaAsync(ksefClient, accessToken, cryptographyService, RSASignaturePadding.Pkcs1),
-            "invoice-template-fa-3.xml", 
-            (cert, key) => GetCertWithRsaKey(cert, key)) },
-    
-        new object[] { new TestScenario("faktura FA(3), szyfrowanie ECdsa", 
-            async(ksefClient, accessToken, cryptographyService) => await CertificateUtils.GenerateCsrAndPrivateKeyWithEcdsaAsync(ksefClient, accessToken, cryptographyService), 
-            "invoice-template-fa-3.xml", 
-            (cert, key) => GetCertWithEcdsaKey(cert, key)) }
+            "invoice-template-fa-3.xml",
+            (cert, key) => GetCertWithRsaKey(cert, key)),
+        ["faktura FA(3), szyfrowanie ECdsa"] = new TestScenario(
+            "faktura FA(3), szyfrowanie ECdsa",
+            async (ksefClient, accessToken, cryptographyService) => await CertificateUtils.GenerateCsrAndPrivateKeyWithEcdsaAsync(ksefClient, accessToken, cryptographyService),
+            "invoice-template-fa-3.xml",
+            (cert, key) => GetCertWithEcdsaKey(cert, key))
     };
+
+    public static TheoryData<string> TestScenarios =>
+    [
+        "faktura FA(2), szyfrowanie RSA",
+        "faktura FA(2), szyfrowanie ECdsa",
+        "faktura FA(3), szyfrowanie RSA",
+        "faktura FA(3), szyfrowanie ECdsa"
+    ];
 
     /// <summary>
     /// End-to-end test weryfikujący pełny, zakończony sukcesem przebieg wystawienia kodów QR do faktury w trybie offline (offlineMode = true).
@@ -101,8 +119,10 @@ public class QrCodeOfflineE2ETests : TestBase
     /// </remarks>
     [Theory]
     [MemberData(nameof(TestScenarios))]
-    public async Task QrCodeOfflineE2ETest(TestScenario testScenario)
+    public async Task QrCodeOfflineE2ETest(string scenarioName)
     {
+        TestScenario testScenario = TestScenarioMap[scenarioName];
+
         //Utworzenie Certificate Signing Request (csr) oraz klucz prywatny za pomocą RSA lub ECDSA
         (string csr, string privateKey) = await testScenario.GenerateCsrAndPrivateKey(KsefClient, Fixture.AccessToken, CryptographyService);
 
@@ -123,10 +143,10 @@ public class QrCodeOfflineE2ETests : TestBase
                             .GetCertificateEnrollmentStatusAsync(certificateEnrollment.ReferenceNumber, Fixture.AccessToken, CancellationToken.None);
             numbersOfTriesForCertificate++;
         }
-        Assert.True(enrollmentStatus.Status.Code == 200);
+        Assert.Equal(200, enrollmentStatus.Status.Code);
 
         //Pobranie certyfikatu KSeF
-        List<string> serialNumbers = new List<string> { enrollmentStatus.CertificateSerialNumber };
+        List<string> serialNumbers = [enrollmentStatus.CertificateSerialNumber];
         CertificateListResponse certificateListResponse = await KsefClient
             .GetCertificateListAsync(new CertificateListRequest { CertificateSerialNumbers = serialNumbers }, Fixture.AccessToken, CancellationToken.None);
         Assert.NotNull(certificateListResponse);
@@ -146,7 +166,7 @@ public class QrCodeOfflineE2ETests : TestBase
         xml = xml.Replace("#nip#", Fixture.Nip);
         xml = xml.Replace("2025-09-01", "2025-10-01");
 
-        Fixture.InvoiceDate = DateTime.Parse("2025-10-01");
+        Fixture.InvoiceDate = DateTime.Parse("2025-10-01", CultureInfo.InvariantCulture);
         MemoryStream memoryStream = new(Encoding.UTF8.GetBytes(xml));
 
         //gotową fakturę należy zapisać, aby wysłać do KSeF później (zgodnie z obowiązującymi przepisami), oznaczoną jako offlineMode = true
@@ -162,35 +182,35 @@ public class QrCodeOfflineE2ETests : TestBase
         Assert.NotNull(invoiceForOfflineUrl);
         Assert.Contains(Convert.FromBase64String(Fixture.InvoiceHash).EncodeBase64UrlToString(), invoiceForOfflineUrl);
         Assert.Contains(Fixture.Nip, invoiceForOfflineUrl);
-        Assert.Contains(Fixture.InvoiceDate.Value.ToString("dd-MM-yyyy"), invoiceForOfflineUrl);
+        Assert.Contains(Fixture.InvoiceDate.Value.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture), invoiceForOfflineUrl);
 
         //Utworzenie kodu QR faktury (KOD I) dla trybu offline
-        byte[]? qrOffline = qrCodeService.GenerateQrCode(invoiceForOfflineUrl);
+        byte[]? qrOffline = QrCodeService.GenerateQrCode(invoiceForOfflineUrl);
 
         //Dodanie etykiety OFFLINE
-        qrOffline = qrCodeService.AddLabelToQrCode(qrOffline, "OFFLINE");
+        qrOffline = QrCodeService.AddLabelToQrCode(qrOffline, "OFFLINE");
 
         Assert.NotEmpty(qrOffline);
 
         //Utworzenie odnośnika (Url) do weryfikacji certyfikatu (KOD II)
         byte[] certBytes = Convert.FromBase64String(Fixture.Certificate.Certificate);
-        X509Certificate2 cert = X509CertificateLoader.LoadCertificate(certBytes);
+
+        X509Certificate2 cert = X509CertificateLoaderExtensions.LoadCertificate(certBytes);
 
         //Dodanie klucza prywatnego do certyfikatu
         X509Certificate2 certWithKey = testScenario.GetCertWithPrivateKey(cert, Fixture.PrivateKey);
 
         //Utworzenie kodu QR do weryfikacji certyfikatu (KOD II) dla trybu offline
-        byte[] qrOfflineCertificate = qrCodeService.GenerateQrCode(
+        byte[] qrOfflineCertificate = QrCodeService.GenerateQrCode(
             linkService.BuildCertificateVerificationUrl(
                 Fixture.Nip,
                 QRCodeContextIdentifierType.Nip,
                 Fixture.Nip,
-                Fixture.Certificate.CertificateSerialNumber,
                 Fixture.InvoiceHash,
                 certWithKey));
 
         //Dodanie etykiety CERTYFIKAT
-        qrOfflineCertificate = qrCodeService.AddLabelToQrCode(qrOfflineCertificate, "CERTYFIKAT");
+        qrOfflineCertificate = QrCodeService.AddLabelToQrCode(qrOfflineCertificate, "CERTYFIKAT");
 
         Assert.NotEmpty(qrOfflineCertificate);
     }

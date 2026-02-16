@@ -2,18 +2,11 @@ using KSeF.Client.Core.Models.Sessions.ActiveSessions;
 using Microsoft.AspNetCore.Mvc;
 using KSeF.Client.Core.Interfaces.Clients;
 
-namespace WebApplication.Controllers;
+namespace KSeF.DemoWebApp.Controllers;
 [Route("active-sessions")]
 [ApiController]
-public class ActiveSessionsController : ControllerBase
-{
-    private readonly IKSeFClient ksefClient;
-
-    public ActiveSessionsController(IKSeFClient ksefClient)
-    {
-        this.ksefClient = ksefClient;
-    }
-
+public class ActiveSessionsController(IActiveSessionsClient activeSessionsClient) : ControllerBase
+{ 
     /// <summary>
     /// Pobranie listy aktywnych sesji.
     /// </summary>
@@ -21,11 +14,11 @@ public class ActiveSessionsController : ControllerBase
     public async Task<ActionResult<ICollection<AuthenticationListItem>>> GetSessionsAsync([FromQuery] string accessToken, CancellationToken cancellationToken)
     {
         const int pageSize = 20;
-        string? continuationToken = null;
-        List<AuthenticationListItem> activeSessions = new List<AuthenticationListItem>();
+        string continuationToken = string.Empty;
+        List<AuthenticationListItem> activeSessions = [];
         do
         {
-            AuthenticationListResponse response = await ksefClient.GetActiveSessions(accessToken, pageSize, continuationToken, cancellationToken);
+            AuthenticationListResponse response = await activeSessionsClient.GetActiveSessions(accessToken, pageSize, continuationToken, cancellationToken).ConfigureAwait(false);
             continuationToken = response.ContinuationToken;
             activeSessions.AddRange(response.Items);
         }
@@ -37,12 +30,12 @@ public class ActiveSessionsController : ControllerBase
     /// <summary>
     /// Unieważnia sesję powiązaną z tokenem użytym do wywołania tej operacji.
     /// </summary>
-    /// <param name="token">Acces token lub Refresh token.</param>
+    /// <param name="token">Access token lub Refresh token.</param>
     /// <param name="cancellationToken"></param>
     [HttpDelete("revoke-current-session")]
     public async Task<ActionResult> RevokeCurrentSessionAsync([FromQuery] string token, CancellationToken cancellationToken)
     {
-        await ksefClient.RevokeCurrentSessionAsync(token, cancellationToken);
+        await activeSessionsClient.RevokeCurrentSessionAsync(token, cancellationToken).ConfigureAwait(false);
         return NoContent();
     }
 
@@ -52,7 +45,7 @@ public class ActiveSessionsController : ControllerBase
     [HttpDelete("revoke-session")]
     public async Task<ActionResult> RevokeSessionAsync([FromQuery] string sessionReferenceNumber, [FromQuery] string accessToken, CancellationToken cancellationToken)
     {
-        await ksefClient.RevokeSessionAsync(sessionReferenceNumber, accessToken, cancellationToken);
+        await activeSessionsClient.RevokeSessionAsync(sessionReferenceNumber, accessToken, cancellationToken).ConfigureAwait(false);
         return NoContent();
     }
 }

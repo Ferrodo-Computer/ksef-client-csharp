@@ -30,7 +30,7 @@ namespace KSeF.Client.Core.Interfaces
         /// Przyjmuje niepodpisany XML, zwraca podpisany XML.
         /// </param>
         /// <param name="authorizationPolicy">Polityka walidacji autoryzacji (opcjonalna).</param>
-        /// <param name="ct">Token anulowania.</param>
+        /// <param name="cancellationToken">Token anulowania.</param>
         /// <param name="verifyCertificateChain">
         /// Czy weryfikować łańcuch certyfikatu podczas uwierzytelniania.
         /// </param>
@@ -44,14 +44,14 @@ namespace KSeF.Client.Core.Interfaces
             AuthenticationTokenSubjectIdentifierTypeEnum identifierType,
             Func<string, Task<string>> xmlSigner,
             AuthenticationTokenAuthorizationPolicy authorizationPolicy = default,
-            CancellationToken cancellationToken = default,
-            bool verifyCertificateChain = false);
+            bool verifyCertificateChain = false,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Odświeża <c>accessToken</c> przy użyciu wcześniej uzyskanego <c>refreshToken</c>.
         /// </summary>
         /// <param name="refreshToken">Ważny refresh token.</param>
-        /// <param name="ct">Token anulowania.</param>
+        /// <param name="cancellationToken">Token anulowania.</param>
         /// <returns>
         /// Nowy obiekt <see cref="TokenInfo"/> zawierający odświeżony accessToken i refreshToken.
         /// </returns>
@@ -75,7 +75,7 @@ namespace KSeF.Client.Core.Interfaces
         /// <param name="cryptographyService">Usługa odpowiedzialna za szyfrowanie RSA/ECDSA.</param>
         /// <param name="encryptionMethod">Metoda szyfrowania (domyślnie ECDsa).</param>
         /// <param name="authorizationPolicy">Polityka walidacji autoryzacji (opcjonalna).</param>
-        /// <param name="ct">Token anulowania.</param>
+        /// <param name="cancellationToken">Token anulowania.</param>
         /// <returns>
         /// Obiekt <see cref="AuthenticationOperationStatusResponse"/> zawierający dane access/refresh tokenów 
         /// oraz status operacji.

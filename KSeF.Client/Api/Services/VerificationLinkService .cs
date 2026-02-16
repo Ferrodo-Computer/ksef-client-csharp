@@ -1,4 +1,4 @@
-using KSeF.Client.Core.Interfaces.Services;
+﻿using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.QRCode;
 using KSeF.Client.DI;
 using KSeF.Client.Extensions;
@@ -8,23 +8,44 @@ using System.Text;
 
 namespace KSeF.Client.Api.Services
 {
-    public class VerificationLinkService : IVerificationLinkService
+    /// <inheritdoc/>
+    public class VerificationLinkService(KSeFClientOptions options) : IVerificationLinkService
     {
-        private readonly string BaseUrl;
-
-        public VerificationLinkService(KSeFClientOptions options)
+        private string BaseUrl
         {
-            BaseUrl = $"{options.BaseUrl}/client-app";
+            get
+            {
+                if (!string.IsNullOrEmpty(options.BaseQRUrl))
+                {
+                    return options.BaseQRUrl;
+                }
+                if (KsefEnvironmentsUris.TEST == options.BaseUrl)
+                {
+                    return KsefQREnvironmentsUris.TEST;
+                }
+                if (KsefEnvironmentsUris.DEMO == options.BaseUrl)
+                {
+                    return KsefQREnvironmentsUris.DEMO;
+                }
+                if (KsefEnvironmentsUris.PROD == options.BaseUrl)
+                {
+                    return KsefQREnvironmentsUris.PROD;
+                }
+
+                throw new InvalidOperationException("Nieznane środowisko KSeF dla ustawienia BaseQRUrl.");
+            }
         }
 
+        /// <inheritdoc/>
         public string BuildInvoiceVerificationUrl(string nip, DateTime issueDate, string invoiceHash)
         {
-            string date = issueDate.ToString("dd-MM-yyyy");
-            byte[] bytes = Convert.FromBase64String(invoiceHash);
+            string date = issueDate.ToString("dd-MM-yyyy", System.Globalization.CultureInfo.InvariantCulture);
+            byte[] bytes = invoiceHash.DecodeBase64OrBase64Url();
             string urlEncoded = bytes.EncodeBase64UrlToString();
             return $"{BaseUrl}/invoice/{nip}/{date}/{urlEncoded}";
         }
 
+        /// <inheritdoc/>
         public string BuildCertificateVerificationUrl(
             string sellerNip,
             QRCodeContextIdentifierType contextIdentifierType,
@@ -35,7 +56,7 @@ namespace KSeF.Client.Api.Services
             string privateKey = ""
         )
         {
-            byte[] bytes = Convert.FromBase64String(invoiceHash);
+            byte[] bytes = invoiceHash.DecodeBase64OrBase64Url();
             string invoiceHashUrlEncoded = bytes.EncodeBase64UrlToString();
 
             string pathToSign = $"{BaseUrl}/certificate/{contextIdentifierType}/{contextIdentifierValue}/{sellerNip}/{certificateSerial}/{invoiceHashUrlEncoded}".Replace("https://", "");
@@ -44,25 +65,34 @@ namespace KSeF.Client.Api.Services
             return $"{BaseUrl}/certificate/{contextIdentifierType}/{contextIdentifierValue}/{sellerNip}/{certificateSerial}/{invoiceHashUrlEncoded}/{signedHash}";
         }
 
+        /// <inheritdoc/>
+        public string BuildCertificateVerificationUrl(
+            string sellerNip,
+            QRCodeContextIdentifierType contextIdentifierType,
+            string contextIdentifierValue,
+            string invoiceHash,
+            X509Certificate2 signingCertificate,
+            string privateKey = ""
+        )
+        {
+            return BuildCertificateVerificationUrl(sellerNip, contextIdentifierType, contextIdentifierValue, signingCertificate.SerialNumber, invoiceHash, signingCertificate, privateKey);
+        }
+
 
         private static string ComputeUrlEncodedSignedHash(string pathToSign, X509Certificate2 cert, string privateKey = "", DSASignatureFormat dSASignatureFormat = DSASignatureFormat.IeeeP1363FixedFieldConcatenation)
         {
             // 1. SHA-256
             byte[] sha;
-
-            using (SHA256 sha256 = SHA256.Create())
-            {
-                sha = sha256.ComputeHash(Encoding.UTF8.GetBytes(pathToSign));
-            }
+            sha = SHA256.HashData(Encoding.UTF8.GetBytes(pathToSign));
 
             if (!string.IsNullOrEmpty(privateKey))
             {
-                if (privateKey.StartsWith("-----"))
+                if (privateKey.StartsWith("-----", StringComparison.Ordinal))
                 {
                     privateKey = string.Concat(
                         privateKey
-                            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Where(l => !l.StartsWith("-----"))
+                            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                            .Where(l => !l.StartsWith("-----", StringComparison.Ordinal))
                     );
                 }
 

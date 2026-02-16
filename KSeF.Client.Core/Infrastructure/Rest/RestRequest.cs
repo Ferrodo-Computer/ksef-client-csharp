@@ -1,4 +1,5 @@
-﻿using System;
+﻿using KSeF.Client.Core.Interfaces.Rest;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 
@@ -22,11 +23,8 @@ namespace KSeF.Client.Core.Infrastructure.Rest
 
         private RestRequest(string path, HttpMethod method)
         {
-            if (path == null) throw new ArgumentNullException(nameof(path));
-            if (method == null) throw new ArgumentNullException(nameof(method));
-
-            Path = path;
-            Method = method;
+            Path = path ?? throw new ArgumentNullException(nameof(path));
+            Method = method ?? throw new ArgumentNullException(nameof(method));
             ContentType = RestContentType.Json.ToMime();
             Accept = null;
             AccessToken = null;
@@ -40,13 +38,23 @@ namespace KSeF.Client.Core.Infrastructure.Rest
         public RestRequest AddAccessToken(string accessToken) { AccessToken = accessToken; return this; }
         public RestRequest AddHeader(string name, string value)
         {
-            Dictionary<string, string> d = new Dictionary<string, string>(Headers, StringComparer.OrdinalIgnoreCase);
-            d[name] = value; Headers = d; return this;
+            Dictionary<string, string> dictionaryHeaders = 
+                new Dictionary<string, string>(Headers, StringComparer.OrdinalIgnoreCase)
+            {
+                [name] = value
+            };
+            Headers = dictionaryHeaders;
+            return this;
         }
         public RestRequest AddQueryParameter(string name, string value)
         {
-            Dictionary<string, string> d = new Dictionary<string, string>(Query, StringComparer.OrdinalIgnoreCase);
-            d[name] = value; Query = d; return this;
+            Dictionary<string, string> dictionaryParameters = 
+                new Dictionary<string, string>(Query, StringComparer.OrdinalIgnoreCase)
+            {
+                [name] = value
+            };
+            Query = dictionaryParameters; 
+            return this;
         }
         public RestRequest WithAccept(string accept) { Accept = accept; return this; }
         public RestRequest WithTimeout(TimeSpan timeout) { Timeout = timeout; return this; }
@@ -55,19 +63,44 @@ namespace KSeF.Client.Core.Infrastructure.Rest
 
         public RestRequest<TBody> WithBody<TBody>(TBody body, RestContentType contentType = RestContentType.Json)
         {
-            if (object.Equals(body, null)) throw new ArgumentNullException(nameof(body));
+            if (Equals(body, null))
+            {
+                throw new ArgumentNullException(nameof(body));
+            }
 
-            RestRequest<TBody> req = RestRequest<TBody>.New(Path, Method, body, contentType);
+            RestRequest<TBody> requestBuilder = RestRequestBuilder.New(Path, Method, body, contentType);
 
-            if (!string.IsNullOrEmpty(AccessToken)) req.AddAccessToken(AccessToken);
-            if (!string.IsNullOrEmpty(Accept)) req.WithAccept(Accept);
-            if (!string.IsNullOrEmpty(ApiVersion)) req.WithApiVersion(ApiVersion);
-            if (Timeout.HasValue) req.WithTimeout(Timeout.Value);
+            if (!string.IsNullOrEmpty(AccessToken))
+            {
+                requestBuilder.AddAccessToken(AccessToken);
+            }
 
-            foreach (KeyValuePair<string, string> kv in Headers) req.AddHeader(kv.Key, kv.Value);
-            foreach (KeyValuePair<string, string> kv in Query) req.AddQueryParameter(kv.Key, kv.Value);
+            if (!string.IsNullOrEmpty(Accept))
+            {
+                requestBuilder.WithAccept(Accept);
+            }
 
-            return req;
+            if (!string.IsNullOrEmpty(ApiVersion))
+            {
+                requestBuilder.WithApiVersion(ApiVersion);
+            }
+
+            if (Timeout.HasValue)
+            {
+                requestBuilder.WithTimeout(Timeout.Value);
+            }
+
+            foreach (KeyValuePair<string, string> header in Headers)
+            {
+                requestBuilder.AddHeader(header.Key, header.Value);
+            }
+
+            foreach (KeyValuePair<string, string> queryParameter in Query)
+            {
+                requestBuilder.AddQueryParameter(queryParameter.Key, queryParameter.Value);
+            }
+
+            return requestBuilder;
         }
     }
 }

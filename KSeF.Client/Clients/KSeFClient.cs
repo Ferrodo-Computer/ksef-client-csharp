@@ -88,7 +88,7 @@ public class KSeFClient(IRestClient restClient) : IKSeFClient
     }
 
     /// <inheritdoc />
-    public async Task<SignatureResponse> SubmitXadesAuthRequestAsync(string signedXML, bool verifyCertificateChain = false, CancellationToken cancellationToken = default)
+    public async Task<SignatureResponse> SubmitXadesAuthRequestAsync(string signedXML, bool verifyCertificateChain = false, bool enforceXadesCompliance = false, CancellationToken cancellationToken = default)
     {
         Guard.ThrowIfNullOrWhiteSpace(signedXML);
 
@@ -99,7 +99,9 @@ public class KSeFClient(IRestClient restClient) : IKSeFClient
                                                                      signedXML,
                                                                      default,
                                                                      RestClient.XmlContentType,
-                                                                     cancellationToken: cancellationToken).ConfigureAwait(false);
+			                                                         enforceXadesCompliance ?
+				                                                        new Dictionary<string, string> { { "X-KSeF-Feature", "enforce-xades-compliance" } } : null,
+																	 cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

@@ -199,7 +199,6 @@ public class BatchSessionStreamE2ETests : TestBase
         {
             builder = builder.AddBatchFilePart(
                 ordinalNumber: p.OrdinalNumber,
-                fileName: $"part_{p.OrdinalNumber}.zip.aes",
                 fileSize: p.Metadata.FileSize,
                 fileHash: p.Metadata.HashSHA);
         }

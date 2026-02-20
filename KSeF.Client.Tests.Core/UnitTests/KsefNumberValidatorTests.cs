@@ -93,9 +93,8 @@ public class KsefNumberValidatorTests
 
         // Assert (Weryfikacja)
         Assert.False(result);
-        // Obecna implementacja nie ustawia komunikatu błędu dla niezgodnej sumy kontrolnej
-        Assert.True(string.IsNullOrEmpty(msg));
-    }
+		Assert.False(string.IsNullOrEmpty(msg));
+	}
 
     /// <summary>
     /// Modyfikacja 33. znaku (znaku wypełniającego) nie wpływa na wynik walidacji

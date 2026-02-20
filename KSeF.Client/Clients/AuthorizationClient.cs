@@ -18,14 +18,22 @@ public class AuthorizationClient(IRestClient restClient, IRouteBuilder routeBuil
         => ExecuteAsync<AuthenticationChallengeResponse>(Routes.Authorization.Challenge, HttpMethod.Post, cancellationToken);
 
     /// <inheritdoc/>
-    public Task<SignatureResponse> SubmitXadesAuthRequestAsync(string signedXML, bool verifyCertificateChain = false, CancellationToken cancellationToken = default)
+    public Task<SignatureResponse> SubmitXadesAuthRequestAsync(string signedXML, bool verifyCertificateChain = false, bool enforceXadesCompliance = false, CancellationToken cancellationToken = default)
     {
         Guard.ThrowIfNullOrWhiteSpace(signedXML);
 
         string endpoint = Routes.Authorization.XadesSignature + $"?verifyCertificateChain={verifyCertificateChain.ToString().ToLower(System.Globalization.CultureInfo.CurrentCulture)}";
         string path = routeBuilder.Build(endpoint);
 
-        return restClient.SendAsync<SignatureResponse, string>(HttpMethod.Post, path, signedXML, null, RestClient.XmlContentType, cancellationToken);
+        return restClient.SendAsync<SignatureResponse, string>(
+            HttpMethod.Post, 
+            path, 
+            signedXML, 
+            null, 
+            RestClient.XmlContentType,
+			enforceXadesCompliance ?
+				new Dictionary<string, string> { { "X-KSeF-Feature", "enforce-xades-compliance" } } : null,
+			cancellationToken);
     }
 
     /// <inheritdoc/>

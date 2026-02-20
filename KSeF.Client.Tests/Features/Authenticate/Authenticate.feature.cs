@@ -120,7 +120,7 @@ public class AuthenticateTests : KsefIntegrationTestBase
         string signedXml = SignatureService.Sign(unsignedXml, certificate);
 
         SignatureResponse authOperationInfo = await AuthorizationClient
-          .SubmitXadesAuthRequestAsync(signedXml, false, CancellationToken.None);
+          .SubmitXadesAuthRequestAsync(signedXml, false, false, CancellationToken.None);
 
         AuthStatus status = await EnsureAuthenticationCompletedAsync(
             AuthorizationClient,
@@ -187,7 +187,7 @@ public class AuthenticateTests : KsefIntegrationTestBase
         string signedXml = SignatureService.Sign(unsignedXml, certificate);
 
         SignatureResponse authOperationInfo = await AuthorizationClient
-          .SubmitXadesAuthRequestAsync(signedXml, false, CancellationToken.None);
+          .SubmitXadesAuthRequestAsync(signedXml, false, false, CancellationToken.None);
 
         AuthStatus status = await EnsureAuthenticationCompletedAsync(
             AuthorizationClient,
@@ -239,7 +239,7 @@ public class AuthenticateTests : KsefIntegrationTestBase
         KsefApiException ex = await Assert.ThrowsAsync<KsefApiException>(async () =>
         {
             SignatureResponse authOperationInfo = await AuthorizationClient
-          .SubmitXadesAuthRequestAsync(signedXml, false, CancellationToken.None).ConfigureAwait(false);
+          .SubmitXadesAuthRequestAsync(signedXml, false, false, CancellationToken.None).ConfigureAwait(false);
         });
     }
 
@@ -264,7 +264,7 @@ public class AuthenticateTests : KsefIntegrationTestBase
         KsefApiException ex = await Assert.ThrowsAsync<KsefApiException>(async () =>
         {
             SignatureResponse authOperationInfo = await AuthorizationClient
-          .SubmitXadesAuthRequestAsync(signedXml, false, CancellationToken.None).ConfigureAwait(false);
+          .SubmitXadesAuthRequestAsync(signedXml, false, false, CancellationToken.None).ConfigureAwait(false);
         });
     }
 
@@ -301,7 +301,7 @@ public class AuthenticateTests : KsefIntegrationTestBase
         KsefApiException ex = await Assert.ThrowsAsync<KsefApiException>(async () =>
         {
             SignatureResponse authOperationInfo = await AuthorizationClient
-          .SubmitXadesAuthRequestAsync(signedXml, false, CancellationToken.None).ConfigureAwait(false);
+          .SubmitXadesAuthRequestAsync(signedXml, false, false, CancellationToken.None).ConfigureAwait(false);
         });
     }
 

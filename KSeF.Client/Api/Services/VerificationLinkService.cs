@@ -5,36 +5,59 @@ using KSeF.Client.Extensions;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 namespace KSeF.Client.Api.Services
 {
     /// <inheritdoc/>
-    public class VerificationLinkService(KSeFClientOptions options) : IVerificationLinkService
+    public class VerificationLinkService : IVerificationLinkService
     {
+        private readonly IOptionsMonitor<KSeFClientOptions> _options;
+
+        public VerificationLinkService(IOptionsMonitor<KSeFClientOptions> options)
+        {
+            _options = options;
+        }
+
+
+        private static string NormalizeUrl(string url)
+        {
+            return url.TrimEnd('/').ToUpperInvariant();
+        }
+
         private string BaseUrl
         {
             get
             {
-                if (!string.IsNullOrEmpty(options.BaseQRUrl))
+                KSeFClientOptions o = _options.CurrentValue;
+
+                if (!string.IsNullOrEmpty(o.BaseQRUrl))
                 {
-                    return options.BaseQRUrl;
+                    return o.BaseQRUrl;
                 }
-                if (KsefEnvironmentsUris.TEST == options.BaseUrl)
+
+                string baseUrl = NormalizeUrl(o.BaseUrl);
+
+                if (NormalizeUrl(KsefEnvironmentsUris.TEST) == baseUrl)
                 {
                     return KsefQREnvironmentsUris.TEST;
                 }
-                if (KsefEnvironmentsUris.DEMO == options.BaseUrl)
+
+                if (NormalizeUrl(KsefEnvironmentsUris.DEMO) == baseUrl)
                 {
                     return KsefQREnvironmentsUris.DEMO;
                 }
-                if (KsefEnvironmentsUris.PROD == options.BaseUrl)
+
+                if (NormalizeUrl(KsefEnvironmentsUris.PROD) == baseUrl)
                 {
                     return KsefQREnvironmentsUris.PROD;
                 }
 
-                throw new InvalidOperationException("Nieznane środowisko KSeF dla ustawienia BaseQRUrl.");
+                throw new InvalidOperationException(
+                    "Nieznane środowisko KSeF dla ustawienia BaseQRUrl.");
             }
         }
+
 
         /// <inheritdoc/>
         public string BuildInvoiceVerificationUrl(string nip, DateTime issueDate, string invoiceHash)

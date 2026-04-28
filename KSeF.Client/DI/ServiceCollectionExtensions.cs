@@ -12,6 +12,7 @@ using KSeF.Client.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 namespace KSeF.Client.DI;
 
@@ -20,6 +21,74 @@ namespace KSeF.Client.DI;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    public static IServiceCollection AddKSeFClientWithOptions(this IServiceCollection services, Action<KSeFClientOptions> configure)
+    {
+        services.AddOptions<KSeFClientOptions>()
+                .Configure(configure)
+                .Validate(
+                    o => !string.IsNullOrWhiteSpace(o.BaseUrl),
+                    $"{nameof(KSeFClientOptions.BaseUrl)} musi być poprawnym URL.");
+
+        services.AddHttpClient<IRestClient, RestClient>()
+            .ConfigureHttpClient((sp, http) =>
+            {
+                KSeFClientOptions options = sp.GetRequiredService<IOptions<KSeFClientOptions>>().Value;
+
+                http.BaseAddress = new Uri(options.BaseUrl);
+
+                if (options.CustomHeaders != null)
+                {
+                    foreach (KeyValuePair<string, string> header in options.CustomHeaders)
+                    {
+                        http.DefaultRequestHeaders.Add(header.Key, header.Value);
+                    }
+                }
+
+                http.DefaultRequestHeaders.Accept.Add(
+                    new MediaTypeWithQualityHeaderValue("application/json"));
+
+                http.DefaultRequestHeaders.TryAddWithoutValidation(
+                    "X-Error-Format", "problem-details");
+
+                http.Timeout = TimeSpan.FromMinutes(5);
+            })
+            .ConfigurePrimaryHttpMessageHandler(sp =>
+            {
+                KSeFClientOptions options = sp.GetRequiredService<IOptions<KSeFClientOptions>>().Value;
+
+                HttpClientHandler handler = new HttpClientHandler();
+
+                if (options.WebProxy != null)
+                {
+                    handler.Proxy = options.WebProxy;
+                    handler.UseProxy = true;
+                }
+
+                return handler;
+            });
+
+        services.AddSingleton<IRouteBuilder>(sp =>
+        {
+            KSeFClientOptions options = sp.GetRequiredService<IOptions<KSeFClientOptions>>().Value;
+
+            return new RouteBuilder(options.ApiConfiguration.ApiVersion);
+        });
+
+        services.AddScoped<ISearchPermissionClient, SearchPermissionClient>();
+        services.AddScoped<IKSeFClient, KSeFClient>();
+        services.AddScoped<ITestDataClient, TestDataClient>();
+        services.AddScoped<IAuthCoordinator, AuthCoordinator>();
+        services.AddScoped<ILimitsClient, LimitsClient>();
+        services.AddScoped<IActiveSessionsClient, ActiveSessionsClient>();
+        services.AddScoped<IAuthorizationClient, AuthorizationClient>();
+
+        services.AddSingleton<IPersonTokenService, PersonTokenService>();
+        services.AddScoped<IVerificationLinkService, VerificationLinkService>();
+
+        return services;
+    }
+
+
     /// <summary>
     /// Rejestruje wszystkie potrzebne serwisy do korzystania z KSeF
     /// </summary>

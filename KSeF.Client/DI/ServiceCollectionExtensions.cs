@@ -21,6 +21,14 @@ namespace KSeF.Client.DI;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Moja wersja metody która rejestruje wszystkie potrzebne serwisy do korzystania z KSeF
+    /// Inaczej obsługiwana jest konfiguracja opcji, która jest rejestrowana jako IOptions<KSeFClientOptions>, a nie jako singleton KSeFClientOptions.
+    /// Dzięki temu można zmodyfikować parametry połaczenia z KSeF po rejestracji już po pobraniu ich z bazy dancych.
+    /// </summary>
+    /// <param name="services">Rozszerzany interfejs</param>
+    /// <param name="configure">Opcje klienta KSeF</param>
+    /// <exception cref="ArgumentException"></exception>
     public static IServiceCollection AddKSeFClientWithOptions(this IServiceCollection services, Action<KSeFClientOptions> configure)
     {
         services.AddOptions<KSeFClientOptions>()

@@ -7,3 +7,5 @@ appsettings.Development.json
 *.lscache
 /KSeF.DemoWebApp/public-key-dev-new.pem
 /KSeF.DemoWebApp/faktura.xml
+
+CIRF/

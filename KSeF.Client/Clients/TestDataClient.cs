@@ -79,5 +79,17 @@ namespace KSeF.Client.Clients
         public Task<Status> BlockContextAsync(ContextIdentifier requestPayload, string accessToken, CancellationToken cancellationToken = default) =>
             ExecuteAsync<Status, ContextIdentifier>(Routes.TestData.BlockContext, requestPayload, accessToken, cancellationToken);
 
+        /// <inheritdoc />
+        public Task<Status> UpdateCertificateAsync(string serialNumber, TestDataUpdateCertificateRequest request, string accessToken, CancellationToken cancellationToken = default)
+        {
+            Guard.ThrowIfNullOrWhiteSpace(serialNumber);
+
+            return ExecuteAsync<Status, TestDataUpdateCertificateRequest>(
+                Routes.TestData.UpdateCertificate(Uri.EscapeDataString(serialNumber)),
+                HttpMethod.Put,
+                request,
+                accessToken,
+                cancellationToken);
+        }
     }
 }

@@ -148,7 +148,7 @@ public class PersonalPermissions_IndirectSelective_CompleteChain_E2ETests : Test
             await AsyncPollingUtils.PollAsync(
                 action: () => KsefClient.OperationsStatusAsync(revoke.ReferenceNumber, intermediaryAccessToken),
                 condition: r => r.Status.Code == OperationSuccessfulStatusCode,
-                "Czekam na REVOKE Intermediary→Person (200)",
+                "Czekam na REVOKE Intermediary -> Person (200)",
                 TimeSpan.FromMilliseconds(SleepTime), 60, cancellationToken: CancellationToken);
         }
 

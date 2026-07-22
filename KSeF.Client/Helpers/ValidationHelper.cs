@@ -15,6 +15,10 @@ public static class ValidationHelper
     private const string ErrorInvoiceContentEmpty = "Treść faktury nie może być pusta.";
     private const string ErrorXmlEmptyOrNoRoot = "XML faktury jest pusty lub bez elementu głównego.";
     private const string ErrorXmlFormatPrefix = "Błąd XML: ";
+    private const string ErrorDisallowedUnicodeCharacter = "Niedozwolony znak Unicode w fakturze: {0}";
+    private const string ErrorBomDetected = "Faktura zawiera znak BOM na początku treści. Wymagane jest kodowanie UTF-8 bez BOM.";
+    private const string ErrorPrologEncodingNotUtf8 = "Prolog XML wskazuje kodowanie inne niż UTF-8: {0}.";
+    private const string ErrorProcessingInstructionFound = "Faktura nie może zawierać instrukcji przetwarzania XML (processing instructions): {0}.";
 
     // Komunikaty błędów walidacji - Sprzedawca (Podmiot1)
     private const string ErrorSellerNipNotFound = "NIP sprzedawcy (Podmiot1) nie został znaleziony w fakturze.";
@@ -41,6 +45,33 @@ public static class ValidationHelper
     private static readonly CompositeFormat ErrorThirdPartyNipInvalidChecksumComposite = CompositeFormat.Parse(ErrorThirdPartyNipInvalidChecksum);
     private static readonly CompositeFormat ErrorThirdPartyIdWewInvalidFormatComposite = CompositeFormat.Parse(ErrorThirdPartyIdWewInvalidFormat);
     private static readonly CompositeFormat ErrorThirdPartyIdWewInvalidChecksumComposite = CompositeFormat.Parse(ErrorThirdPartyIdWewInvalidChecksum);
+    private static readonly CompositeFormat ErrorDisallowedUnicodeCharacterComposite = CompositeFormat.Parse(ErrorDisallowedUnicodeCharacter);
+    private static readonly CompositeFormat ErrorPrologEncodingNotUtf8Composite = CompositeFormat.Parse(ErrorPrologEncodingNotUtf8);
+    private static readonly CompositeFormat ErrorProcessingInstructionFoundComposite = CompositeFormat.Parse(ErrorProcessingInstructionFound);
+
+	/// <summary>
+	/// Waliduje format XML faktury na podstawie surowych bajtów, zanim zostaną zdekodowane do stringa.
+	/// Pozwala to wykryć sekwencję bajtów BOM przed dekodowaniem, który typowe metody dekodowania (np. <see cref="System.IO.File.ReadAllText(string)"/>) zdejmują automatycznie.
+	/// </summary>
+	/// <param name="invoiceXmlBytes">Surowa zawartość faktury w formacie XML.</param>
+	/// <returns>Obiekt <see cref="XmlValidationResult"/> zawierający wyniki walidacji.</returns>
+	public static XmlValidationResult ValidateInvoiceXmlFormat(byte[] invoiceXmlBytes)
+    {
+        if (invoiceXmlBytes == null || invoiceXmlBytes.Length == 0)
+        {
+            return new XmlValidationResult(false, ErrorInvoiceContentEmpty, null);
+        }
+
+        if (invoiceXmlBytes.Length >= 3
+            && invoiceXmlBytes[0] == 0xEF
+            && invoiceXmlBytes[1] == 0xBB
+            && invoiceXmlBytes[2] == 0xBF)
+        {
+            return new XmlValidationResult(false, ErrorBomDetected, null);
+        }
+
+        return ValidateInvoiceXmlFormat(Encoding.UTF8.GetString(invoiceXmlBytes));
+    }
 
     /// <summary>
     /// Waliduje format XML faktury.
@@ -54,17 +85,55 @@ public static class ValidationHelper
             return new XmlValidationResult(false, ErrorInvoiceContentEmpty, null);
         }
 
+        if (invoiceXml[0] == '\uFEFF')
+        {
+            return new XmlValidationResult(false, ErrorBomDetected, null);
+        }
+
+        string disallowedCharacter = XmlUnicodeValidator.FindDisallowedUnicodeCharacter(invoiceXml);
+        if (disallowedCharacter != null)
+        {
+            return new XmlValidationResult(false, string.Format(System.Globalization.CultureInfo.InvariantCulture, ErrorDisallowedUnicodeCharacterComposite, disallowedCharacter), null);
+        }
+
+        XDocument document;
         try
         {
-            XDocument document = XDocument.Parse(invoiceXml);
-            return document.Root == null
-                ? new XmlValidationResult(false, ErrorXmlEmptyOrNoRoot, document)
-                : new XmlValidationResult(true, null, document);
+            document = XDocument.Parse(invoiceXml);
         }
         catch (XmlException xmlEx)
         {
             return new XmlValidationResult(false, $"{ErrorXmlFormatPrefix}{xmlEx.Message}", null);
         }
+
+        if (document.Root == null)
+        {
+            return new XmlValidationResult(false, ErrorXmlEmptyOrNoRoot, document);
+        }
+
+        string declaredEncoding = document.Declaration?.Encoding;
+        if (declaredEncoding != null && !string.Equals(declaredEncoding, "UTF-8", StringComparison.OrdinalIgnoreCase))
+        {
+            return new XmlValidationResult(false, string.Format(System.Globalization.CultureInfo.InvariantCulture, ErrorPrologEncodingNotUtf8Composite, declaredEncoding), null);
+        }
+
+        XProcessingInstruction processingInstruction = document.DescendantNodes().OfType<XProcessingInstruction>().FirstOrDefault();
+        if (processingInstruction != null)
+        {
+            return new XmlValidationResult(false, string.Format(System.Globalization.CultureInfo.InvariantCulture, ErrorProcessingInstructionFoundComposite, processingInstruction.Target), null);
+        }
+
+        return new XmlValidationResult(true, null, document);
+    }
+
+    /// <summary>
+    /// Waliduje fakturę przed wysłaniem na podstawie surowych bajtów, sprawdzając format XML (w tym BOM) i wszystkie NIP-y oraz identyfikatory wewnętrzne.
+    /// </summary>
+    /// <param name="invoiceXmlBytes">Surowa zawartość faktury w formacie XML.</param>
+    /// <returns>Obiekt <see cref="InvoiceValidationResult"/> zawierający wyniki walidacji.</returns>
+    public static InvoiceValidationResult ValidateInvoiceBeforeSending(byte[] invoiceXmlBytes)
+    {
+        return BuildInvoiceValidationResult(ValidateInvoiceXmlFormat(invoiceXmlBytes));
     }
 
     /// <summary>
@@ -74,8 +143,11 @@ public static class ValidationHelper
     /// <returns>Obiekt <see cref="InvoiceValidationResult"/> zawierający wyniki walidacji.</returns>
     public static InvoiceValidationResult ValidateInvoiceBeforeSending(string invoiceXml)
     {
-        XmlValidationResult xmlValidationResult = ValidateInvoiceXmlFormat(invoiceXml);
+        return BuildInvoiceValidationResult(ValidateInvoiceXmlFormat(invoiceXml));
+    }
 
+    private static InvoiceValidationResult BuildInvoiceValidationResult(XmlValidationResult xmlValidationResult)
+    {
         if (!xmlValidationResult.IsValid)
         {
             return new InvoiceValidationResult { XmlValidationResult = xmlValidationResult };

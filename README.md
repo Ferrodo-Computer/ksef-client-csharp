@@ -41,33 +41,33 @@ Dzięki `netstandard2.0` biblioteka jest w pełni kompatybilna z:
 
 Zawiera implementację komunikacji z API KSeF oraz logikę biznesową:
 
-- **Api/**  
+- **Api/**
   - **Builders/** - buildery do konstrukcji requestów API (Auth, Certificates, Permissions, Sessions, itp.)
   - **Services/** - serwisy biznesowe (AuthCoordinator, CryptographyService, SignatureService, TokenService, QrCodeService, VerificationLinkService)
 
-- **Clients/**  
+- **Clients/**
   Implementacje klientów specjalizowanych (CryptographyClient, KSeFClient)
 
-- **DI/**  
+- **DI/**
   Konfiguracja Dependency Injection i opcje klienta (KSeFClientOptions, CryptographyClientOptions, ServiceCollectionExtensions)
 
-- **Extensions/**  
+- **Extensions/**
   Metody rozszerzające (Base64UrlExtensions)
 
-- **Http/**  
+- **Http/**
   Implementacja komunikacji HTTP (KSeFClient, RestClient, JsonUtil)
 
 ### KSeF.Client.Core
 
 Biblioteka zawierająca wspólne typy i interfejsy:
 
-- **Exceptions/**  
+- **Exceptions/**
   Wyjątki specyficzne dla KSeF (KsefApiException, KsefRateLimitException)
 
-- **Interfaces/**  
+- **Interfaces/**
   Interfejsy usług i klientów (IKSeFClient, ICryptographyService, ISignatureService, IAuthCoordinator, IQrCodeService, IVerificationLinkService)
 
-- **Models/**  
+- **Models/**
   Modele danych odpowiadające strukturom API KSeF (Authorization, Certificates, Invoices, Sessions, Permissions, Token, QRCode, Peppol)
 
 - **KsefNumberValidator.cs**  
@@ -76,15 +76,15 @@ Biblioteka zawierająca wspólne typy i interfejsy:
 
 ## Instalacja i konfiguracja
 
-Aby użyć biblioteki KSeF.Client w swoim projekcie, dodaj referencję do projektu **KSeF.Client** (zawiera on już referencję do KSeF.Client.Core).
+Aby użyć biblioteki KSeF.Client w swoim projekcie, dodaj referencję do projektu **KSeF.Client** (zawiera on już referencję do `KSeF.Client.Core`).
 
 ### Pakiety Nuget 
 
-Projekty KSeF.Client i KSeF.Client.Core są dostępne jako pakiety nuget w GitHub Packages organizacji CIRFMF.
+Projekty `KSeF.Client` i `KSeF.Client.Core` są dostępne jako pakiety nuget w GitHub Packages organizacji CIRFMF.
 
 Opis paczek:
-* KSeF.Client - główna biblioteka klienta z logiką biznesową
-* KSeF.Client.Core - modele, interfejsy i wyjątki 
+* `KSeF.Client` - główna biblioteka klienta z logiką biznesową
+* `KSeF.Client.Core` - modele, interfejsy i wyjątki 
 
 Należy najpierw skonfigurować dostęp do paczek NuGet opublikowanych w GitHub Packages organizacji CIRFMF.
 Wymaga to autoryzacji przy pomocy osobistego tokena dostępu (Personal Access Token – PAT) z uprawnieniem read:packages.
@@ -215,20 +215,7 @@ public class InvoiceService
 
 Sesje wsadowe obsługują wskazanie typu kompresji pliku wsadowego przez `BatchFile.CompressionType`. Dla paczek TAR.GZ należy przygotować zawartość jako `.tar.gz` i przekazać `CompressionType.TarGz` podczas budowania żądania otwarcia sesji.
 
-```csharp
-OpenBatchSessionRequest request = OpenBatchSessionRequestBuilder
-    .Create()
-    .WithFormCode(systemCode, schemaVersion, value)
-    .WithBatchFile(fileSize, fileHash, CompressionType.TarGz)
-    .AddBatchFilePart(ordinalNumber, partFileSize, partFileHash)
-    .EndBatchFile()
-    .WithEncryption(encryptedSymmetricKey, initializationVector, publicKeyId)
-    .Build();
-```
-
-## Obsługa paczek TAR.GZ w sesjach wsadowych
-
-Sesje wsadowe obsługują wskazanie typu kompresji pliku wsadowego przez `BatchFile.CompressionType`. Dla paczek TAR.GZ należy przygotować zawartość jako `.tar.gz` i przekazać `CompressionType.TarGz` podczas budowania żądania otwarcia sesji.
+Builder waliduje ograniczenia kontraktu OpenAPI: rozmiar paczki 1–5 000 000 000 bajtów, od 1 do 50 części, numer i rozmiar części od 1 oraz skróty plików w formacie `Sha256HashBase64`.
 
 ```csharp
 OpenBatchSessionRequest request = OpenBatchSessionRequestBuilder
@@ -241,7 +228,7 @@ OpenBatchSessionRequest request = OpenBatchSessionRequestBuilder
     .Build();
 ```
 
-Eksport paczki faktur również obsługuje wskazanie typu kompresji przez `InvoiceExportRequest.CompressionType`. Dla paczek TAR.GZ ustaw `CompressionType.TarGz`, a dla ZIP możesz jawnie wskazać `CompressionType.Zip`. Brak wartości zachowuje domyślną kompatybilność API.
+Eksport paczki faktur również obsługuje wskazanie typu kompresji przez `InvoiceExportRequest.CompressionType`. SDK domyślnie używa `CompressionType.TarGz`, format ZIP można wybrać jawnie przez `CompressionType.Zip`.
 
 ```csharp
 InvoiceExportRequest request = new()
@@ -251,6 +238,10 @@ InvoiceExportRequest request = new()
     Filters = filters
 };
 ```
+
+## Identyfikatory zbiorcze
+
+Operacje `/collective-identifiers` są dostępne przez `IKSeFClient`, który implementuje `ICollectiveIdentifiersClient`.
 
 ## Testowanie
 

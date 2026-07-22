@@ -87,6 +87,12 @@
             /// Wywołanie: POST /testdata/context/unblock
             /// </summary>
             public const string UnblockContext = Prefix + "/context/unblock";
+
+            /// <summary>
+            /// Aktualizacja danych certyfikatu (tylko na środowiskach testowych).
+            /// Wywołanie: PUT /testdata/certificates/{serialNumber}
+            /// </summary>
+            public static string UpdateCertificate(string serialNumber) => Prefix + "/certificates/" + serialNumber;
         }
 
         /// <summary>
@@ -468,6 +474,34 @@
             /// Zapytanie o dostawców Peppol.
             /// </summary>
             public const string Query = Prefix + "/query";
+        }
+
+        /// <summary>
+        /// Endpointy dotyczące identyfikatorów zbiorczych.
+        /// </summary>
+        public static class CollectiveIdentifiers
+        {
+            private const string Prefix = "collective-identifiers";
+
+            /// <summary>
+            /// Generowanie identyfikatora zbiorczego.
+            /// </summary>
+            public const string Root = Prefix;
+
+            /// <summary>
+            /// Zapytanie o listę identyfikatorów zbiorczych wygenerowanych w kontekście.
+            /// </summary>
+            public const string Query = Prefix + "/query";
+
+            /// <summary>
+            /// Lista identyfikatorów zbiorczych powiązanych z numerem KSeF faktury.
+            /// </summary>
+            public static string ByKsefNumber(string ksefNumber) => Prefix + "/ksef/" + ksefNumber;
+
+            /// <summary>
+            /// Lista faktur wchodzących w skład identyfikatora zbiorczego.
+            /// </summary>
+            public static string InvoicesByCollectiveIdentifierNumber(string collectiveIdentifierNumber) => Prefix + "/" + collectiveIdentifierNumber + "/invoices";
         }
     }
 }

@@ -64,5 +64,10 @@
         /// Limity pozostałych operacji API.
         /// </summary>
         public EffectiveApiRateLimitValues Other { get; set; }
+
+        /// <summary>
+        /// Limity generowania identyfikatorów zbiorczych.
+        /// </summary>
+        public EffectiveApiRateLimitValues CollectiveIdentifier { get; set; }
     }
 }

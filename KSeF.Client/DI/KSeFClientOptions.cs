@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using KSeF.Client.Core.Infrastructure.Rest;
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 
 namespace KSeF.Client.DI;
@@ -72,4 +73,11 @@ public class KSeFClientOptions
     /// Domyślnie mechanizm jest włączony.
     /// </summary>
     public KsefCircuitBreakerOptions CircuitBreaker { get; set; } = new KsefCircuitBreakerOptions();
+
+    /// <summary>
+    /// Konfiguruje obserwację wybranych nagłówków odpowiedzi HTTP (np. "X-System-Warning")
+    /// przez statyczne zdarzenie <see cref="KSeF.Client.Http.RestClient.ResponseHeaderObserved"/>.
+    /// Domyślnie wyłączona.
+    /// </summary>
+    public ResponseHeaderObservationOptions ResponseHeaderObservation { get; set; } = new ResponseHeaderObservationOptions();
 }

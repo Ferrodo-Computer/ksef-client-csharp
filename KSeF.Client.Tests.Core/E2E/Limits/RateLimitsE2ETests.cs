@@ -48,6 +48,7 @@ public class RateLimitsE2ETests : TestBase
     private static readonly RateMax InvoiceExportMax = new(8, 16, 20);
     private static readonly RateMax InvoiceDownloadMax = new(8, 16, 64);
     private static readonly RateMax OtherMax = new(10, 30, 120);
+    private static readonly RateMax CollectiveIdentifierMax = new(10, 60, 120);
 
     /// <summary>
     /// Test E2E: pobiera bieżące limity, wylicza i ustawia nowe ograniczenia w dopuszczalnych granicach,
@@ -167,6 +168,7 @@ public class RateLimitsE2ETests : TestBase
             InvoiceExport = baseLimits.InvoiceExport,
             InvoiceExportStatus = baseLimits.InvoiceExportStatus,
             InvoiceDownload = baseLimits.InvoiceDownload,
+            CollectiveIdentifier = baseLimits.CollectiveIdentifier,
             Other = baseLimits.Other
         };
 
@@ -358,7 +360,8 @@ public class RateLimitsE2ETests : TestBase
             InvoiceExport = ModifyWithinBounds(source.InvoiceExport, delta, InvoiceExportMax),
             InvoiceExportStatus = source.InvoiceExportStatus,
             InvoiceDownload = ModifyWithinBounds(source.InvoiceDownload, delta, InvoiceDownloadMax),
-            Other = ModifyWithinBounds(source.Other, delta, OtherMax)
+			CollectiveIdentifier = ModifyWithinBounds(source.CollectiveIdentifier, delta, CollectiveIdentifierMax),
+			Other = ModifyWithinBounds(source.Other, delta, OtherMax)
         };
     }
 
@@ -379,7 +382,8 @@ public class RateLimitsE2ETests : TestBase
                 InvoiceExport = source.InvoiceExport,
                 InvoiceExportStatus = source.InvoiceExportStatus,
                 InvoiceDownload = source.InvoiceDownload,
-                Other = new EffectiveApiRateLimitValues
+				CollectiveIdentifier = source.CollectiveIdentifier,
+				Other = new EffectiveApiRateLimitValues
                 {
                     PerSecond = LowOtherPerSecondLimit,
                     PerMinute = source.Other.PerMinute,
@@ -668,6 +672,7 @@ public class RateLimitsE2ETests : TestBase
             && AreRateLimitValuesEqual(expected.InvoiceExport, actual.InvoiceExport)
             && AreRateLimitValuesEqual(expected.InvoiceExportStatus, actual.InvoiceExportStatus)
             && AreRateLimitValuesEqual(expected.InvoiceDownload, actual.InvoiceDownload)
+            && AreRateLimitValuesEqual(expected.CollectiveIdentifier, actual.CollectiveIdentifier)
             && AreRateLimitValuesEqual(expected.Other, actual.Other);
     }
 
@@ -748,8 +753,12 @@ public class RateLimitsE2ETests : TestBase
         Assert.Equal(expected.InvoiceDownload.PerSecond, actual.InvoiceDownload.PerSecond);
         Assert.Equal(expected.InvoiceDownload.PerMinute, actual.InvoiceDownload.PerMinute);
         Assert.Equal(expected.InvoiceDownload.PerHour, actual.InvoiceDownload.PerHour);
-        // Other
-        Assert.Equal(expected.Other.PerSecond, actual.Other.PerSecond);
+		// CollectiveIdentifier
+		Assert.Equal(expected.CollectiveIdentifier.PerSecond, actual.CollectiveIdentifier.PerSecond);
+		Assert.Equal(expected.CollectiveIdentifier.PerMinute, actual.CollectiveIdentifier.PerMinute);
+		Assert.Equal(expected.CollectiveIdentifier.PerHour, actual.CollectiveIdentifier.PerHour);
+		// Other
+		Assert.Equal(expected.Other.PerSecond, actual.Other.PerSecond);
         Assert.Equal(expected.Other.PerMinute, actual.Other.PerMinute);
         Assert.Equal(expected.Other.PerHour, actual.Other.PerHour);
     }

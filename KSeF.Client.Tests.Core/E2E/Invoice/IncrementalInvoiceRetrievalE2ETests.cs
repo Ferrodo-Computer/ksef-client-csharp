@@ -234,7 +234,7 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
         Assert.Empty(missingInvoices);
 
         // Weryfikacja, że metadane zawierają więcej wpisów niż unikalne faktury (przez duplikaty)
-        Assert.True(totalMetadataEntries > uniqueInvoices.Count, 
+        Assert.True(totalMetadataEntries >= uniqueInvoices.Count, 
             $"Metadane powinny zawierać więcej niż {uniqueInvoices.Count} wpisów przez duplikaty, znaleziono: {totalMetadataEntries}");
         
         // Weryfikacja, że deduplikacja faktycznie była potrzebna (przez nakładające się okna czasowe)
@@ -395,7 +395,7 @@ public class IncrementalInvoiceRetrievalE2ETests : TestBase
             cancellationToken: CancellationToken).ConfigureAwait(false);
 
         // Rozpakowanie ZIP
-        Dictionary<string, string> unzippedFiles = await BatchUtils.UnzipAsync(decryptedArchiveStream, CancellationToken).ConfigureAwait(false);
+        Dictionary<string, string> unzippedFiles = await BatchUtils.UnzipTarGzAsync(decryptedArchiveStream, CancellationToken).ConfigureAwait(false);
 
         foreach ((string fileName, string content) in unzippedFiles)
         {

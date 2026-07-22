@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddSingleton(options);
+        services.AddSingleton(options.ResponseHeaderObservation ?? new ResponseHeaderObservationOptions());
 
         JsonUtil.ResetConfigurationForCasePropertyName(options.UseCamelCaseForRequests);
 
@@ -111,6 +112,7 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddScoped<ISearchPermissionClient, SearchPermissionClient>();
+        services.AddScoped<ICollectiveIdentifiersClient, CollectiveIdentifiersClient>();
         services.AddScoped<IKSeFClient, KSeFClient>();
         services.AddScoped<ITestDataClient, TestDataClient>();
         services.AddScoped<IAuthCoordinator, AuthCoordinator>();

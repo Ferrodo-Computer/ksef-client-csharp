@@ -4,6 +4,7 @@ using KSeF.Client.Core.Interfaces.Rest;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 using KSeF.Client.Core.Models.Certificates;
+using KSeF.Client.Core.Models.CollectiveIdentifiers;
 using KSeF.Client.Core.Models.Invoices;
 using KSeF.Client.Core.Models.Peppol;
 using KSeF.Client.Core.Models.Permissions;
@@ -1112,5 +1113,101 @@ public class KSeFClient(IRestClient restClient) : IKSeFClient
                                                                     RestClient.DefaultContentType,
                                                                     cancellationToken)
                                                                     .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<GenerateCollectiveIdentifierResponse> GenerateCollectiveIdentifierAsync(
+        GenerateCollectiveIdentifierRequest request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.ThrowIfNull(request);
+        Guard.ThrowIfNullOrWhiteSpace(accessToken);
+
+        return await restClient.SendAsync<GenerateCollectiveIdentifierResponse, GenerateCollectiveIdentifierRequest>(
+            HttpMethod.Post,
+            "/v2/collective-identifiers",
+            request,
+            accessToken,
+            RestClient.DefaultContentType,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<CollectiveIdentifiersQueryResponse> QueryCollectiveIdentifiersAsync(
+        CollectiveIdentifiersQueryRequest request,
+        string accessToken,
+        int? pageSize = null,
+        string continuationToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.ThrowIfNull(request);
+        Guard.ThrowIfNullOrWhiteSpace(accessToken);
+
+        StringBuilder urlBuilder = new("/v2/collective-identifiers/query");
+        PaginationHelper.AppendPagination(null, pageSize, urlBuilder);
+
+        return await restClient.SendAsync<CollectiveIdentifiersQueryResponse, CollectiveIdentifiersQueryRequest>(
+            HttpMethod.Post,
+            urlBuilder.ToString(),
+            request,
+            accessToken,
+            RestClient.DefaultContentType,
+            !string.IsNullOrWhiteSpace(continuationToken)
+                ? new Dictionary<string, string> { { "x-continuation-token", Regex.Unescape(continuationToken) } }
+                : null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<CollectiveIdentifiersByKsefNumberQueryResponse> GetCollectiveIdentifiersByKsefNumberAsync(
+        string ksefNumber,
+        string accessToken,
+        string continuationToken = null,
+        int? pageSize = null,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.ThrowIfNullOrWhiteSpace(ksefNumber);
+        Guard.ThrowIfNullOrWhiteSpace(accessToken);
+
+        StringBuilder urlBuilder = new($"/v2/collective-identifiers/ksef/{Uri.EscapeDataString(ksefNumber)}");
+        PaginationHelper.AppendPagination(null, pageSize, urlBuilder);
+
+        return await restClient.SendAsync<CollectiveIdentifiersByKsefNumberQueryResponse, object>(
+            HttpMethod.Get,
+            urlBuilder.ToString(),
+            default,
+            accessToken,
+            RestClient.DefaultContentType,
+            !string.IsNullOrWhiteSpace(continuationToken)
+                ? new Dictionary<string, string> { { "x-continuation-token", Regex.Unescape(continuationToken) } }
+                : null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<CollectiveIdentifierInvoicesQueryResponse> GetCollectiveIdentifierInvoicesAsync(
+        string collectiveIdentifierNumber,
+        string accessToken,
+        string continuationToken = null,
+        int? pageSize = null,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.ThrowIfNullOrWhiteSpace(collectiveIdentifierNumber);
+        Guard.ThrowIfNullOrWhiteSpace(accessToken);
+
+        StringBuilder urlBuilder = new($"/v2/collective-identifiers/{Uri.EscapeDataString(collectiveIdentifierNumber)}/invoices");
+        PaginationHelper.AppendPagination(null, pageSize, urlBuilder);
+
+        return await restClient.SendAsync<CollectiveIdentifierInvoicesQueryResponse, object>(
+            HttpMethod.Get,
+            urlBuilder.ToString(),
+            default,
+            accessToken,
+            RestClient.DefaultContentType,
+            !string.IsNullOrWhiteSpace(continuationToken)
+                ? new Dictionary<string, string> { { "x-continuation-token", Regex.Unescape(continuationToken) } }
+                : null,
+            cancellationToken).ConfigureAwait(false);
     }
 }

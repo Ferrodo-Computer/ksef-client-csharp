@@ -224,6 +224,46 @@ public class RestClientProblemDetailsTests
         Assert.Equal((HttpStatusCode)400, ex.StatusCode);
     }
 
+    [Fact]
+    public async Task SendAsync_WhenHttp500WithProblemDetails_PreservesTraceId()
+    {
+        string json = """
+            {
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "Wystąpił nieoczekiwany błąd.",
+                "traceId": "00-abc123-def456-01"
+            }
+            """;
+        RestClient client = CreateClient(HttpStatusCode.InternalServerError, json, "application/problem+json");
+
+        KsefApiException ex = await Assert.ThrowsAsync<KsefApiException>(() =>
+            client.SendAsync<object, object>(HttpMethod.Post, "https://localhost/test", (object)null, null, "application/json", CancellationToken.None));
+
+        Assert.Equal("00-abc123-def456-01", ex.ErrorResponse.Exception.ReferenceNumber);
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenHttp500WithLegacyError_PreservesServiceCode()
+    {
+        string json = """
+            {
+                "exception": {
+                    "serviceCode": "00-legacy-service-code",
+                    "exceptionDetailList": [
+                        { "exceptionCode": 500, "exceptionDescription": "Wystąpił nieoczekiwany błąd." }
+                    ]
+                }
+            }
+            """;
+        RestClient client = CreateClient(HttpStatusCode.InternalServerError, json);
+
+        KsefApiException ex = await Assert.ThrowsAsync<KsefApiException>(() =>
+            client.SendAsync<object, object>(HttpMethod.Post, "https://localhost/test", (object)null, null, "application/json", CancellationToken.None));
+
+        Assert.Equal("00-legacy-service-code", ex.ErrorResponse.Exception.ServiceCode);
+    }
+
     // ===========================
     // HTTP 429 – Problem Details
     // ===========================

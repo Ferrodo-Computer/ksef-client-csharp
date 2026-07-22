@@ -2,6 +2,7 @@ namespace KSeF.Client.Api.Builders.Batch
 {
     using KSeF.Client.Core.Models.Sessions;
     using KSeF.Client.Core.Models.Sessions.BatchSession;
+    using KSeF.Client.Validation;
 
     /// <summary>
     /// Umożliwia zbudowanie żądania otwarcia sesji wsadowej w KSeF.
@@ -26,19 +27,19 @@ namespace KSeF.Client.Api.Builders.Batch
         /// <summary>
         /// Ustawia podstawowe informacje o pliku wsadowym.
         /// </summary>
-        /// <param name="fileSize">Rozmiar pliku wsadowego w bajtach.</param>
-        /// <param name="fileHash">Skrót kryptograficzny całego pliku wsadowego.</param>
+        /// <param name="fileSize">Rozmiar pliku wsadowego w bajtach. Schemat OpenAPI <c>BatchFileInfo</c> dopuszcza zakres 1–5 000 000 000.</param>
+        /// <param name="fileHash">Skrót kryptograficzny całego pliku wsadowego zgodny ze schematem OpenAPI <c>Sha256HashBase64</c>.</param>
         /// <returns>Interfejs do dodawania części pliku wsadowego.</returns>
         IOpenBatchSessionRequestBuilderBatchFile WithBatchFile(long fileSize, string fileHash);
 
         /// <summary>
         /// Ustawia podstawowe informacje o pliku wsadowym wraz z typem kompresji.
         /// </summary>
-        /// <param name="fileSize">Rozmiar pliku wsadowego w bajtach.</param>
-        /// <param name="fileHash">Skrót kryptograficzny całego pliku wsadowego.</param>
-        /// <param name="compressionType">Typ kompresji pliku wsadowego (np. Zip lub TarGz).</param>
+        /// <param name="fileSize">Rozmiar pliku wsadowego w bajtach. Schemat OpenAPI <c>BatchFileInfo</c> dopuszcza zakres 1–5 000 000 000.</param>
+        /// <param name="fileHash">Skrót kryptograficzny całego pliku wsadowego zgodny ze schematem OpenAPI <c>Sha256HashBase64</c>.</param>
+        /// <param name="compressionType">Typ kompresji pliku wsadowego (np. Zip lub TarGz). Domyślnie przyjmuje typ TarGz</param>
         /// <returns>Interfejs do dodawania części pliku wsadowego.</returns>
-        IOpenBatchSessionRequestBuilderBatchFile WithBatchFile(long fileSize, string fileHash, CompressionType compressionType);
+        IOpenBatchSessionRequestBuilderBatchFile WithBatchFile(long fileSize, string fileHash, CompressionType compressionType = CompressionType.TarGz);
 
         /// <summary>
         /// Włącza lub wyłącza tryb offline sesji wsadowej.
@@ -59,6 +60,7 @@ namespace KSeF.Client.Api.Builders.Batch
         /// <param name="parts">
         /// Części pliku wsadowego zawierające nazwę pliku, numer porządkowy,
         /// rozmiar części w bajtach oraz skrót kryptograficzny.
+        /// Schemat OpenAPI <c>BatchFileInfo</c> dopuszcza od 1 do 50 części.
         /// </param>
         /// <returns>Interfejs pozwalający dodać kolejne części lub zakończyć opis pliku.</returns>
         [Obsolete("Użyj AddBatchFileParts(IEnumerable<(int ordinalNumber, long fileSize, string fileHash)>). Parametr fileName nie jest używany i zostanie usunięty w przyszłej wersji.")]
@@ -70,6 +72,7 @@ namespace KSeF.Client.Api.Builders.Batch
         /// <param name="parts">
         /// Części pliku wsadowego zawierające numer porządkowy,
         /// rozmiar części w bajtach oraz skrót kryptograficzny.
+        /// Schemat OpenAPI <c>BatchFileInfo</c> dopuszcza od 1 do 50 części.
         /// </param>
         /// <returns>Interfejs pozwalający dodać kolejne części lub zakończyć opis pliku.</returns>
         IOpenBatchSessionRequestBuilderBatchFile AddBatchFileParts(IEnumerable<(int ordinalNumber, long fileSize, string fileHash)> parts);
@@ -78,9 +81,9 @@ namespace KSeF.Client.Api.Builders.Batch
         /// Dodaje pojedynczą część pliku wsadowego.
         /// </summary>
         /// <param name="fileName">Nieużywany. Parametr zostanie usunięty w przyszłej wersji.</param>
-        /// <param name="ordinalNumber">Numer porządkowy części w pliku wsadowym.</param>
-        /// <param name="fileSize">Rozmiar części pliku w bajtach.</param>
-        /// <param name="fileHash">Skrót kryptograficzny części pliku.</param>
+        /// <param name="ordinalNumber">Numer porządkowy części w pliku wsadowym. Minimum według OpenAPI <c>BatchFilePartInfo</c>: 1.</param>
+        /// <param name="fileSize">Rozmiar części pliku w bajtach. Minimum według OpenAPI <c>BatchFilePartInfo</c>: 1.</param>
+        /// <param name="fileHash">Skrót kryptograficzny części pliku zgodny ze schematem OpenAPI <c>Sha256HashBase64</c>.</param>
         /// <returns>Interfejs pozwalający dodać kolejne części lub zakończyć opis pliku.</returns>
         [Obsolete("Użyj AddBatchFilePart(int ordinalNumber, long fileSize, string fileHash). Parametr fileName nie jest używany i zostanie usunięty w przyszłej wersji.")]
         IOpenBatchSessionRequestBuilderBatchFile AddBatchFilePart(string fileName, int ordinalNumber, long fileSize, string fileHash);
@@ -88,14 +91,15 @@ namespace KSeF.Client.Api.Builders.Batch
         /// <summary>
         /// Dodaje pojedynczą część pliku wsadowego.
         /// </summary>
-        /// <param name="ordinalNumber">Numer porządkowy części w pliku wsadowym.</param>
-        /// <param name="fileSize">Rozmiar części pliku w bajtach.</param>
-        /// <param name="fileHash">Skrót kryptograficzny części pliku.</param>
+        /// <param name="ordinalNumber">Numer porządkowy części w pliku wsadowym. Minimum według OpenAPI <c>BatchFilePartInfo</c>: 1.</param>
+        /// <param name="fileSize">Rozmiar części pliku w bajtach. Minimum według OpenAPI <c>BatchFilePartInfo</c>: 1.</param>
+        /// <param name="fileHash">Skrót kryptograficzny części pliku zgodny ze schematem OpenAPI <c>Sha256HashBase64</c>.</param>
         /// <returns>Interfejs pozwalający dodać kolejne części lub zakończyć opis pliku.</returns>
         IOpenBatchSessionRequestBuilderBatchFile AddBatchFilePart(int ordinalNumber, long fileSize, string fileHash);
 
         /// <summary>
         /// Kończy opis pliku wsadowego i przechodzi do ustawienia danych szyfrowania.
+        /// Wymaga co najmniej jednej części zgodnie ze schematem OpenAPI <c>BatchFileInfo</c>.
         /// </summary>
         /// <returns>Interfejs do ustawienia danych szyfrowania.</returns>
         IOpenBatchSessionRequestBuilderEncryption EndBatchFile();
@@ -138,6 +142,13 @@ namespace KSeF.Client.Api.Builders.Batch
         , IOpenBatchSessionRequestBuilderEncryption
         , IOpenBatchSessionRequestBuilderBuild
     {
+        // Ograniczenia wynikają bezpośrednio ze schematów OpenAPI BatchFileInfo i BatchFilePartInfo.
+        private const long OpenApiMinimumFileSizeInBytes = 1;
+        private const long OpenApiMaximumBatchFileSizeInBytes = 5_000_000_000;
+        private const int OpenApiMinimumBatchFilePartOrdinalNumber = 1;
+        private const int OpenApiMinimumBatchFileParts = 1;
+        private const int OpenApiMaximumBatchFileParts = 50;
+
         private FormCode _formCode;
         private readonly List<BatchFilePartInfo> _parts = new();
         private long _batchFileSize;
@@ -178,10 +189,7 @@ namespace KSeF.Client.Api.Builders.Batch
         /// <inheritdoc />
         public IOpenBatchSessionRequestBuilderBatchFile WithBatchFile(long fileSize, string fileHash)
         {
-            if (fileSize < 0 || string.IsNullOrWhiteSpace(fileHash))
-            {
-                throw new ArgumentException("Parametry BatchFile są nieprawidłowe.");
-            }
+            ValidateBatchFile(fileSize, fileHash);
 
             _batchFileSize = fileSize;
             _batchFileHash = fileHash;
@@ -190,12 +198,9 @@ namespace KSeF.Client.Api.Builders.Batch
         }
 
         /// <inheritdoc />
-        public IOpenBatchSessionRequestBuilderBatchFile WithBatchFile(long fileSize, string fileHash, CompressionType compressionType)
+        public IOpenBatchSessionRequestBuilderBatchFile WithBatchFile(long fileSize, string fileHash, CompressionType compressionType = CompressionType.TarGz)
         {
-            if (fileSize < 0 || string.IsNullOrWhiteSpace(fileHash))
-            {
-                throw new ArgumentException("Parametry BatchFile są nieprawidłowe.");
-            }
+            ValidateBatchFile(fileSize, fileHash);
 
             _batchFileSize = fileSize;
             _batchFileHash = fileHash;
@@ -234,10 +239,27 @@ namespace KSeF.Client.Api.Builders.Batch
         /// <inheritdoc />
         public IOpenBatchSessionRequestBuilderBatchFile AddBatchFilePart(int ordinalNumber, long fileSize, string fileHash)
         {
-            if (ordinalNumber < 0 || fileSize < 0 || string.IsNullOrWhiteSpace(fileHash))
+            if (ordinalNumber < OpenApiMinimumBatchFilePartOrdinalNumber ||
+                fileSize < OpenApiMinimumFileSizeInBytes)
             {
-                throw new ArgumentException("Parametry BatchFilePart są nieprawidłowe.");
+                throw new ArgumentException(
+                    $"Parametry BatchFilePart są nieprawidłowe. Schemat OpenAPI BatchFilePartInfo wymaga " +
+                    $"ordinalNumber >= {OpenApiMinimumBatchFilePartOrdinalNumber} i " +
+                    $"fileSize >= {OpenApiMinimumFileSizeInBytes}.");
             }
+
+            if (string.IsNullOrWhiteSpace(fileHash) || !RegexPatterns.Sha256Base64.IsMatch(fileHash))
+            {
+                throw new ArgumentException(
+                    "Schemat OpenAPI BatchFilePartInfo wymaga, aby fileHash był zgodny z Sha256HashBase64.");
+            }
+
+            if (_parts.Count >= OpenApiMaximumBatchFileParts)
+            {
+                throw new InvalidOperationException(
+                    $"Schemat OpenAPI BatchFileInfo dopuszcza maksymalnie {OpenApiMaximumBatchFileParts} części pliku.");
+            }
+
             _parts.Add(new BatchFilePartInfo
             {
                 OrdinalNumber = ordinalNumber,
@@ -255,7 +277,30 @@ namespace KSeF.Client.Api.Builders.Batch
                 throw new InvalidOperationException("Hash BatchFile musi być ustawiony.");
             }
 
+            if (_parts.Count < OpenApiMinimumBatchFileParts)
+            {
+                throw new InvalidOperationException(
+                    $"Schemat OpenAPI BatchFileInfo wymaga co najmniej {OpenApiMinimumBatchFileParts} części pliku.");
+            }
+
             return this;
+        }
+
+        private static void ValidateBatchFile(long fileSize, string fileHash)
+        {
+            if (fileSize < OpenApiMinimumFileSizeInBytes ||
+                fileSize > OpenApiMaximumBatchFileSizeInBytes)
+            {
+                throw new ArgumentException(
+                    $"Parametry BatchFile są nieprawidłowe. Schemat OpenAPI BatchFileInfo wymaga " +
+                    $"fileSize w zakresie {OpenApiMinimumFileSizeInBytes}..{OpenApiMaximumBatchFileSizeInBytes} bajtów.");
+            }
+
+            if (string.IsNullOrWhiteSpace(fileHash) || !RegexPatterns.Sha256Base64.IsMatch(fileHash))
+            {
+                throw new ArgumentException(
+                    "Schemat OpenAPI BatchFileInfo wymaga, aby fileHash był zgodny z Sha256HashBase64.");
+            }
         }
 
         /// <inheritdoc />

@@ -8,7 +8,8 @@ namespace KSeF.Client.Core.Models.Authorization
         CredentialsRead,
         CredentialsManage,
         SubunitManage,
-        EnforcementOperations,    
-        PeppolId
+        EnforcementOperations,
+        PeppolId,
+        CollectiveIdentifierManage
     }
 }

@@ -34,6 +34,7 @@ public abstract class TestBase : IDisposable
     protected ILimitsClient LimitsClient => Get<ILimitsClient>();
     protected ITestDataClient TestDataClient => Get<ITestDataClient>();
 
+    protected ICollectiveIdentifiersClient CollectiveIdentifiersClient => Get<ICollectiveIdentifiersClient>();
     protected IPersonTokenService TokenService => Get<IPersonTokenService>();
     protected ICryptographyService CryptographyService => Get<ICryptographyService>();
     protected IRestClient RestClient => Get<IRestClient>();
@@ -72,6 +73,7 @@ public abstract class TestBase : IDisposable
             options.CustomHeaders = apiSettings.CustomHeaders ?? [];
             options.UseCamelCaseForRequests = useCamelCaseForRequestsApiSettings;
             options.CircuitBreaker.Enabled = ShouldEnableClientSideCircuitBreaker();
+            options.ResponseHeaderObservation = apiSettings.ResponseHeaderObservation;
         });
 
         services.AddLighthouseClient(options =>

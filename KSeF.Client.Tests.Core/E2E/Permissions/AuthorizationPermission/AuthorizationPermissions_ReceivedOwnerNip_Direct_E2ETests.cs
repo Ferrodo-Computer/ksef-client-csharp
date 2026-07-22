@@ -14,7 +14,7 @@ namespace KSeF.Client.Tests.Core.E2E.Permissions.AuthorizationPermission;
 public class AuthorizationPermissions_ReceivedOwnerNip_E2ETests : TestBase
 {
     /// <summary>
-    /// Nadanie uprawnień -> wyszukanie uprawnień (Otrzymanie, NIP właściciela) → odebranie uprawnień.
+    /// Nadanie uprawnień -> wyszukanie uprawnień (Otrzymanie, NIP właściciela) -> odebranie uprawnień.
     /// </summary>
     [Fact]
     public async Task Search_Received_AsOwnerNip_Direct_FullFlow_ShouldFindGrantedPermission()

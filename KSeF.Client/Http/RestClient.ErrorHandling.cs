@@ -308,6 +308,24 @@ public sealed partial class RestClient
 
         try
         {
+            if (TryDeserializeJson(responseBody, out ProblemDetails problemDetails)
+                && problemDetails is not null
+                && problemDetails.HasProblemDetailsFields)
+            {
+                ApiErrorResponse mapped = MapProblemDetailsToApiErrorResponse(
+                    title: problemDetails.Title ?? UnknownText,
+                    status: problemDetails.Status == default ? (int)responseMessage.StatusCode : problemDetails.Status,
+                    detail: problemDetails.Detail,
+                    traceId: problemDetails.TraceId,
+                    instance: problemDetails.Instance);
+
+                string message = string.IsNullOrWhiteSpace(problemDetails.Detail)
+                    ? problemDetails.Title ?? UnknownText
+                    : problemDetails.Detail;
+
+                throw new KsefApiException(message, responseMessage.StatusCode, mapped);
+            }
+
             ApiErrorResponse apiErrorResponse = JsonUtil.Deserialize<ApiErrorResponse>(responseBody);
             string fullMessage = BuildErrorMessageFromDetails(apiErrorResponse);
             string exceptionMessage = string.IsNullOrWhiteSpace(fullMessage) ? responseBody : fullMessage;

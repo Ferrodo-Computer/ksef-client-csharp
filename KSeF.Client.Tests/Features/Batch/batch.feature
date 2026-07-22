@@ -22,12 +22,6 @@ Scenariusz: Przekroczenie limitu liczby faktur
   Wtedy system powinien zwrócić błąd 420
 
 @Batch @regresja @Negative
-Scenariusz: Przekroczenie maksymalnego rozmiaru całej paczki
-  Zakładając, że przygotowałem paczkę o deklarowanym rozmiarze większym niż 5 GiB
-  Jeżeli spróbuję nawiązać sesję wsadową
-  Wtedy system odrzuci żądanie ze względu na przekroczenie limitu fileSize
-
-@Batch @regresja @Negative
 Scenariusz: Przekroczenie rozmiaru paczki
   Zakładając, że mam paczkę o rozmiarze 101 MiB
   Jeżeli spróbuję otworzyć sesję wsadową

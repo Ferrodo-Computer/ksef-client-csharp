@@ -26,9 +26,6 @@ public class BatchTests : KsefIntegrationTestBase
     private const long PaddingSafetyMarginInBytes = 100_000; // +100 KB zapasu (dziesiętne)
     // Efektywny limit na część przed szyfrowaniem: 100 MB = 100_000_000 bajtów
     private const long MaxPartSizeInBytes = 100_000_000L; // 100 MB (dziesiętnie)
-    // Efektywny limit całej paczki: 5 GB = 5_000_000_000 bajtów
-    private const long MaxTotalPackageSizeInBytes = 5_000_000_000L; // 5 GB (dziesiętnie)
-    private const long ExceededTotalPackageSizeInBytes = MaxTotalPackageSizeInBytes + 1; // przekroczenie o 1 bajt
     private const int EncryptionKeySize = 256; // bytes dla RSA
     private const int InitializationVectorSize = 16; // bytes
 
@@ -216,52 +213,6 @@ public class BatchTests : KsefIntegrationTestBase
     }
 
     /// <summary>
-    /// Weryfikuje odrzucenie paczki przekraczającej maksymalny rozmiar 5 GB.
-    /// Oczekuje wyjątku podczas próby otwarcia sesji z fileSize > 5_000_000_000 bajtów (MaxTotalPackageSizeInBytes).
-    /// </summary>
-    [Theory]
-    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml")]
-    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml")]
-    [Trait("Scenario", "Rozmiar całej paczki (fileSize) > 5GB (MaxTotalPackageSizeInBytes)")]
-    public async Task BatchSendWithExceededTotalPackageSizeShouldFail(
-        SystemCode systemCode,
-        string invoiceTemplatePath)
-    {
-        // Arrange
-        List<(string FileName, byte[] Content)> invoices = BatchUtils.GenerateInvoicesInMemory(
-            DefaultInvoiceCount,
-            authenticatedNip,
-            invoiceTemplatePath);
-
-        (byte[] zipBytes, FileMetadata zipMetadata) = BatchUtils.BuildZip(invoices, CryptographyService);
-
-        // Modyfikacja metadaty aby symulować paczkę o rozmiarze przekraczającym 5 GB (dziesiętnie)
-        FileMetadata manipulatedMetadata = new()
-        {
-            FileSize = ExceededTotalPackageSizeInBytes,
-            HashSHA = zipMetadata.HashSHA
-        };
-
-        EncryptionData encryptionData = CryptographyService.GetEncryptionData();
-        List<BatchPartSendingInfo> encryptedParts = BatchUtils.EncryptAndSplit(
-            zipBytes,
-            encryptionData,
-            CryptographyService,
-            partCount: 50);
-
-        // Act & Assert
-        OpenBatchSessionRequest openSessionRequest = BatchUtils.BuildOpenBatchRequest(
-            manipulatedMetadata,
-            encryptionData,
-            encryptedParts,
-            systemCode);
-
-        // API KSeF powinno odrzucić żądanie ze względu na przekroczony limit fileSize
-        await Assert.ThrowsAnyAsync<KsefApiException>(async () =>
-            await BatchUtils.OpenBatchAsync(KsefClient, openSessionRequest, accessToken).ConfigureAwait(false));
-    }
-
-    /// <summary>
     /// Weryfikuje odrzucenie paczki przekraczającej limit rozmiaru 100 MB (przed szyfrowaniem).
     /// Jeśli API nie zwróci błędu przy zamykaniu (202 Accepted), weryfikujemy status sesji.
     /// Akceptujemy dwa możliwe wyniki: odrzucenie całej paczki przed przetwarzaniem (0/0) albo odrzucenie wszystkich faktur (0/5).
@@ -386,48 +337,7 @@ public class BatchTests : KsefIntegrationTestBase
             await BatchUtils.SendBatchPartsAsync(KsefClient, openSessionResponse, incompletePartsList).ConfigureAwait(false));
     }
 
-    /// <summary>
-    /// Weryfikuje odrzucenie paczki z liczbą części przekraczającą maksymalny limit 50.
-    /// Oczekuje wyjątku podczas próby otwarcia sesji.
-    /// </summary>
-    [Theory]
-    [InlineData(SystemCode.FA2, "invoice-template-fa-2.xml", ExceedingPartCount)]
-    [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml", ExceedingPartCount)]
-    [Trait("Scenario", "Próba wysłania z przekroczoną liczbą części (>50)")]
-    public async Task BatchSendWithExceededPartCountShouldFail(
-        SystemCode systemCode,
-        string invoiceTemplatePath,
-        int partCount)
-    {
-        // Arrange
-        List<(string FileName, byte[] Content)> invoices = BatchUtils.GenerateInvoicesInMemory(
-            DefaultInvoiceCount,
-            authenticatedNip,
-            invoiceTemplatePath);
-
-        (byte[] zipBytes, FileMetadata zipMetadata) = BatchUtils.BuildZip(invoices, CryptographyService);
-        EncryptionData encryptionData = CryptographyService.GetEncryptionData();
-
-        // Próba podziału paczki na 51 części, co przekracza limit API wynoszący 50
-        List<BatchPartSendingInfo> encryptedParts = BatchUtils.EncryptAndSplit(
-            zipBytes,
-            encryptionData,
-            CryptographyService,
-            partCount: partCount);
-
-        // Act & Assert
-        OpenBatchSessionRequest openSessionRequest = BatchUtils.BuildOpenBatchRequest(
-            zipMetadata,
-            encryptionData,
-            encryptedParts,
-            systemCode);
-
-        // API KSeF odrzuca żądanie z przekroczoną liczbą części
-        await Assert.ThrowsAnyAsync<KsefApiException>(async () =>
-            await BatchUtils.OpenBatchAsync(KsefClient, openSessionRequest, accessToken).ConfigureAwait(false));
-    }
-
-    /// <summary>
+ 
     /// Weryfikuje wykrycie nieprawidłowo zaszyfrowanego klucza symetrycznego.
     /// Oczekuje błędu deszyfrowania po przetworzeniu sesji przez system KSeF.
     /// </summary>

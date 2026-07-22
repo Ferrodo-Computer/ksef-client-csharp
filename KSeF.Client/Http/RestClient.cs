@@ -2,15 +2,76 @@
 using KSeF.Client.Core.Infrastructure.Rest;
 using KSeF.Client.Core.Interfaces.Rest;
 using KSeF.Client.Http.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 namespace KSeF.Client.Http;
 
 /// <inheritdoc />
-public sealed partial class RestClient(HttpClient httpClient) : IRestClient
+public sealed partial class RestClient(
+    HttpClient httpClient,
+    ResponseHeaderObservationOptions responseHeaderObservationOptions = null) : IRestClient
 {
     private readonly HttpClient httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+    private readonly ResponseHeaderObservationOptions responseHeaderObservationOptions =
+        responseHeaderObservationOptions ?? new ResponseHeaderObservationOptions();
+
+    private static event EventHandler<ResponseHeaderObservedEventArgs> responseHeaderObserved;
+
+    /// <summary>
+    /// Subskrybuje zgłoszenia zdarzeń, gdy odpowiedź HTTP zawiera jeden z nagłówków skonfigurowanych w
+    /// <see cref="ResponseHeaderObservationOptions.HeaderNames"/> (obserwacja musi być włączona
+    /// przez <see cref="ResponseHeaderObservationOptions.Enabled"/>). Subskrypcja jest statyczna -
+    /// wspólna dla wszystkich instancji <see cref="RestClient"/> w procesie, niezależnie od tego,
+    /// jak <c>IRestClient</c> jest zarejestrowany w kontenerze DI (Transient/Scoped/Singleton).
+    /// </summary>
+    /// <remarks>
+    /// Zwrócony <see cref="IDisposable"/> należy zwolnić (najlepiej przez <c>using</c>), gdy subskrybent
+    /// przestaje być potrzebny - dopóki nie zostanie zwolniony, statyczna subskrypcja trzyma silną
+    /// referencję do handlera przez cały czas życia procesu.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using IDisposable subscription = RestClient.ObserveResponseHeaders((sender, e) =>
+    /// {
+    ///     if (e.HeaderName.Equals("X-System-Warning", StringComparison.OrdinalIgnoreCase))
+    ///         logger.LogWarning("KSeF: {Warning}", string.Join("; ", e.Values));
+    /// });
+    /// </code>
+    /// </example>
+    public static IDisposable ObserveResponseHeaders(EventHandler<ResponseHeaderObservedEventArgs> handler)
+    {
+        if (handler is null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
+
+        responseHeaderObserved += handler;
+        return new ResponseHeaderObservationSubscription(handler);
+    }
+
+    private sealed class ResponseHeaderObservationSubscription : IDisposable
+    {
+        private EventHandler<ResponseHeaderObservedEventArgs> handler;
+
+        public ResponseHeaderObservationSubscription(EventHandler<ResponseHeaderObservedEventArgs> handler)
+        {
+            this.handler = handler;
+        }
+
+        public void Dispose()
+        {
+            if (handler is null)
+            {
+                return;
+            }
+
+            responseHeaderObserved -= handler;
+            handler = null;
+        }
+    }
 
     /// <summary>
     /// Domyślny typ treści żądania REST.
@@ -235,6 +296,8 @@ public sealed partial class RestClient(HttpClient httpClient) : IRestClient
             .SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
 
+        ObserveConfiguredHeaders(httpRequestMessage, httpResponseMessage);
+
         bool hasContent = httpResponseMessage.HasBody(httpRequestMessage.Method);
 
         if (httpResponseMessage.IsSuccessStatusCode)
@@ -275,6 +338,8 @@ public sealed partial class RestClient(HttpClient httpClient) : IRestClient
         using HttpResponseMessage httpResponseMessage = await httpClient
             .SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
+
+        ObserveConfiguredHeaders(httpRequestMessage, httpResponseMessage);
 
         bool hasContent = httpResponseMessage.HasBody(httpRequestMessage.Method);
 
@@ -327,6 +392,70 @@ public sealed partial class RestClient(HttpClient httpClient) : IRestClient
         throw new InvalidOperationException("HandleInvalidStatusCode musi zgłosić wyjątek.");
     }
 
+
+    /// <summary>
+    /// Zgłasza zdarzenie subskrybowane przez <see cref="ObserveResponseHeaders"/> dla
+    /// nagłówków skonfigurowanych w <see cref="ResponseHeaderObservationOptions"/>, jeśli obserwacja
+    /// jest włączona.
+    /// </summary>
+    private void ObserveConfiguredHeaders(HttpRequestMessage httpRequestMessage, HttpResponseMessage httpResponseMessage)
+    {
+        if (!responseHeaderObservationOptions.Enabled || responseHeaderObserved is null)
+        {
+            return;
+        }
+
+        foreach (string headerName in responseHeaderObservationOptions.HeaderNames)
+        {
+            IEnumerable<string> values = null;
+
+            if (httpResponseMessage.Headers.TryGetValues(headerName, out IEnumerable<string> responseHeaderValues))
+            {
+                values = responseHeaderValues;
+            }
+            else if (httpResponseMessage.Content is not null &&
+                     httpResponseMessage.Content.Headers.TryGetValues(headerName, out IEnumerable<string> contentHeaderValues))
+            {
+                values = contentHeaderValues;
+            }
+
+            if (values is null)
+            {
+                continue;
+            }
+
+            RaiseResponseHeaderObserved(
+                new ResponseHeaderObservedEventArgs(headerName, values.ToList(), httpRequestMessage.Method, httpRequestMessage.RequestUri));
+        }
+    }
+
+    /// <summary>
+    /// Wywołuje każdego subskrybenta <see cref="responseHeaderObserved"/> osobno, izolując wyjątki -
+    /// błąd w jednym handlerze (np. w logowaniu) nie może przerwać ani pozostałych subskrybentów,
+    /// ani prawdziwego wywołania API, do którego ta obserwacja jest tylko efektem ubocznym.
+    /// </summary>
+    private void RaiseResponseHeaderObserved(ResponseHeaderObservedEventArgs args)
+    {
+        Delegate[] handlers = responseHeaderObserved?.GetInvocationList();
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (Delegate handler in handlers)
+        {
+            try
+            {
+                ((EventHandler<ResponseHeaderObservedEventArgs>)handler).Invoke(this, args);
+            }
+            catch (Exception)
+            {
+				// Celowo ignorowane.
+				// Mechanizm obserwacji ma charakter diagnostyczny i nie może wpływać
+				// na przebieg właściwego wywołania API.
+			}
+		}
+    }
 
     /// <summary>
     /// Mapuje nie-2xx odpowiedzi na wyjątki.

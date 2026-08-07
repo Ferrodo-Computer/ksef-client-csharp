@@ -43,7 +43,8 @@ namespace KSeF.Client.Core.Models.TestData
         CredentialsRead,
         CredentialsManage,
         EnforcementOperations,
-        SubunitManage
+        SubunitManage,
+        CollectiveIdentifierManage
     }
 
     public enum AuthorizedIdentifierType

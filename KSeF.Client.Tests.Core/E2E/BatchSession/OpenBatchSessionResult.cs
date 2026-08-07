@@ -10,4 +10,13 @@ public partial class BatchSessionE2ETests
         OpenBatchSessionResponse OpenBatchSessionResponse,
         List<BatchPartSendingInfo> EncryptedParts
     );
+
+    /// <summary>
+    /// Wynik wspólnego przebiegu sesji wsadowej (wysyłka, zamknięcie, UPO).
+    /// </summary>
+    private sealed record BatchSessionFlowResult(
+        string BatchSessionReferenceNumber,
+        string KsefNumber,
+        string UpoReferenceNumber
+    );
 }

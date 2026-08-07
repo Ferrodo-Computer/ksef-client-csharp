@@ -83,6 +83,19 @@ public abstract class ClientBase(IRestClient restClient, IRouteBuilder routeBuil
         return restClient.ExecuteAsync<TResponse>(requestPayload, cancellationToken);
     }
 
+    protected virtual Task<TResponse> ExecuteAsync<TResponse, TRequest>(string relativeEndpoint, HttpMethod httpMethod, TRequest body, string accessToken, CancellationToken cancellationToken)
+    {
+        Guard.ThrowIfNull(body);
+
+        string path = routeBuilder.Build(relativeEndpoint);
+        RestRequest<TRequest> requestPayload = RestRequest
+            .New(path, httpMethod)
+            .WithBody(body)
+            .AddAccessToken(accessToken);
+
+        return restClient.ExecuteAsync<TResponse, TRequest>(requestPayload, cancellationToken);
+    }
+
     protected virtual Task ExecuteAsync(string relativeEndpoint, HttpMethod httpMethod, string accessToken, CancellationToken cancellationToken)
     {
         string path = routeBuilder.Build(relativeEndpoint);

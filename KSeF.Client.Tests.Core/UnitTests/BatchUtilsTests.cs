@@ -9,6 +9,8 @@ namespace KSeF.Client.Tests.Core.UnitTests;
 
 public class BatchUtilsTests
 {
+    private const string ValidSha256Base64Hash = "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=";
+
     [Fact]
     public void BuildTarGzBytes_ShouldCreateReadableUstarArchiveWithExpectedEntries()
     {
@@ -112,7 +114,7 @@ public class BatchUtilsTests
     private static FileMetadata CreateFileMetadata() => new()
     {
         FileSize = 1024,
-        HashSHA = "batch-hash"
+        HashSHA = ValidSha256Base64Hash
     };
 
     private static EncryptionData CreateEncryptionData() => new()
@@ -136,7 +138,7 @@ public class BatchUtilsTests
             Metadata = new FileMetadata
             {
                 FileSize = 512,
-                HashSHA = "part-hash"
+                HashSHA = ValidSha256Base64Hash
             }
         }
     ];

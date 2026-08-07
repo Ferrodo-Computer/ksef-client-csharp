@@ -17,6 +17,11 @@ namespace KSeF.Client.Tests.Core.E2E.Limits;
 /// </summary>
 public class RateLimitsE2ETests : TestBase
 {
+    public RateLimitsE2ETests()
+        : base(disableClientSideCircuitBreaker: true)
+    {
+    }
+
     private const int MinApiRateLimit = 1;
     private const int LowOtherPerSecondLimit = 1;
     private const int MaxRequestsToReachOtherPerSecondLimit = 10;
@@ -27,6 +32,8 @@ public class RateLimitsE2ETests : TestBase
     private static readonly TimeSpan RateLimitRetryDelay = TimeSpan.FromMilliseconds(1_200);
     private static readonly TimeSpan RateLimitChangeVerificationDelay = TimeSpan.FromMilliseconds(1_200);
     private static readonly TimeSpan PermissionPropagationPollingDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan RateLimitsStatePollingDelay = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan RateLimiterPropagationDelay = TimeSpan.FromMilliseconds(500);
     private const int MaxAttempts = 12;
 
     // Maksymalne wartości (min zawsze 1) zgodne z walidacją API
@@ -41,6 +48,7 @@ public class RateLimitsE2ETests : TestBase
     private static readonly RateMax InvoiceExportMax = new(8, 16, 20);
     private static readonly RateMax InvoiceDownloadMax = new(8, 16, 64);
     private static readonly RateMax OtherMax = new(10, 30, 120);
+    private static readonly RateMax CollectiveIdentifierMax = new(10, 60, 120);
 
     /// <summary>
     /// Test E2E: pobiera bieżące limity, wylicza i ustawia nowe ograniczenia w dopuszczalnych granicach,
@@ -83,36 +91,32 @@ public class RateLimitsE2ETests : TestBase
             RateLimits = modifiedLimits
         };
 
-        // Act: Ustawienie nowych limitów
-        await TestDataClient.SetRateLimitsAsync(
-            setRequest,
-            accessToken);
+		// Act: Ustawienie nowych limitów
+		await TestDataClient.SetRateLimitsAsync(
+			setRequest,
+			accessToken);
 
 		// Act: Ponowne pobranie limitów po zmianie
 		EffectiveApiRateLimits currentLimits = await AsyncPollingUtils.PollAsync(
-			async () => await LimitsClient.GetRateLimitsAsync(
-				accessToken,
-				CancellationToken).ConfigureAwait(false),
-			response => response.OnlineSession.PerHour != originalLimits.OnlineSession.PerHour,
-			delay: TimeSpan.FromSeconds(5),
+			action: () => LimitsClient.GetRateLimitsAsync(accessToken, CancellationToken),
+			condition: response => AreRateLimitsEqual(modifiedLimits, response),
+			delay: RateLimitsStatePollingDelay,
 			maxAttempts: MaxAttempts,
-			cancellationToken: CancellationToken.None);
+			cancellationToken: CancellationToken);
 
 		// Assert: Weryfikacja, że limity zostały zmienione zgodnie z oczekiwaniami
 		AssertRateLimitsEqual(modifiedLimits, currentLimits);
 
-        // Act: Przywrócenie wartości domyślnych
-        await TestDataClient.RestoreRateLimitsAsync(accessToken);
+		// Act: Przywrócenie wartości domyślnych
+		await TestDataClient.RestoreRateLimitsAsync(accessToken);
 
 		// Act: Ponowne pobranie po przywróceniu
 		EffectiveApiRateLimits restoredLimits = await AsyncPollingUtils.PollAsync(
-			async () => await LimitsClient.GetRateLimitsAsync(
-				accessToken,
-				CancellationToken).ConfigureAwait(false),
-			response => response.OnlineSession.PerHour == originalLimits.OnlineSession.PerHour,
-			delay: TimeSpan.FromSeconds(5),
+			action: () => LimitsClient.GetRateLimitsAsync(accessToken, CancellationToken),
+			condition: response => AreRateLimitsEqual(originalLimits, response),
+			delay: RateLimitsStatePollingDelay,
 			maxAttempts: MaxAttempts,
-			cancellationToken: CancellationToken.None);
+			cancellationToken: CancellationToken);
 
 		// Assert: Weryfikacja, że wartości po przywróceniu są identyczne jak oryginalne
 		AssertRateLimitsEqual(originalLimits, restoredLimits);
@@ -144,14 +148,14 @@ public class RateLimitsE2ETests : TestBase
                 CancellationToken);
         Assert.NotNull(baseLimits);
 
-        // Arrange: Przygotowanie jawnie nieprawidłowych wartości (OnlineSession poza maksimum)
+        // Arrange: Przygotowanie jawnie nieprawidłowych wartości (OnlineSession poniżej minimum)
         EffectiveApiRateLimits invalidLimits = new()
         {
             OnlineSession = new EffectiveApiRateLimitValues
             {
-                PerSecond = OnlineSessionMax.PerSecond + 1,
-                PerMinute = OnlineSessionMax.PerMinute + 1,
-                PerHour = OnlineSessionMax.PerHour + 1
+                PerSecond = 0,
+                PerMinute = 0,
+                PerHour = 0
             },
             // ustawienie pozostałych kategorii na aktualne poprawne wartości, by zminimalizować wpływ
             BatchSession = baseLimits.BatchSession,
@@ -162,7 +166,9 @@ public class RateLimitsE2ETests : TestBase
             SessionMisc = baseLimits.SessionMisc,
             InvoiceMetadata = baseLimits.InvoiceMetadata,
             InvoiceExport = baseLimits.InvoiceExport,
+            InvoiceExportStatus = baseLimits.InvoiceExportStatus,
             InvoiceDownload = baseLimits.InvoiceDownload,
+            CollectiveIdentifier = baseLimits.CollectiveIdentifier,
             Other = baseLimits.Other
         };
 
@@ -171,16 +177,12 @@ public class RateLimitsE2ETests : TestBase
             RateLimits = invalidLimits
         };
 
-        try
-        {
-            // Act
-            await TestDataClient.SetRateLimitsAsync(request, accessToken);
-        }
-        catch (KsefApiException ksefException)
-        {
-            // Assert
-            Assert.Contains("21405: Błąd walidacji danych wejściowych.", ksefException.Message);
-        }
+        // Act
+        KsefApiException exception = await Assert.ThrowsAsync<KsefApiException>(
+            () => TestDataClient.SetRateLimitsAsync(request, accessToken));
+
+        // Assert
+        Assert.Contains("21405", exception.Message);
     }
 
     /// <summary>
@@ -214,6 +216,8 @@ public class RateLimitsE2ETests : TestBase
                 rateLimitsRequest,
                 ownerAccessToken,
                 contextNip).ConfigureAwait(false);
+
+            await Task.Delay(RateLimiterPropagationDelay).ConfigureAwait(false);
 
             IReadOnlyList<Exception?> results =
                 await ExecuteConcurrentCurrentContextEndpointRequestsAsync(ownerAccessToken, MaxRequestsToReachOtherPerSecondLimit).ConfigureAwait(false);
@@ -296,6 +300,8 @@ public class RateLimitsE2ETests : TestBase
                 contextStillBelowLimitOwnerToken,
                 contextStillBelowLimitNip);
 
+            await Task.Delay(RateLimiterPropagationDelay).ConfigureAwait(false);
+
             IReadOnlyList<Exception?> contextOverLimitResults =
                 await ExecuteSequentialCurrentContextEndpointRequestsAsync(contextOverLimitToken, MaxRequestsToReachOtherPerSecondLimit);
             AssertRateLimitReached(
@@ -352,8 +358,10 @@ public class RateLimitsE2ETests : TestBase
             SessionMisc = ModifyWithinBounds(source.SessionMisc, delta, SessionMiscMax),
             InvoiceMetadata = ModifyWithinBounds(source.InvoiceMetadata, delta, InvoiceMetadataMax),
             InvoiceExport = ModifyWithinBounds(source.InvoiceExport, delta, InvoiceExportMax),
+            InvoiceExportStatus = source.InvoiceExportStatus,
             InvoiceDownload = ModifyWithinBounds(source.InvoiceDownload, delta, InvoiceDownloadMax),
-            Other = ModifyWithinBounds(source.Other, delta, OtherMax)
+			CollectiveIdentifier = ModifyWithinBounds(source.CollectiveIdentifier, delta, CollectiveIdentifierMax),
+			Other = ModifyWithinBounds(source.Other, delta, OtherMax)
         };
     }
 
@@ -374,7 +382,8 @@ public class RateLimitsE2ETests : TestBase
                 InvoiceExport = source.InvoiceExport,
                 InvoiceExportStatus = source.InvoiceExportStatus,
                 InvoiceDownload = source.InvoiceDownload,
-                Other = new EffectiveApiRateLimitValues
+				CollectiveIdentifier = source.CollectiveIdentifier,
+				Other = new EffectiveApiRateLimitValues
                 {
                     PerSecond = LowOtherPerSecondLimit,
                     PerMinute = source.Other.PerMinute,
@@ -650,6 +659,48 @@ public class RateLimitsE2ETests : TestBase
         return current;
     }
 
+    private static bool AreRateLimitsEqual(EffectiveApiRateLimits expected, EffectiveApiRateLimits actual)
+    {
+        return AreRateLimitValuesEqual(expected.OnlineSession, actual.OnlineSession)
+            && AreRateLimitValuesEqual(expected.BatchSession, actual.BatchSession)
+            && AreRateLimitValuesEqual(expected.InvoiceSend, actual.InvoiceSend)
+            && AreRateLimitValuesEqual(expected.InvoiceStatus, actual.InvoiceStatus)
+            && AreRateLimitValuesEqual(expected.SessionList, actual.SessionList)
+            && AreRateLimitValuesEqual(expected.SessionInvoiceList, actual.SessionInvoiceList)
+            && AreRateLimitValuesEqual(expected.SessionMisc, actual.SessionMisc)
+            && AreRateLimitValuesEqual(expected.InvoiceMetadata, actual.InvoiceMetadata)
+            && AreRateLimitValuesEqual(expected.InvoiceExport, actual.InvoiceExport)
+            && AreRateLimitValuesEqual(expected.InvoiceExportStatus, actual.InvoiceExportStatus)
+            && AreRateLimitValuesEqual(expected.InvoiceDownload, actual.InvoiceDownload)
+            && AreRateLimitValuesEqual(expected.CollectiveIdentifier, actual.CollectiveIdentifier)
+            && AreRateLimitValuesEqual(expected.Other, actual.Other);
+    }
+
+    private static bool AreRateLimitValuesEqual(EffectiveApiRateLimitValues? expected, EffectiveApiRateLimitValues? actual)
+    {
+        if (expected is null || actual is null)
+        {
+            return expected is null && actual is null;
+        }
+
+        return expected.PerSecond == actual.PerSecond
+            && expected.PerMinute == actual.PerMinute
+            && expected.PerHour == actual.PerHour;
+    }
+
+    private static void AssertRateLimitValuesEqual(EffectiveApiRateLimitValues? expected, EffectiveApiRateLimitValues? actual)
+    {
+        if (expected is null || actual is null)
+        {
+            Assert.True(expected is null && actual is null);
+            return;
+        }
+
+        Assert.Equal(expected.PerSecond, actual.PerSecond);
+        Assert.Equal(expected.PerMinute, actual.PerMinute);
+        Assert.Equal(expected.PerHour, actual.PerHour);
+    }
+
     /// <summary>
     /// Porównuje wszystkie wartości limitów pomiędzy oczekiwanymi i aktualnymi.
     /// </summary>
@@ -696,12 +747,18 @@ public class RateLimitsE2ETests : TestBase
         Assert.Equal(expected.InvoiceExport.PerSecond, actual.InvoiceExport.PerSecond);
         Assert.Equal(expected.InvoiceExport.PerMinute, actual.InvoiceExport.PerMinute);
         Assert.Equal(expected.InvoiceExport.PerHour, actual.InvoiceExport.PerHour);
+        // InvoiceExportStatus
+        AssertRateLimitValuesEqual(expected.InvoiceExportStatus, actual.InvoiceExportStatus);
         // InvoiceDownload
         Assert.Equal(expected.InvoiceDownload.PerSecond, actual.InvoiceDownload.PerSecond);
         Assert.Equal(expected.InvoiceDownload.PerMinute, actual.InvoiceDownload.PerMinute);
         Assert.Equal(expected.InvoiceDownload.PerHour, actual.InvoiceDownload.PerHour);
-        // Other
-        Assert.Equal(expected.Other.PerSecond, actual.Other.PerSecond);
+		// CollectiveIdentifier
+		Assert.Equal(expected.CollectiveIdentifier.PerSecond, actual.CollectiveIdentifier.PerSecond);
+		Assert.Equal(expected.CollectiveIdentifier.PerMinute, actual.CollectiveIdentifier.PerMinute);
+		Assert.Equal(expected.CollectiveIdentifier.PerHour, actual.CollectiveIdentifier.PerHour);
+		// Other
+		Assert.Equal(expected.Other.PerSecond, actual.Other.PerSecond);
         Assert.Equal(expected.Other.PerMinute, actual.Other.PerMinute);
         Assert.Equal(expected.Other.PerHour, actual.Other.PerHour);
     }

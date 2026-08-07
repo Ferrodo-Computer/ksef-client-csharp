@@ -232,7 +232,8 @@ public sealed partial class RestClient
                 responseMessage.StatusCode);
         }
 
-        if (TryDeserializeJson(responseBody, out GoneProblemDetails goneDetails) && goneDetails?.Title is not null)
+        if (TryDeserializeJson(responseBody, out GoneProblemDetails goneDetails)
+            && (!string.IsNullOrWhiteSpace(goneDetails?.Title) || !string.IsNullOrWhiteSpace(goneDetails?.Detail)))
         {
             string detailsText = string.IsNullOrWhiteSpace(goneDetails.Detail)
                 ? goneDetails.Title ?? GoneText
@@ -307,6 +308,24 @@ public sealed partial class RestClient
 
         try
         {
+            if (TryDeserializeJson(responseBody, out ProblemDetails problemDetails)
+                && problemDetails is not null
+                && problemDetails.HasProblemDetailsFields)
+            {
+                ApiErrorResponse mapped = MapProblemDetailsToApiErrorResponse(
+                    title: problemDetails.Title ?? UnknownText,
+                    status: problemDetails.Status == default ? (int)responseMessage.StatusCode : problemDetails.Status,
+                    detail: problemDetails.Detail,
+                    traceId: problemDetails.TraceId,
+                    instance: problemDetails.Instance);
+
+                string message = string.IsNullOrWhiteSpace(problemDetails.Detail)
+                    ? problemDetails.Title ?? UnknownText
+                    : problemDetails.Detail;
+
+                throw new KsefApiException(message, responseMessage.StatusCode, mapped);
+            }
+
             ApiErrorResponse apiErrorResponse = JsonUtil.Deserialize<ApiErrorResponse>(responseBody);
             string fullMessage = BuildErrorMessageFromDetails(apiErrorResponse);
             string exceptionMessage = string.IsNullOrWhiteSpace(fullMessage) ? responseBody : fullMessage;

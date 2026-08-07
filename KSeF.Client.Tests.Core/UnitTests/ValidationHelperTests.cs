@@ -146,4 +146,117 @@ public class ValidationHelperTests
         InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending("");
         Assert.False(result.XmlValidationResult.IsValid);
     }
+
+    [Fact]
+    public void ValidateInvoiceBeforeSending_DisallowedUnicodeCharacter_ReturnsXmlError()
+    {
+        // Arrange - znak kontrolny U+007F wstrzyknięty do nazwy sprzedawcy
+        string xml = GetXmlInvoice(MiscellaneousUtils.GetRandomNip(), MiscellaneousUtils.GetRandomNip(), MiscellaneousUtils.GetRandomNip(),
+            MiscellaneousUtils.GenerateInternalIdentifier(), MiscellaneousUtils.GetRandomNip(), MiscellaneousUtils.GenerateInternalIdentifier());
+        xml = xml.Replace("</Naglowek>", "\u007F</Naglowek>");
+
+        // Act
+        InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending(xml);
+
+        // Assert
+        Assert.False(result.XmlValidationResult.IsValid);
+        Assert.Contains("U+007F", result.XmlValidationResult.Message);
+    }
+
+    [Fact]
+    public void ValidateInvoiceBeforeSending_MojibakeWithHiddenControlCharacters_ReturnsXmlError()
+    {
+        // Arrange - faktura z błędnie zdekodowanym tekstem (mojibake), zawierającym ukryte znaki kontrolne C1
+        string path = Path.Combine(AppContext.BaseDirectory, "Templates", "invoice-template-fa-3-with-disallowed-unicode-characters.xml");
+        string xml = File.ReadAllText(path, Encoding.UTF8);
+
+        // Act
+        InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending(xml);
+
+        // Assert
+        Assert.False(result.XmlValidationResult.IsValid);
+        Assert.Contains("U+009B", result.XmlValidationResult.Message);
+    }
+
+    [Fact]
+    public void ValidateInvoiceBeforeSending_XmlWithBom_ReturnsXmlError()
+    {
+        // Arrange - znak BOM (U+FEFF) na początku treści faktury
+        string xml = "\uFEFF<Faktura></Faktura>";
+
+        // Act
+        InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending(xml);
+
+        // Assert
+        Assert.False(result.XmlValidationResult.IsValid);
+    }
+
+    [Fact]
+    public void ValidateInvoiceBeforeSending_RawBytesWithBom_ReturnsXmlError()
+    {
+        // Arrange - surowe bajty UTF-8 z BOM (0xEF 0xBB 0xBF) na początku, tak jak faktycznie występuje w pliku
+        byte[] bom = [0xEF, 0xBB, 0xBF];
+        byte[] content = Encoding.UTF8.GetBytes("<Faktura></Faktura>");
+        byte[] bytes = [.. bom, .. content];
+
+        // Act
+        InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending(bytes);
+
+        // Assert
+        Assert.False(result.XmlValidationResult.IsValid);
+    }
+
+    [Fact]
+    public void ValidateInvoiceBeforeSending_RawBytesWithoutBom_DoesNotReturnBomError()
+    {
+        // Arrange - te same bajty, ale bez BOM
+        byte[] bytes = Encoding.UTF8.GetBytes("<Faktura></Faktura>");
+
+        // Act
+        InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending(bytes);
+
+        // Assert
+        Assert.True(result.XmlValidationResult.IsValid);
+    }
+
+    [Fact]
+    public void ValidateInvoiceBeforeSending_PrologDeclaresNonUtf8Encoding_ReturnsXmlError()
+    {
+        // Arrange - prolog XML wskazujący kodowanie inne niż UTF-8
+        string xml = "<?xml version=\"1.0\" encoding=\"ISO-8859-2\"?><Faktura></Faktura>";
+
+        // Act
+        InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending(xml);
+
+        // Assert
+        Assert.False(result.XmlValidationResult.IsValid);
+        Assert.Contains("ISO-8859-2", result.XmlValidationResult.Message);
+    }
+
+    [Fact]
+    public void ValidateInvoiceBeforeSending_PrologDeclaresUtf8Encoding_DoesNotReturnEncodingError()
+    {
+        // Arrange - prolog XML jawnie wskazujący UTF-8 (dozwolone)
+        string xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Faktura></Faktura>";
+
+        // Act
+        InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending(xml);
+
+        // Assert
+        Assert.True(result.XmlValidationResult.IsValid);
+    }
+
+    [Fact]
+    public void ValidateInvoiceBeforeSending_ContainsProcessingInstruction_ReturnsXmlError()
+    {
+        // Arrange - instrukcja przetwarzania XML inna niż deklaracja <?xml ... ?>
+        string xml = "<?xml version=\"1.0\"?><?custom-instruction data?><Faktura></Faktura>";
+
+        // Act
+        InvoiceValidationResult result = ValidationHelper.ValidateInvoiceBeforeSending(xml);
+
+        // Assert
+        Assert.False(result.XmlValidationResult.IsValid);
+        Assert.Contains("custom-instruction", result.XmlValidationResult.Message);
+    }
 }

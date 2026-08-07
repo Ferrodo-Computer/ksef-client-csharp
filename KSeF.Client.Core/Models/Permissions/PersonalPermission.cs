@@ -28,7 +28,8 @@ namespace KSeF.Client.Core.Models.Permissions
 			Introspection,
 			SubunitManage,
 			EnforcementOperations,
-			VatUeManage
+			VatUeManage,
+			CollectiveIdentifierManage
 		}
 
 		public enum PersonalPermissionState

@@ -95,5 +95,10 @@ namespace KSeF.Client.Core.Interfaces.Clients
         /// POST /api/v2/testdata/context/unblock — Odblokowuje możliwość uwierzytelniania dla bieżącego kontekstu. Tylko na środowiskach testowych.
         /// </summary>
         Task<Status> UnblockContextAsync(ContextIdentifier requestPayload, string accessToken, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// PUT /api/v2/testdata/certificates/{serialNumber} — aktualizuje dane wskazanego certyfikatu (np. datę ważności). Tylko na środowiskach testowych.
+        /// </summary>
+        Task<Status> UpdateCertificateAsync(string serialNumber, TestDataUpdateCertificateRequest request, string accessToken, CancellationToken cancellationToken = default);
     }
 }

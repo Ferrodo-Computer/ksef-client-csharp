@@ -64,6 +64,7 @@
 		<ProjectReference Include="..\KSeF.Client.Core\KSeF.Client.Core.csproj" />
 		<ProjectReference Include="..\KSeF.Client.Tests.Utils\KSeF.Client.Tests.Utils.csproj" />
 		<ProjectReference Include="..\KSeF.Client\KSeF.Client.csproj" />
+		<ProjectReference Include="..\KSeF.Client.XmlSerialization\KSeF.Client.XmlSerialization.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -85,6 +86,9 @@
 		<None Update="Templates\invoice-template-fa-3-with-multiple-Subject3.xml">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
+		<None Update="Templates\invoice-template-fa-3-with-multiple-Subject3.xml">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 		<None Update="Templates\invoice-template-fa-3.xml">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
@@ -97,6 +101,9 @@
 		<None Update="Templates\invoice-template-fa-rr-1.xml">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
+		<None Update="Templates\invoice-template-fa-rr-1.xml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 		<None Update="Templates\invoice-template.xml">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
@@ -107,6 +114,9 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 		<None Update="Templates\templates.md">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="Templates\invoice-template-fa-3-with-disallowed-unicode-characters.xml">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 		<None Update="xunit.runner.json">

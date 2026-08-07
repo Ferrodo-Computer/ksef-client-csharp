@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using KSeF.Client.Core.Infrastructure.Rest;
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 
 namespace KSeF.Client.DI;
@@ -31,6 +32,21 @@ public class KSeFClientOptions
     public string[] SupportedCultures { get; set; }
     public string DefaultCulture { get; set; }
 
+    /// <summary>
+    /// Maksymalny czas życia połączenia w puli HTTP.
+    /// </summary>
+    public TimeSpan PooledConnectionLifetime { get; set; } = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// Maksymalny czas bezczynności połączenia w puli HTTP.
+    /// </summary>
+    public TimeSpan PooledConnectionIdleTimeout { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Maksymalny czas na nawiązanie połączenia HTTP.
+    /// </summary>
+    public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
     public ApiConfiguration ApiConfiguration { get; set; } = new ApiConfiguration();
 
     /// <summary>
@@ -57,4 +73,11 @@ public class KSeFClientOptions
     /// Domyślnie mechanizm jest włączony.
     /// </summary>
     public KsefCircuitBreakerOptions CircuitBreaker { get; set; } = new KsefCircuitBreakerOptions();
+
+    /// <summary>
+    /// Konfiguruje obserwację wybranych nagłówków odpowiedzi HTTP (np. "X-System-Warning")
+    /// przez statyczne zdarzenie <see cref="KSeF.Client.Http.RestClient.ResponseHeaderObserved"/>.
+    /// Domyślnie wyłączona.
+    /// </summary>
+    public ResponseHeaderObservationOptions ResponseHeaderObservation { get; set; } = new ResponseHeaderObservationOptions();
 }

@@ -12,7 +12,7 @@ public class InvoiceExportRequestTests
         Assert.Equal(2, typeof(CompressionType).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static).Length);
         Assert.Equal("Zip", CompressionType.Zip.ToString());
         Assert.Equal("TarGz", CompressionType.TarGz.ToString());
-        Assert.Equal(typeof(CompressionType?), typeof(InvoiceExportRequest).GetProperty(nameof(InvoiceExportRequest.CompressionType))?.PropertyType);
+        Assert.Equal(typeof(CompressionType), typeof(InvoiceExportRequest).GetProperty(nameof(InvoiceExportRequest.CompressionType))?.PropertyType);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class InvoiceExportRequestTests
     }
 
     [Fact]
-    public void Serialize_WithoutCompressionType_KeepsBackwardCompatibility()
+    public void Serialize_WithoutExplicitCompressionType_UsesTarGzDefault()
     {
         InvoiceExportRequest request = new()
         {
@@ -55,7 +55,8 @@ public class InvoiceExportRequestTests
 
         string json = JsonUtil.Serialize(request);
 
-        Assert.DoesNotContain("compressionType", json);
-        Assert.DoesNotContain("CompressionType", json);
+        Assert.Equal(CompressionType.TarGz, request.CompressionType);
+        Assert.Contains("\"TarGz\"", json);
+        Assert.Contains("compressionType", json, StringComparison.OrdinalIgnoreCase);
     }
 }

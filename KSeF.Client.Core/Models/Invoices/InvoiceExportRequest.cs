@@ -14,9 +14,9 @@ namespace KSeF.Client.Core.Models.Invoices
         public EncryptionInfo Encryption { get; set; }
 
         /// <summary>
-        /// Typ kompresji paczki eksportu faktur. Domyslnie API zachowuje kompatybilnosc i uzywa ZIP.
+        /// Typ kompresji paczki eksportu faktur. Domyslnie API zachowuje kompatybilnosc i uzywa TAR GZ.
         /// </summary>
-        public CompressionType? CompressionType { get; set; }
+        public CompressionType CompressionType { get; set; } = CompressionType.TarGz;
 
 		/// <summary>
 		/// Określa, czy zwrócić tylko metadane faktur (plik _metadata.json bez faktur).

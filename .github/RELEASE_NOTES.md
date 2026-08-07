@@ -1,7 +1,41 @@
-## Rejestr zmian: Wersja 2.6.0
+# Rejestr zmian
+
+## Wersja 2.7.0
+### Nowe
+- Dodano obsługę endpointów identyfikatorów zbiorczych (`/collective-identifiers`):
+  - `POST /collective-identifiers` — generowanie identyfikatora zbiorczego dla listy faktur sprzedawcy.
+  - `POST /collective-identifiers/query` — lista identyfikatorów zbiorczych wygenerowanych w kontekście.
+  - `GET /collective-identifiers/ksef/{ksefNumber}` — lista identyfikatorów zbiorczych powiązanych z fakturą.
+  - `GET /collective-identifiers/{collectiveIdentifierNumber}/invoices` — lista faktur wchodzących w skład identyfikatora zbiorczego (z paginacją).
+  - Operacje są dostępne przez `ICollectiveIdentifiersClient` oraz agregujący `IKSeFClient`.
+- `EffectiveApiRateLimits`: dodano pole `CollectiveIdentifier` odzwierciedlające nowy limit żądań `/collective-identifiers`.
+- Dodano wartość `CollectiveIdentifierManage` do enumów uprawnień.
+- Obsługa `PUT /testdata/certificates/{serialNumber}`, umożliwiająca aktualizację daty ważności certyfikatu na środowiskach testowych.
+- `RestClient.ObserveResponseHeaders(...)` — statyczna subskrypcja (zwracająca `IDisposable`) pozwalająca odczytać nagłówki odpowiedzi (np. `X-System-Warning`) dla dowolnego klienta SDK, bez zmiany sygnatur istniejących metod. Konfiguracja przez `KSeFClientOptions.ResponseHeaderObservation` (`Enabled`, `HeaderNames`), domyślnie wyłączona.
+
+### Zmodyfikowane
+- Domyślny typ kompresji eksportu faktur (`POST /invoices/exports`) zmieniono w SDK z `Zip` na `TarGz`; format `Zip` nadal można wskazać jawnie.
+- `InvoiceExportRequest.CompressionType`: pole zmieniono z `CompressionType?` na `CompressionType` z domyślną wartością `TarGz`.
+- `OpenBatchSessionRequestBuilder.WithBatchFile(fileSize, fileHash, compressionType)`: parametr `compressionType` jest opcjonalny i domyślnie przyjmuje wartość `TarGz`; przeciążenie bez tego parametru zachowuje wartość opcjonalną kontraktu API.
+- `OpenBatchSessionRequestBuilder`: dodano walidację ograniczeń OpenAPI dla rozmiaru paczki (1–5 GB), liczby części (1–50), minimalnego numeru i rozmiaru części (1) oraz formatu skrótu `Sha256HashBase64`.
+- Rozszerzono testy E2E kompresji w sesjach wsadowych o scenariusze z domyślnym `TarGz` oraz jawnie wskazanym `Zip`.
+
+## Wersja 2.6.1
+### Zmodyfikowane
+- `ServiceCollectionExtensions`: zastąpiono `HttpClientHandler` przez `SocketsHttpHandler` (dla platform `NET5_0_OR_GREATER`) z fallbackiem do `HttpClientHandler` dla starszych targetów.
+- Dodano konfigurację połączeń HTTP przez opcje klienta:
+  - `PooledConnectionLifetime`,
+  - `PooledConnectionIdleTimeout`,
+  - `ConnectTimeout`.
+- Rozszerzono punkt integracji `AddKSeFClient(...)` o hook konfiguracyjny `Action<IHttpClientBuilder>`, umożliwiający rozszerzanie pipeline HTTP (np. retry, logging, Polly, telemetry) bez forka biblioteki.
+- Dodano przełącznik `UseHttp2` (domyślnie włączony) dla preferencji HTTP/2 z automatycznym fallbackiem do HTTP/1.1 na platformach .NET 5+.
+- Rozszerzenie testów wysyłki i pobierania faktur o scenariusze z użyciem formatu TAR.GZ.
+- Ustandaryzowano format wpisów w rejestrze zmian.
+
+## Wersja 2.6.0
 ### Nowe
 - Tryb wsadowy generowania PDF, możliwość podania folderu zamiast pojedynczego pliku XML;
-  wszystkie pliki *.xml z folderu są przetwarzane w ramach jednego procesu Node.js, co znacząco skraca czas generowania przy dużej liczbie faktur.
+  wszystkie pliki `*.xml` z folderu są przetwarzane w ramach jednego procesu Node.js, co znacząco skraca czas generowania przy dużej liczbie faktur.
 - `CompressionType` – nowy enum (`Zip`, `TarGz`) umożliwiający wybór typu kompresji paczki wysyłanej w sesji wsadowej (`POST /sessions/batch`) oraz eksportowanej paczki faktur (`POST /invoices/exports`). Format `TarGz` jest rekomendowany dla paczek zawierających wiele podobnych dokumentów XML ze względu na lepszy współczynnik kompresji. Domyślnym typem pozostaje `Zip` w celu zachowania kompatybilności wstecznej.
   - `BatchFileInfo`: dodano pole `CompressionType?`.
   - `InvoiceExportRequest`: dodano pole `CompressionType?`.
@@ -16,7 +50,7 @@
 ### Poprawki
 - Naprawiono ścieżki tras `TestData.BlockContext` oraz `TestData.UnblockContext` – usunięto błędnie zdublowany człon `/testdata/` w adresach URL.
 
-## Rejestr zmian: Wersja 2.5.0
+## Wersja 2.5.0
 ### Zmodyfikowane
 - `PemCertificateInfo`: dodano pola `CertificateId` oraz `PublicKeyId` zgodnie z założeniami opisanymi w [#737](https://github.com/CIRFMF/ksef-docs/issues/737),
 - `EncryptionInfo`: dodano pole `PublicKeyId` j.w.,
@@ -30,7 +64,7 @@
 -  Podniesiono wersję paczki zależnej `System.Security.Cryptography.Xml` do wersji `10.0.7`, dziękujemy użytkownikowi [@DawidBartniczak](https://github.com/DawidBartniczak) za zgłoszony problem,
 - `KSeFClientOptions.UseHttp2` – nowa opcja (domyślnie `true`) włączająca preferencję HTTP/2 z automatycznym fallbackiem do HTTP/1.1. Ustawienie ignorowane na .NET Standard 2.0.
 
-## Rejestr zmian: Wersja 2.4.0
+## Wersja 2.4.0
 ### Nowe
 - Dodano obsługę formatu Problem Details (`application/problem+json`) dla odpowiedzi HTTP 400 Bad Request, HTTP 410 Gone oraz HTTP 429 Too Many Requests, zgodnie z propozycją API KSeF ([#764](https://github.com/CIRFMF/ksef-docs/issues/764)).
   - Dodano model `BadRequestProblemDetails` reprezentujący odpowiedź Problem Details dla błędów 400, zawierający pole `errors` z listą obiektów `BadRequestApiError` (pola: `code`, `description`, `details`).
@@ -44,7 +78,7 @@
 - `RestClient`: dodano dedykowaną obsługę HTTP 410 Gone – klient próbuje najpierw zdekodować odpowiedź jako `GoneProblemDetails` (nowy format), a następnie cofa się do dotychczasowego formatu `ApiErrorResponse`.
 - `RestClient`: zaktualizowano obsługę HTTP 429 – klient próbuje najpierw zdekodować odpowiedź jako `TooManyRequestsProblemDetails` (nowy format, pole `detail`), a następnie cofa się do dotychczasowego formatu `TooManyRequestsErrorResponse` (pole `status.details`).
 
-## Rejestr zmian: Wersja 2.3.0
+## Wersja 2.3.0
 ### Nowe
 - Dodano właściwość `OnlyMetadata` w `InvoiceExportRequest`, umożliwiającą eksport paczki zawierającej wyłącznie plik `_metadata.json` bez plików faktur.
 
@@ -57,7 +91,7 @@
 ### Testy
 - Dodano test E2E `When_KsefTokensAreActive_ThenTryToRevokeOneWithAnother_ShouldThrowKsefApiException`, weryfikujący, że aktywny token KSeF nie może unieważnić innego aktywnego tokena.
 
-## Rejestr zmian: Wersja 2.2.0
+## Wersja 2.2.0
 ### Nowe
 - Dodano możliwość przełączenia PascalCase/camelCase w nazwach właściwości zwracanych z API.
 - Dodano obsługę endpointa `POST /permissions/query/entities/grants` umożliwiającego pobranie listy uprawnień do obsługi faktur w bieżącym kontekście logowania.
@@ -66,20 +100,20 @@
 - Dodano schematy `UnauthorizedProblemDetails` oraz `ForbiddenProblemDetails`.
 - Rozszerzono `ForbiddenProblemDetails` o wymagane pole `reasonCode` oraz o opcjonalny obiekt `security` (dodatkowe dane zależne od `reasonCode`).
 
-## Rejestr zmian: Wersja 2.1.2
+## Wersja 2.1.2
 ### Nowe
 
 - Dodano nowy kod systemowy `FA_RR(1)` w `SystemCode` (wraz z mapowaniem w `SystemCodeHelper`).
 - Dodano nowy test E2E dla faktury VAT RR: `AuthorizationPermissionsRRInvoicingE2ETests.RRInvoicingPermission_AllowsSendingFaRrInvoice`.
 
-## Rejestr zmian: Wersja 2.1.1
+## Wersja 2.1.1
 ### Nowe
 - Dodano parametr `enforceXadesCompliance` w metodzie `SubmitXadesAuthRequestAsync`, umożliwiający wcześniejsze włączenie nowych wymagań walidacji XAdES na środowiskach DEMO i PROD poprzez nagłówek `X-KSeF-Feature: enforce-xades-compliance`.
 - Dodano wsparcie dla .NET Standard 2.0 dla Windows oraz .NET Framework 4.8, dzięki zaangażowaniu Kontrybutora [@marcinborecki](https://github.com/CIRFMF/ksef-client-csharp/pull/197)
 
 
 
-## Rejestr zmian: Wersja 2.1.0
+## Wersja 2.1.0
 ### Nowe
 - `AuthStatus`, `AuthenticationListItem`: Wprowadzono nowy model `AuthenticationMethodInfo` opisujący metodę uwierzytelniania
 - Dodano obsługę dwóch nowych endpointów:
@@ -94,7 +128,7 @@
 - `DateRange`: Zmieniono typ pól `From` i `To` z DateTime na DateTimeOffset w celu poprawnej obsługi stref czasowych i offsetów zgodnie ze specyfikacją API KSeF (format ISO 8601 z offsetem/UTC/lokalny Europe/Warsaw)
 	- Zmiana typu DateRange.From i DateRange.To z DateTime na DateTimeOffset może wpłynąć na Twoje rozwiązania. Jeśli korzystasz z DateRange do filtrowania faktur, sprawdź czy Twój kod poprawnie tworzy DateTimeOffset
 
-## Rejestr zmian: Wersja 2.0.1
+## Wersja 2.0.1
 ### Nowe
 - Dodano obsługę wartości `InternalId` w `PersonalPermissionContextIdentifierType` oraz `PersonalPermissionsContextIdentifierType` umożliwiającą filtrowanie uprawnień osobistych według identyfikatora wewnętrznego.
 - Dodano nowy model `OperationStatusInfo` do reprezentowania statusów operacji (w odróżnieniu od statusów faktur).
@@ -126,7 +160,7 @@
 - Poprawiono test uprawnień jednostek podrzędnych.
 - Poprawiono generowanie `InternalId` z poprawną sumą kontrolną w testach.
 
-## Rejestr zmian: Wersja 2.0.0
+## Wersja 2.0.0
 ### Nowe
 - Dodano obsługę nagłówka `x-ms-meta-hash` zwracanego przez API (skrót SHA-256 dokumentu UPO w formacie Base64) oraz nowe metody w `UpoUtils` umożliwiające pobieranie UPO wraz z tym hashem.
 - Dodano metodę `X509CertificateLoaderExtensions.MergeWithPemKeyNoProfileForEcdsa`, która ręcznie odszyfrowuje zaszyfrowane klucze ECDSA PKCS#8 w pamięci i importuje je jako efemeryczne, zapewniając działanie także w środowiskach, gdzie `ImportFromEncryptedPem` zawodzi (np. IIS z wyłączonym LoadUserProfile dla ECDSA).
@@ -134,7 +168,7 @@
 ### Zmodyfikowane
 - Zmieniono obsługę błędów w metodzie `X509CertificateLoaderExtensions.MergeWithPemKey`przy ładowaniu zaszyfrowanych kluczy ECDSA: zamiast niejasnego komunikatu użytkownik dostaje prosty opis problemu, a biblioteka automatycznie wywołuje metodę `MergeWithPemKeyNoProfileForEcdsa`, która działa bez profilu użytkownika.
 
-## Rejestr zmian: Wersja 2.0.0 RC6.1.1
+## Wersja 2.0.0 RC6.1.1
 ### Nowe
 - Usunięto przedrostek `/api` z adresów URL w `KSeFClient` oraz `RouteBuilder`.
 - Poprawiono `KsefEnvironmentConfig` w projekcie `ClientFactory`.
@@ -146,7 +180,7 @@
   - Zaktualizowano dokumentację z sekcją troubleshootingu
   - Dodano instrukcje odświeżania submodułu `ksef-pdf-generator` (wymagane po aktualizacji ze starszych wersji)
 
-## Rejestr zmian: Wersja 2.0.0 RC6.1
+## Wersja 2.0.0 RC6.1
 ### Nowe
 - Dodano wymaganą właściwość `timestampMs` w `AuthenticationChallengeResponse`.
 - Dodano wymaganą właściwość `rateLimits.invoiceExportStatus` w `EffectiveApiRateLimits`.
@@ -165,7 +199,7 @@
   - `PersonPermissionSubjectPersonDetails` - zmieniono typ pola `BirthDate?` z `DateTimeOffset` na `string`.
   - `PermissionsSubunitPersonByFingerprintWithoutIdentifier` - zmieniono typ pola `BirthDate` z `DateTimeOffset` na `string`.
 
-## Rejestr zmian: Wersja 2.0.0 RC6.0.2
+## Wersja 2.0.0 RC6.0.2
 ### Nowe
 - Dodano nowe przeciążenie metody `ExportInvoicesAsync(InvoiceExportRequest, string, CancellationToken)` niewymagające parametru includeMetadata.
 - Dodano możliwość uwierzytelniania tokenem KSeF w KseF.DemoWebApp.
@@ -179,7 +213,7 @@
 - Zaktualizowano logikę `ExportInvoicesAsync`: nagłówek `x-ksef-feature: include-metadata` nie jest już wysyłany.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC6.0.1
+## Wersja 2.0.0 RC6.0.1
 ### Nowe
 - Dodano opisy budowniczych żądań w SDK.
 
@@ -187,11 +221,11 @@
 - Zmieniono pole `RestrictToPermanentStorageHwmDate` na nullowalne.
 
 
-## Rejestr zmian – Wersja 2.0.0 RC6.0
+## Wersja 2.0.0 RC6.0
 ### Nowe
 - Dodano parametr `upoVersion` w metodach `OpenBatchSessionAsync` i `OpenOnlineSessionAsync`:
   - Pozwala wybrać wersję UPO (dostępne wartości: `"upo-v4-3"`).
-  - Ustawia nagłówek `X-KSeF-Feature` z odpowiednią wersją (domyślnie `v4-2`, od 5.01.2026 → `v4-3`).
+  - Ustawia nagłówek `X-KSeF-Feature` z odpowiednią wersją (domyślnie `v4-2`, od 5.01.2026 -> `v4-3`).
 - Dodano możliwość przywrócenia na środowisku TE domyślnych limitów produkcyjnych API.
 
 ### Zmodyfikowane
@@ -206,7 +240,7 @@
 - Dodano właściwość `Extensions` w obiekcie `StatusInfo`.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.7.2
+## Wersja 2.0.0 RC5.7.2
 ### Nowe
 - Dodano walidację parametrów przekazywanych w metodach klas `(...)RequestBuilder` zgodnie z dokumentacją API.
 - Dodano klasę `TypeValueValidator`, która umożliwia weryfikację wartości przypisanych do identyfikatorów `Type - Value` (`ContextIdentifier`, `PersonTargetIdentifier`, itp.).
@@ -219,17 +253,17 @@
 - Dodano obsługę HWM jako wzorcowego sposobu przyrostowego pobierania faktur w klasie `IncrementalInvoiceRetrievalE2ETests` (test `IncrementalInvoiceRetrieval_E2E_WithHwmShift`).
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.7.2
+## Wersja 2.0.0 RC5.7.2
 ### Nowe
-- `EntityRoleType` → nowy enum (`CourtBailiff`, `EnforcementAuthority`, `LocalGovernmentUnit`, `LocalGovernmentSubUnit`, `VatGroupUnit`, `VatGroupSubUnit`) używany w `EntityRole`.
-- `SubordinateEntityRoleType` → nowy enum (`LocalGovernmentSubUnit`, `VatGroupSubUnit`) używany w `SubordinateEntityRole`.
+- `EntityRoleType`: nowy enum (`CourtBailiff`, `EnforcementAuthority`, `LocalGovernmentUnit`, `LocalGovernmentSubUnit`, `VatGroupUnit`, `VatGroupSubUnit`) używany w `EntityRole`.
+- `SubordinateEntityRoleType`: nowy enum (`LocalGovernmentSubUnit`, `VatGroupSubUnit`) używany w `SubordinateEntityRole`.
 - Rozdzielono zależności na poszczególne wersje .NET SDK.
 - EditorConfig: C# 7.3, NRT off, wymuszenie jawnych typów, Async*…Async, _underscore dla pól prywatnych i chronionych.
 - `KSeF.Client.Api`: opisy publicznych interfejsów/typów w języku polskim.
 - Utils: `ToVatEuFromDomestic(...)` - usprawniona logika działania i komunikaty w języku polskim.
 
 ### Zmodyfikowane
-- Zmieniono nazwę `EuEntityPermissionsQueryPermissionType` → `EuEntityPermissionType`.
+- Zmieniono nazwę `EuEntityPermissionsQueryPermissionType`: `EuEntityPermissionType`.
 - `PersonPermission` pole `PermissionScope` zmieniono typ ze `string` na enum `PersonPermissionType` (zgłoszenie: https://github.com/CIRFMF/ksef-client-csharp/issues/131)
 - `PersonPermission` pole `PermissionState` zmieniono typ ze `string` na  enum `PersonPermissionState`.
 - `EntityRole` pole `Role` zmieniono typ ze `string` na  enum `EntityRoleType`.
@@ -238,9 +272,9 @@
 - `EuEntityPermission` pole `PermissionScope` zmieniono typ ze `string` na  enum `EuEntityPermissionType`.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.7.1
+## Wersja 2.0.0 RC5.7.1
 ### Nowe
-**KSeF.Client** 🔧➕ został podzielony na mniejsze interfejsy (z własnymi implementacjami):
+**KSeF.Client** został podzielony na mniejsze interfejsy (z własnymi implementacjami):
   - `IActiveSessionsClient`,
   - `IAuthorizationClient`,
   - `IBatchSessionClient`,
@@ -262,7 +296,7 @@
 - Usunięto klasę `ApiException` i zastąpiono użycie jej w summary klasą `KsefApiException`.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.7 
+## Wersja 2.0.0 RC5.7 
 ### Nowe
 - **API Responses** — dodano zestaw klas reprezentujących odpowiedzi statusów operacji:
   - `AuthenticationStatusCodeResponse`,
@@ -276,7 +310,7 @@
 - `BatchFilePartInfo`: pole `FileName` oznaczono jako **Obsolete** (planowane usunięcie w przyszłych wersjach).
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.6 
+## Wersja 2.0.0 RC5.6 
 ### Nowe
 - **PdfTestApp**: aplikacja konsolowa `KSeF.Client.Tests.PdfTestApp` do automatycznego generowania wizualizacji faktur KSeF i dokumentów UPO w formacie PDF:
   - Obsługuje generowanie PDF zarówno dla faktur (`faktura`, `invoice`) jak i dokumentów UPO (`upo`).
@@ -284,7 +318,7 @@
   - Dokumentacja w README.md z instrukcjami instalacji i przykładami użycia.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.5 
+## Wersja 2.0.0 RC5.5 
 ### Nowe
 - **Permissions / Builder** — dodano `EntityAuthorizationsQueryRequestBuilder` z krokiem `ReceivedForOwnerNip(string ownerNip)` dla zapytań _Received_ w kontekście _NIP właściciela_ opcjonalnie `WithPermissionTypes(IEnumerable<InvoicePermissionType>)`.
 - **E2E – AuthorizationPermissions** — dodano dwa scenariusze "Pobranie listy otrzymanych uprawnień podmiotowych jako właściciel w kontekście NIP":
@@ -336,7 +370,7 @@
  - `KSeF.Client.DI.ServiceCollectionExtensions.AddCryptographyClient` - zmodyfikowano metodę konfiguracyjną rejestrującą klienta oraz serwis (HostedService) kryptograficzny.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.4.0
+## Wersja 2.0.0 RC5.4.0
 ### Nowe
  - `QueryInvoiceMetadataAsync` - dodano parametr `sortOrder`, umożliwiający określenie kierunku sortowania wyników.
 
@@ -347,10 +381,10 @@
  - Rozszerzone scenariusze testów TestData.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.3.0
+## Wersja 2.0.0 RC5.3.0
 ### Nowe
 - **REST / Routing**: `IRouteBuilder` oraz `RouteBuilder` – centralne budowanie ścieżek (`/api/v2/...`) z opcjonalnym `apiVersion`.
-- **REST / Typy i MIME**: `RestContentType` oraz `ToMime()` – jednoznaczne mapowanie `Json|Xml` → `application/*`.
+- **REST / Typy i MIME**: `RestContentType` oraz `ToMime()` – jednoznaczne mapowanie `Json|Xml` -> `application/*`.
 - **REST / Baza klienta**: `ClientBase` — wspólna klasa bazowa klientów HTTP; centralizacja konstrukcji URL (via `RouteBuilder`).
 - **REST / LimitsClient**: `ILimitsClient`, `LimitsClient` — obsługa API **Limits**: `GetLimitsForCurrentContext` i `GetLimitsForCurrentSubject`.
 - **Testy / TestClient**: `ITestClient` i `TestClient` — klient udostępnia operacje:
@@ -368,7 +402,7 @@
 - **Routing / Spójność**: konsolidacja prefiksów w jednym miejscu (RouteBuilder) zamiast powielania `/api/v2` w klientach/testach.
 - **System codes / PEF**: uzupełnione mapowania kodów systemowych i wersji pod **PEF** (serializacja/mapping).
 - **Testy / Utils**: `AsyncPollingUtils` – stabilniejsze retry/backoff oraz czytelniejsze warunki.
-- **Code style**: `var` → jawne typy; `ct` → `cancellationToken`; porządek właściwości; usunięte `unused using`.
+- **Code style**: `var` -> jawne typy; `ct` -> `cancellationToken`; porządek właściwości; usunięte `unused using`.
 
 ### Usunięte
 - **REST**: nadmiarowe przeciążenia `SendAsync(...)` i pomocnicze fragmenty w kliencie REST (po refaktorze).
@@ -379,7 +413,7 @@
 **Uwaga (kompatybilność)**: zmiany w `IRestClient`/`RestRequest*` mają charakter **internal** – publiczny kontrakt `IKSeFClient` bez zmian funkcjonalnych w tym RC. Jeśli rozszerzasz warstwę REST, przejrzyj integracje pod nowy `RouteBuilder` i generyczne `RestRequest<TBody>`.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.2.0
+## Wersja 2.0.0 RC5.2.0
 ### Nowe
 - **Kryptografia**:
   - Obsługa ECDSA (krzywe eliptyczne, P-256) przy generowaniu CSR.
@@ -407,7 +441,7 @@
 - **Core**: `EncryptionMethodEnum` z wartościami `ECDsa`, `Rsa` (przygotowanie pod wybór metody szyfrowania).
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.1.1
+## Wersja 2.0.0 RC5.1.1
 ### Nowe
 - **KSeF Client**:
   - Wyłączono serwis kryptograficzny z klienta KSeF
@@ -421,14 +455,14 @@
   - Dodana nowa konfiguracja DI dla klienta kryptograficznego.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5.1
+## Wersja 2.0.0 RC5.1
 ### Nowe
 - **Tests**: obsługa `KsefApiException` (np. 403 *Forbidden*) w scenariuszach sesji i E2E.
 
 ### Zmodyfikowane
 - **Invoices / Export**: `ExportInvoicesResponse` – usunięto pole `Status`; po `ExportInvoicesAsync` używaj `GetInvoiceExportStatusAsync(operationReferenceNumber)`.
 - **Invoices / Metadata**: `pageSize` – zakres dozwolony **10–250** (zaktualizowane testy: „outside 10–250”).
-- **Tests (E2E)**: pobieranie faktury: retry **5 → 10**, precyzyjny `catch` dla `KsefApiException`, asercje `IsNullOrWhiteSpace`.
+- **Tests (E2E)**: pobieranie faktury: retry **5 -> 10**, precyzyjny `catch` dla `KsefApiException`, asercje `IsNullOrWhiteSpace`.
 - **Utils**: `OnlineSessionUtils` – prefiks **`PL`** dla `supplierNip` i `customerNip`.
 - **Peppol tests**:
   - Zmieniono użycie NIP na format z prefiksem `PL...`.
@@ -444,77 +478,77 @@
 - Limit `pageSize` zaktualizowany do **10–250**.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC5
+## Wersja 2.0.0 RC5
 ### Nowe
 - **Auth**
-  - `ContextIdentifierType` → dodano wartość `PeppolId`.
-  - `AuthenticationMethod` → dodano wartość `PeppolSignature`.
-  - `AuthTokenRequest` → nowe property `AuthorizationPolicy`.
-  - `AuthorizationPolicy` → nowy model zastępujący `IpAddressPolicy`.
-  - `AllowedIps` → nowy model z listami `Ip4Address`, `Ip4Range`, `Ip4Mask`.
-  - `AuthTokenRequestBuilder` → nowa metoda `WithAuthorizationPolicy(...)`.
-  - `ContextIdentifierType` → dodano wartość `PeppolId`.
+  - `ContextIdentifierType`: dodano wartość `PeppolId`.
+  - `AuthenticationMethod`: dodano wartość `PeppolSignature`.
+  - `AuthTokenRequest`: nowe property `AuthorizationPolicy`.
+  - `AuthorizationPolicy`: nowy model zastępujący `IpAddressPolicy`.
+  - `AllowedIps`: nowy model z listami `Ip4Address`, `Ip4Range`, `Ip4Mask`.
+  - `AuthTokenRequestBuilder`: nowa metoda `WithAuthorizationPolicy(...)`.
+  - `ContextIdentifierType`: dodano wartość `PeppolId`.
 - **Models**
-  - `StatusInfo` → dodano property `StartDate`, `AuthenticationMethod`.
-  - `AuthorizedSubject` → nowy model (`Nip`, `Name`, `Role`).
-  - `ThirdSubjects` → nowy model (`IdentifierType`, `Identifier`, `Name`, `Role`).
-  - `InvoiceSummary` → dodano property `HashOfCorrectedInvoice`, `AuthorizedSubject`, `ThirdSubjects`.
-  - `AuthenticationKsefToken` → dodano property `LastUseDate`, `StatusDetails`.
-  - `InvoiceExportRequest`, `ExportInvoicesResponse`, `InvoiceExportStatusResponse`, `InvoicePackage` → nowe modele eksportu faktur (zastępują poprzednie).
-  - `FormType` → nowy enum (`FA`, `PEF`, `RR`) używany w `InvoiceQueryFilters`.
+  - `StatusInfo`: dodano property `StartDate`, `AuthenticationMethod`.
+  - `AuthorizedSubject`: nowy model (`Nip`, `Name`, `Role`).
+  - `ThirdSubjects`: nowy model (`IdentifierType`, `Identifier`, `Name`, `Role`).
+  - `InvoiceSummary`: dodano property `HashOfCorrectedInvoice`, `AuthorizedSubject`, `ThirdSubjects`.
+  - `AuthenticationKsefToken`: dodano property `LastUseDate`, `StatusDetails`.
+  - `InvoiceExportRequest`, `ExportInvoicesResponse`, `InvoiceExportStatusResponse`, `InvoicePackage`: nowe modele eksportu faktur (zastępują poprzednie).
+  - `FormType`: nowy enum (`FA`, `PEF`, `RR`) używany w `InvoiceQueryFilters`.
   - `OpenOnlineSessionResponse`:
       - Dodano property `ValidUntil : DateTimeOffset`.
       - Zmiana modelu żądania w dokumentacji endpointu `QueryInvoiceMetadataAsync` (z `QueryInvoiceRequest` na `InvoiceMetadataQueryRequest`).
       - Zmiana namespace z `KSeFClient` na `KSeF.Client`.
 - **Enums**
-  - `InvoicePermissionType` → dodano wartości `RRInvoicing` oraz `PefInvoicing`.
-  - `AuthorizationPermissionType` → dodano wartość `PefInvoicing`.
-  - `KsefTokenPermissionType` → dodano wartości `SubunitManage`, `EnforcementOperations`, `PeppolId`.
-  - `ContextIdentifierType (Tokens)` → nowy enum (`Nip`, `Pesel`, `Fingerprint`).
-  - `PersonPermissionsTargetIdentifierType` → dodano wartość `AllPartners`.
-  - `SubjectIdentifierType` → dodano wartość `PeppolId`.
+  - `InvoicePermissionType`: dodano wartości `RRInvoicing` oraz `PefInvoicing`.
+  - `AuthorizationPermissionType`: dodano wartość `PefInvoicing`.
+  - `KsefTokenPermissionType`: dodano wartości `SubunitManage`, `EnforcementOperations`, `PeppolId`.
+  - `ContextIdentifierType (Tokens)`: nowy enum (`Nip`, `Pesel`, `Fingerprint`).
+  - `PersonPermissionsTargetIdentifierType`: dodano wartość `AllPartners`.
+  - `SubjectIdentifierType`: dodano wartość `PeppolId`.
 - **Interfaces**
-  - `IKSeFClient` → nowe metody:
+  - `IKSeFClient`: nowe metody:
     - `ExportInvoicesAsync` – `POST /api/v2/invoices/exports`.
     - `GetInvoiceExportStatusAsync` – `GET /api/v2/invoices/exports/{operationReferenceNumber}`.
     - `GetAttachmentPermissionStatusAsync` – poprawiony na `GET /api/v2/permissions/attachments/status`.
     - `SearchGrantedPersonalPermissionsAsync` – `POST /api/v2/permissions/query/personal/grants`.
     - `GrantsPermissionAuthorizationAsync` – `POST /api/v2/permissions/authorizations/grants`.
     - `QueryPeppolProvidersAsync` – `GET /api/v2/peppol/query`.
-- **Tests**: `Authenticate.feature.cs` → dodano testy end-to-end procesu uwierzytelniania.
+- **Tests**: `Authenticate.feature.cs`: dodano testy end-to-end procesu uwierzytelniania.
 
 ### Zmodyfikowane
 - **authv2.xsd**
-  - ➖ Usunięto:
+  - Usunięto:
     - Element `OnClientIpChange (tns:IpChangePolicyEnum)`.
     - Regułę unikalności `oneIp`.
     - Cały model `IpAddressPolicy` (`IpAddress`, `IpRange`, `IpMask`).
-  - ➕ Dodano:
+  - Dodano:
     - Element `AuthorizationPolicy` (zamiast `IpAddressPolicy`).
     - Nowy model `AllowedIps` z kolekcjami:
       - `Ip4Address` – pattern z walidacją zakresów IPv4 (0–255).
       - `Ip4Range` – rozszerzony pattern z walidacją zakresu adresów.
       - `Ip4Mask` – rozszerzony pattern z walidacją maski (`/8`, `/16`, `/24`, `/32`).
-  - 🔧 Zmieniono `minOccurs/maxOccurs` dla `Ip4Address`, `Ip4Range`, oraz `Ip4Mask`: wcześniej `minOccurs="0" maxOccurs="unbounded"` → teraz `minOccurs="0" maxOccurs="10"`
+  - Zmieniono `minOccurs/maxOccurs` dla `Ip4Address`, `Ip4Range`, oraz `Ip4Mask`: wcześniej `minOccurs="0" maxOccurs="unbounded"` -> teraz `minOccurs="0" maxOccurs="10"`
   - Podsumowanie:
-    - Zmieniono nazwę `IpAddressPolicy` → `AuthorizationPolicy`.
+    - Zmieniono nazwę `IpAddressPolicy` -> `AuthorizationPolicy`.
     - Wprowadzono precyzyjniejsze regexy dla IPv4.
     - Ograniczono maksymalną liczbę wpisów do 10.
 - **Invoices**
-  - `InvoiceMetadataQueryRequest` → usunięto `SchemaType`.
-  - `PagedInvoiceResponse` → `TotalCount` opcjonalny.
-  - `Seller.Identifier` → opcjonalny, dodano `Seller.Nip` jako wymagane.
-  - `AuthorizedSubject.Identifier` → usunięty, dodano `AuthorizedSubject.Nip`.
-  - `fileHash` → usunięty.
-  - `invoiceHash` → dodany.
-  - `invoiceType` → teraz `InvoiceType` zamiast `InvoiceMetadataInvoiceType`.
-  - `InvoiceQueryFilters` → `InvoicingMode` stał się opcjonalny (`InvoicingMode?`), dodano `FormType`, usunięto `IsHidden`.
-  - `SystemCodes.cs` → dodano kody systemowe dla PEF oraz zaktualizowano mapowanie pod `FormType.PEF`.
+  - `InvoiceMetadataQueryRequest`: usunięto `SchemaType`.
+  - `PagedInvoiceResponse`: `TotalCount` opcjonalny.
+  - `Seller.Identifier`: opcjonalny, dodano `Seller.Nip` jako wymagane.
+  - `AuthorizedSubject.Identifier`: usunięty, dodano `AuthorizedSubject.Nip`.
+  - `fileHash`: usunięty.
+  - `invoiceHash`: dodany.
+  - `invoiceType`: teraz `InvoiceType` zamiast `InvoiceMetadataInvoiceType`.
+  - `InvoiceQueryFilters`: `InvoicingMode` stał się opcjonalny (`InvoicingMode?`), dodano `FormType`, usunięto `IsHidden`.
+  - `SystemCodes.cs`: dodano kody systemowe dla PEF oraz zaktualizowano mapowanie pod `FormType.PEF`.
 - **Permissions**
-  - `EuEntityAdministrationPermissionsGrantRequest` → dodano wymagane `SubjectName`.
-  - `ProxyEntityPermissions` → uspójniono nazewnictwo poprzez zmianę na `AuthorizationPermissions`.
+  - `EuEntityAdministrationPermissionsGrantRequest`: dodano wymagane `SubjectName`.
+  - `ProxyEntityPermissions`: uspójniono nazewnictwo poprzez zmianę na `AuthorizationPermissions`.
 - **Tokens**
-  - `QueryKsefTokensAsync` → dodano parametry `authorIdentifier`, `authorIdentifierType`, `description`; usunięto domyślną wartość `pageSize=10`.
+  - `QueryKsefTokensAsync`: dodano parametry `authorIdentifier`, `authorIdentifierType`, `description`; usunięto domyślną wartość `pageSize=10`.
   - Poprawiono generowanie query string: `status` powtarzany zamiast listy `statuses`.
 
 ### Poprawki i zmiany dokumentacji
@@ -527,15 +561,15 @@
 
 ### Usunięte
 - **Invoices**
-  - `AsyncQueryInvoicesAsync` i `GetAsyncQueryInvoicesStatusAsync` → zastąpione przez metody eksportu.
-  - `AsyncQueryInvoiceRequest`, `AsyncQueryInvoiceStatusResponse` → usunięte.
-  - `InvoicesExportRequest` → zastąpione przez `InvoiceExportRequest`.
-  - `InvoicesExportPackage` → zastąpione przez `InvoicePackage`.
-  - `InvoicesMetadataQueryRequest` → zastąpione przez `InvoiceQueryFilters`.
-  - `InvoiceExportFilters` → włączone do `InvoiceQueryFilters`.
+  - `AsyncQueryInvoicesAsync` i `GetAsyncQueryInvoicesStatusAsync`: zastąpione przez metody eksportu.
+  - `AsyncQueryInvoiceRequest`, `AsyncQueryInvoiceStatusResponse`: usunięte.
+  - `InvoicesExportRequest`: zastąpione przez `InvoiceExportRequest`.
+  - `InvoicesExportPackage`: zastąpione przez `InvoicePackage`.
+  - `InvoicesMetadataQueryRequest`: zastąpione przez `InvoiceQueryFilters`.
+  - `InvoiceExportFilters`: włączone do `InvoiceQueryFilters`.
 
 
-## Rejestr zmian: Wersja 2.0.0 RC4
+## Wersja 2.0.0 RC4
 ### 1. KSeF.Client
   - Usunięto `Page` i `PageSize` i dodano `HasMore` w:
     - `PagedInvoiceResponse`,
@@ -554,66 +588,66 @@
    - Zmieniono `ReceiveDate` na `InvoicingDate` w modelu `SessionInvoice`.
 
 ### 2. KSeF.DemoWebApp/Controllers
-- **OnlineSessionController.cs**: ➕ `GET /send-invoice-correction`.
+- **OnlineSessionController.cs**: `GET /send-invoice-correction`.
 
 
-## Rejestr zmian: Wersja 2.0.0 (2025-07-14)
+## Wersja 2.0.0 (2025-07-14)
 ### 1. KSeF.Client  
 Zmiana wersji .NET z 8.0 na 9.0.
 
 ### 1.1 Api/Services
 - **AuthCoordinator.cs**:
-  - ➕ Dodano dodatkowy log `Status.Details`.
-  - ➕ Dodano wyjątek przy `Status.Code == 400`.
-  - ➖ Usunięto `ipAddressPolicy`.
+  - Dodano dodatkowy log `Status.Details`.
+  - Dodano wyjątek przy `Status.Code == 400`.
+  - Usunięto `ipAddressPolicy`.
 - **CryptographyService.cs**:
-  - ➕ Inicjalizacja certyfikatów.
-  - ➕ Pola `symmetricKeyEncryptionPem` oraz `ksefTokenPem`.
-- **SignatureService.cs**: 🔧 `Sign(...)` → `SignAsync(...)`.
-- **QrCodeService.cs**: ➕ nowa usługa do generowania QrCodes.
-- **VerificationLinkService.cs**: ➕ nowa usługa generowania linków do weryfikacji faktury.
+  - Inicjalizacja certyfikatów.
+  - Pola `symmetricKeyEncryptionPem` oraz `ksefTokenPem`.
+- **SignatureService.cs**: `Sign(...)` -> `SignAsync(...)`.
+- **QrCodeService.cs**: nowa usługa do generowania QrCodes.
+- **VerificationLinkService.cs**: nowa usługa generowania linków do weryfikacji faktury.
 
 ### 1.2 Api/Builders
 - **SendCertificateEnrollmentRequestBuilder.cs**:
-  - 🔧 `ValidFrom` pole zmienione na opcjonalne.
-  - ➖ Interfejs `WithValidFrom`.
+  - `ValidFrom` pole zmienione na opcjonalne.
+  - Interfejs `WithValidFrom`.
 - **OpenBatchSessionRequestBuilder.cs**:
-  - 🔧 `WithBatchFile(...)` usunięto parametr `offlineMode`.
-  - ➕ `WithOfflineMode(bool)` nowy opcjonalny krok do oznaczenia trybu offline.
+  - `WithBatchFile(...)` usunięto parametr `offlineMode`.
+  - `WithOfflineMode(bool)` nowy opcjonalny krok do oznaczenia trybu offline.
 
 ### 1.3 Core/Models
 - **StatusInfo.cs**:
-  - ➕ dodano property `Details`.
-  - ➖ `BasicStatusInfo` - usunięto klasę w celu ujednolicenia statusów.
-- **PemCertificateInfo.cs**: ➕ `PublicKeyPem` - dodano nowe property.
-- **DateType.cs**: ➕ `Invoicing`, `Acquisition`, `Hidden` - dodano nowe enumeratory do filtrowania faktur.
-- **PersonPermission.cs**: 🔧 `PermissionScope` zmieniono z PermissionType zgodnie ze zmianą w kontrakcie.
-- **PersonPermissionsQueryRequest.cs**: 🔧 `QueryType` - dodano nowe wymagane property do filtrowania w zadanym kontekście.
-- **SessionInvoice.cs**: 🔧 `InvoiceFileName` - dodano nowe property.
-- **ActiveSessionsResponse.cs**: / `Status.cs` / `Item.cs` (Sessions): ➕ nowe modele.
+  - Dodano property `Details`.
+  - `BasicStatusInfo` - usunięto klasę w celu ujednolicenia statusów.
+- **PemCertificateInfo.cs**: `PublicKeyPem` - dodano nowe property.
+- **DateType.cs**: `Invoicing`, `Acquisition`, `Hidden` - dodano nowe enumeratory do filtrowania faktur.
+- **PersonPermission.cs**: `PermissionScope` zmieniono z PermissionType zgodnie ze zmianą w kontrakcie.
+- **PersonPermissionsQueryRequest.cs**: `QueryType` - dodano nowe wymagane property do filtrowania w zadanym kontekście.
+- **SessionInvoice.cs**: `InvoiceFileName` - dodano nowe property.
+- **ActiveSessionsResponse.cs**: / `Status.cs` / `Item.cs` (Sessions): nowe modele.
 
 ### 1.4 Core/Interfaces
-- **IKSeFClient.cs**: 🔧 `GetAuthStatusAsync` → zmiana modelu zwracanego z `BasicStatusInfo` na `StatusInfo`.
-  - ➕ Dodano metodę GetActiveSessions(accessToken, pageSize, continuationToken, cancellationToken).
-  - ➕ Dodano metodę RevokeCurrentSessionAsync(token, cancellationToken).
-  - ➕ Dodano metodę RevokeSessionAsync(referenceNumber, accessToken, cancellationToken).
-- **ISignatureService.cs**: 🔧 `Sign` → `SignAsync`.
+- **IKSeFClient.cs**: `GetAuthStatusAsync` -> zmiana modelu zwracanego z `BasicStatusInfo` na `StatusInfo`.
+  - Dodano metodę GetActiveSessions(accessToken, pageSize, continuationToken, cancellationToken).
+  - Dodano metodę RevokeCurrentSessionAsync(token, cancellationToken).
+  - Dodano metodę RevokeSessionAsync(referenceNumber, accessToken, cancellationToken).
+- **ISignatureService.cs**: `Sign` -> `SignAsync`.
 - **IQrCodeService.cs**: nowy interfejs do generowania QRcodes.
-- **IVerificationLinkService.cs**: ➕ nowy interfejs do tworzenia linków weryfikacyjnych do faktury.
+- **IVerificationLinkService.cs**: nowy interfejs do tworzenia linków weryfikacyjnych do faktury.
 
 ### 1.5 DI & Dependencies
-- **ServiceCollectionExtensions.cs**: ➕ rejestracja `IQrCodeService`, `IVerificationLinkService`.
-- **ServiceCollectionExtensions.cs**: ➕ dodano obsługę nowej właściwości `WebProxy` z `KSeFClientOptions`.
-- **KSeFClientOptions.cs**: 🔧 walidacja `BaseUrl`.
+- **ServiceCollectionExtensions.cs**: rejestracja `IQrCodeService`, `IVerificationLinkService`.
+- **ServiceCollectionExtensions.cs**: dodano obsługę nowej właściwości `WebProxy` z `KSeFClientOptions`.
+- **KSeFClientOptions.cs**: walidacja `BaseUrl`.
 - **KSeFClientOptions.cs**:
-  - ➕ dodano właściwości `WebProxy` typu `IWebProxy`.
-  - ➕ Dodano CustomHeaders - umożliwia dodawanie dodatkowych nagłówków do klienta Http.
-- **KSeF.Client.csproj**: ➕ `QRCoder` oraz `System.Drawing.Common`.
+  - Dodano właściwości `WebProxy` typu `IWebProxy`.
+  - Dodano CustomHeaders - umożliwia dodawanie dodatkowych nagłówków do klienta Http.
+- **KSeF.Client.csproj**: `QRCoder` oraz `System.Drawing.Common`.
 
 ### 1.6 Http
 - **KSeFClient.cs**:
-  - ➕ Nagłówki `X-KSeF-Session-Id` oraz `X-Environment`.
-  - ➕ `Content-Type: application/octet-stream`.
+  - Dodano nagłówki `X-KSeF-Session-Id` oraz `X-Environment`.
+  - Dodano `Content-Type: application/octet-stream`.
 
 ### 1.7 RestClient
 - **RestClient.cs**: 🔧 `Uproszczona implementacja IRestClient'.
@@ -623,49 +657,49 @@ Zmiana wersji .NET z 8.0 na 9.0.
 
 ### 2. KSeF.Client.Tests
 - **Nowe pliki**: `QrCodeTests.cs`, `VerificationLinkServiceTests.cs`
-  - Wspólne: 🔧 `Thread.Sleep` → `Task.Delay`.
-  - ➕ `ExpectedPermissionsAfterRevoke`; 4-krokowy flow; obsługa 400.
-  - Wybrane: **Authorization.cs**, `EntityPermission*.cs`, **OnlineSession.cs**, **TestBase.cs**.
+  - Wspólne: `Thread.Sleep` -> `Task.Delay`.
+  - `ExpectedPermissionsAfterRevoke`; 4-krokowy flow; obsługa 400.
+  - Wybrane: `Authorization.cs`, `EntityPermission*.cs`, `OnlineSession.cs`, `TestBase.cs`.
 
 
 ### 3. KSeF.DemoWebApp/Controllers
 - **QrCodeController.cs**:
-  - ➕ `GET /qr/certificate`.
-  - ➕`/qr/invoice/ksef`.
-  - ➕`qr/invoice/offline`.
-- **ActiveSessionsController.cs**: ➕ `GET /sessions/active`.
+  - `GET /qr/certificate`.
+  - `/qr/invoice/ksef`.
+  - `qr/invoice/offline`.
+- **ActiveSessionsController.cs**: `GET /sessions/active`.
 - **AuthController.cs**:
-  - ➕ `GET /auth-with-ksef-certificate`.
-  - 🔧 fallback `contextIdentifier`.
+  - `GET /auth-with-ksef-certificate`.
+  - fallback `contextIdentifier`.
 - **BatchSessionController.cs**:
-  - ➕ `WithOfflineMode(false)`.
-  - 🔧 pętla `var`.
+  - `WithOfflineMode(false)`.
+  - pętla `var`.
 - **CertificateController.cs**:
-  - ➕ `serialNumber`, `name`.
-  - ➕ Builder.
+  - `serialNumber`, `name`.
+  - Builder.
 - **OnlineSessionController.cs**:
-  - ➕ `WithOfflineMode(false)`.
-  - 🔧 `WithInvoiceHash`.
+  - `WithOfflineMode(false)`.
+  - `WithInvoiceHash`.
 
 ### 4. Podsumowanie
 
 | Typ zmiany | Liczba plików |
 |------------|---------------|
-| ➕ dodane   | 12 |
-| 🔧 zmienione| 33 |
-| ➖ usunięte | 3 |
+| dodane     | 12            |
+| zmienione  | 33            |
+| usunięte   | 3             |
 
 
-## Rejestr zmian: Wersja `2025-07-15`
+## Wersja `2025-07-15`
 ### 1. KSeF.Client
 
 #### 1.1 Api/Services
 - **CryptographyService.cs**:
-  - ➕ Dodano `EncryptWithEciesUsingPublicKey(byte[] content)` — domyślna metoda szyfrowania ECIES (ECDH + AES-GCM) na krzywej P-256.
-  - 🔧 Metodę `EncryptKsefTokenWithRSAUsingPublicKey(...)` można przełączyć na ECIES lub zachować RSA-OAEP SHA-256 przez parametr `EncryptionMethod`.
+  - Dodano `EncryptWithEciesUsingPublicKey(byte[] content)` — domyślna metoda szyfrowania ECIES (ECDH + AES-GCM) na krzywej P-256.
+  - Metodę `EncryptKsefTokenWithRSAUsingPublicKey(...)` można przełączyć na ECIES lub zachować RSA-OAEP SHA-256 przez parametr `EncryptionMethod`.
 
 - **AuthCoordinator.cs**:
-  - 🔧 Sygnatura `AuthKsefTokenAsync(...)` rozszerzona o opcjonalny parametr:
+  - Sygnatura `AuthKsefTokenAsync(...)` rozszerzona o opcjonalny parametr:
     ```csharp
     EncryptionMethod encryptionMethod = EncryptionMethod.Ecies
     ```
@@ -673,7 +707,7 @@ Zmiana wersji .NET z 8.0 na 9.0.
 
 #### 1.2 Core/Models
 - **EncryptionMethod.cs**
-  ➕ Nowy enum:
+  Nowy enum:
   ```csharp
   public enum EncryptionMethod
   {
@@ -682,18 +716,18 @@ Zmiana wersji .NET z 8.0 na 9.0.
   }
   ```
 - **InvoiceSummary.cs**
-  ➕ Dodano nowe pola:
+  Dodano nowe pola:
   ```csharp
     public DateTimeOffset IssueDate { get; set; }
     public DateTimeOffset InvoicingDate { get; set; }
     public DateTimeOffset PermanentStorageDate { get; set; }
   ```
 - **InvoiceMetadataQueryRequest.cs**
-  🔧 w `Seller` oraz `Buyer` dodano nowe typy bez pola `Name`:
+  W `Seller` oraz `Buyer` dodano nowe typy bez pola `Name`:
 
 #### 1.3 Core/Interfaces
 - **ICryptographyService.cs**
-  ➕ Dodano metody:
+  Dodano metody:
   ```csharp
   byte[] EncryptWithEciesUsingPublicKey(byte[] content);
   void EncryptStreamWithAES256(Stream input, Stream output, byte[] key, byte[] iv);
@@ -706,13 +740,13 @@ Zmiana wersji .NET z 8.0 na 9.0.
   ```
 
 ### 2. KSeF.Client.Tests
-- **AuthorizationTests.cs**: ➕ testy end-to-end `AuthKsefTokenAsync(...)` w wariantach `Ecies` i `Rsa`.
-- **QrCodeTests.cs**: ➕ rozbudowano testy `BuildCertificateQr` o scenariusze z ECDSA P-256; poprzednie testy RSA pozostawione zakomentowane.
-- **VerificationLinkServiceTests.cs**: ➕ dodano testy generowania i weryfikacji linków dla certyfikatów ECDSA P-256.
-- **BatchSession.cs**: ➕ testy end-to-end dla wysyłki partów z wykorzystaniem strumieni.
+- **AuthorizationTests.cs**: testy end-to-end `AuthKsefTokenAsync(...)` w wariantach `Ecies` i `Rsa`.
+- **QrCodeTests.cs**: rozbudowano testy `BuildCertificateQr` o scenariusze z ECDSA P-256; poprzednie testy RSA pozostawione zakomentowane.
+- **VerificationLinkServiceTests.cs**: dodano testy generowania i weryfikacji linków dla certyfikatów ECDSA P-256.
+- **BatchSession.cs**: testy end-to-end dla wysyłki partów z wykorzystaniem strumieni.
 
 ### 3. KSeF.DemoWebApp/Controllers
-- **QrCodeController.cs**: 🔧 Akcja `GetCertificateQr(...)` przyjmuje teraz opcjonalny parametr:
+- **QrCodeController.cs**: Akcja `GetCertificateQr(...)` przyjmuje teraz opcjonalny parametr:
   ```csharp
   string privateKey = ""
   ```
@@ -720,26 +754,26 @@ Zmiana wersji .NET z 8.0 na 9.0.
 
 
 ### Rozwiązania zgłoszonych: `2025-07-21`
-- **#1 Metoda AuthCoordinator.AuthAsync() zawiera błąd**: 🔧 `KSeF.Client/Api/Services/AuthCoordinator.cs`: usunięto 2 linie zbędnego kodu challenge.
-- **#2 Błąd w AuthController.cs**: 🔧 `KSeF.DemoWebApp/Controllers/AuthController.cs` - poprawiono logikę `AuthStepByStepAsync` (2 additions, 6 deletions) — fallback `contextIdentifier`.
-- **#3 „Śmieciowa” klasa XadeSDummy**: 🔀 przeniesiono `XadeSDummy` z `KSeF.Client.Api.Services` do `WebApplication.Services` (zmiana namespace).
-- **#4 Optymalizacja RestClient**: 🔧 `KSeF.Client/Http/RestClient.cs`: uproszczono przeciążenia `SendAsync` (24 additions, 11 deletions), usunięto dead-code, dodano performance benchmark `perf(#4)`.
-- **#5 Uporządkowanie języka komunikatów**: ➕ `KSeF.Client/Resources/Strings.en.resx` & `Strings.pl.resx`: dodano 101 nowych wpisów w obu plikach; skonfigurowano lokalizację w DI.
-- **#6 Wsparcie dla AOT**: ➕ `KSeF.Client/KSeF.Client.csproj`: dodano `<PublishAot>`, `<SelfContained>`, `<InvariantGlobalization>`, runtime identifiers `win-x64;linux-x64;osx-arm64`.
-- **#7 Nadmiarowy plik KSeFClient.csproj**: ➖ Usunięto nieużywany plik projektu `KSeFClient.csproj` z repozytorium.
+- **#1 Metoda AuthCoordinator.AuthAsync() zawiera błąd**: `KSeF.Client/Api/Services/AuthCoordinator.cs`: usunięto 2 linie zbędnego kodu challenge.
+- **#2 Błąd w AuthController.cs**: `KSeF.DemoWebApp/Controllers/AuthController.cs` - poprawiono logikę `AuthStepByStepAsync` (2 additions, 6 deletions) — fallback `contextIdentifier`.
+- **#3 „Śmieciowa” klasa XadeSDummy**: przeniesiono `XadeSDummy` z `KSeF.Client.Api.Services` do `WebApplication.Services` (zmiana namespace).
+- **#4 Optymalizacja RestClient**: `KSeF.Client/Http/RestClient.cs`: uproszczono przeciążenia `SendAsync` (24 additions, 11 deletions), usunięto dead-code, dodano performance benchmark `perf(#4)`.
+- **#5 Uporządkowanie języka komunikatów**: `KSeF.Client/Resources/Strings.en.resx` & `Strings.pl.resx`: dodano 101 nowych wpisów w obu plikach; skonfigurowano lokalizację w DI.
+- **#6 Wsparcie dla AOT**: `KSeF.Client/KSeF.Client.csproj`: dodano `<PublishAot>`, `<SelfContained>`, `<InvariantGlobalization>`, runtime identifiers `win-x64;linux-x64;osx-arm64`.
+- **#7 Nadmiarowy plik KSeFClient.csproj**: Usunięto nieużywany plik projektu `KSeFClient.csproj` z repozytorium.
 
 ### Inne zmiany
-- **QrCodeService.cs**: ➕ nowa implementacji PNG-QR (`GenerateQrCode`, `ResizePng`, `AddLabelToQrCode`).
-- **PemCertificateInfo.cs**: ➖ Usunięto właściwości PublicKeyPem.
-- **ServiceCollectionExtensions.cs**: ➕ konfiguracja lokalizacji (`pl-PL`, `en-US`) i rejestracji `IQrCodeService`/`IVerificationLinkService`.
+- **QrCodeService.cs**: nowa implementacji PNG-QR (`GenerateQrCode`, `ResizePng`, `AddLabelToQrCode`).
+- **PemCertificateInfo.cs**: Usunięto właściwości PublicKeyPem.
+- **ServiceCollectionExtensions.cs**: konfiguracja lokalizacji (`pl-PL`, `en-US`) i rejestracji `IQrCodeService`/`IVerificationLinkService`.
 - **AuthTokenRequest.cs**: dostosowanie serializacji XML do nowego schematu XSD.
 - **README.md**: poprawione środowisko w przykładzie rejestracji KSeFClient w kontenerze DI.
 
 
-## Rejestr zmian: Wersja `2025-08-31`
+## Wersja `2025-08-31`
 ### KSeF.Client.Tests
 **Utils**
-- ➕ Nowe utils usprawniające uwierzytelnianie, obsługę sesji interaktywnych, wsadowych, zarządzanie uprawnieniami, oraz ich metody wspólne: **AuthenticationUtils.cs**, **OnlineSessionUtils.cs**, **MiscellaneousUtils.cs**, **BatchSessionUtils.cs**, **PermissionsUtils.cs**.
-- 🔧 Refactor testów - użycie nowych klas utils.
-- 🔧 Zmiana kodu statusu zamknięcia sesji interaktywnej z 300 na 170.
-- 🔧 Zmiana kodu statusu zamknięcia sesji wsadowej z 300 na 150.
+- Nowe utils usprawniające uwierzytelnianie, obsługę sesji interaktywnych, wsadowych, zarządzanie uprawnieniami, oraz ich metody wspólne: **AuthenticationUtils.cs**, **OnlineSessionUtils.cs**, **MiscellaneousUtils.cs**, **BatchSessionUtils.cs**, **PermissionsUtils.cs**.
+- Refactor testów - użycie nowych klas utils.
+- Zmiana kodu statusu zamknięcia sesji interaktywnej z 300 na 170.
+- Zmiana kodu statusu zamknięcia sesji wsadowej z 300 na 150.

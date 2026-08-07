@@ -8,6 +8,7 @@ namespace KSeF.Client.Core.Models.Permissions.Person
         InvoiceRead,
         Introspection,
         SubunitManage,
-        EnforcementOperations
+        EnforcementOperations,
+        CollectiveIdentifierManage
     }
 }

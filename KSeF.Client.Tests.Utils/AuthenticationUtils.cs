@@ -22,35 +22,15 @@ public static class AuthenticationUtils
         AuthenticationTokenContextIdentifierType contextIdentifierType = AuthenticationTokenContextIdentifierType.Nip,
         EncryptionMethodEnum encryptionMethod = EncryptionMethodEnum.Rsa)
     {
-        if (encryptionMethod == EncryptionMethodEnum.ECDsa)
-        {
-            throw new NotImplementedException("Brak obsługi ECDsa");
-        }
+        X509Certificate2 certificate = CertificateUtils.GetPersonalCertificate("A", "R", identifierValue.Length == 11 ? "PNOPL" : "TINPL", identifierValue, "A R", encryptionMethod);
 
-        AuthenticationChallengeResponse challengeResponse = await authorizationClient
-            .GetAuthChallengeAsync().ConfigureAwait(false);
-
-        AuthenticationTokenRequest authTokenRequest = GetAuthorizationTokenRequest(
-            challengeResponse.Challenge,
+        return await AuthenticateWithCertificateAsync(
+            authorizationClient,
             contextIdentifierType,
             identifierValue,
-            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject);
-
-        string unsignedXml = AuthenticationTokenRequestSerializer.SerializeToXmlString(authTokenRequest);
-
-        X509Certificate2 certificate = CertificateUtils.GetPersonalCertificate("A", "R", identifierValue.Length == 11 ? "PNOPL" : "TINPL", identifierValue, "A R");
-
-        string signedXml = SignatureService.Sign(unsignedXml, certificate);
-
-        SignatureResponse authOperationInfo = await authorizationClient
-            .SubmitXadesAuthRequestAsync(signedXml, false, true, CancellationToken.None).ConfigureAwait(false);
-
-        AuthStatus finalStatus = await WaitForAuthCompletionAsync(authorizationClient, authOperationInfo).ConfigureAwait(false);
-        EnsureSuccess(finalStatus);
-
-        AuthenticationOperationStatusResponse authResult =
-            await authorizationClient.GetAccessTokenAsync(authOperationInfo.AuthenticationToken.Token).ConfigureAwait(false);
-        return authResult;
+            certificate,
+            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject,
+            enforceXadesCompliance: true).ConfigureAwait(false);
     }
 
 
@@ -60,39 +40,21 @@ public static class AuthenticationUtils
     public static async Task<AuthenticationOperationStatusResponse> AuthenticateAsOrganizationAsync(
         IAuthorizationClient authorizationClient,
         string identifierValue,
-        AuthenticationTokenContextIdentifierType contextIdentifierType = AuthenticationTokenContextIdentifierType.Nip,
-        EncryptionMethodEnum encryptionMethod = EncryptionMethodEnum.Rsa)
+        AuthenticationTokenContextIdentifierType contextIdentifierType = AuthenticationTokenContextIdentifierType.Nip)
     {
-        AuthenticationChallengeResponse challengeResponse = await authorizationClient
-            .GetAuthChallengeAsync().ConfigureAwait(false);
-
-        AuthenticationTokenRequest authTokenRequest = GetAuthorizationTokenRequest(
-            challengeResponse.Challenge,
-            contextIdentifierType,
-            identifierValue,
-            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject);
-
-        string unsignedXml = AuthenticationTokenRequestSerializer.SerializeToXmlString(authTokenRequest);
-
-        using System.Security.Cryptography.X509Certificates.X509Certificate2 certificate = SelfSignedCertificateForSealBuilder
+        using X509Certificate2 certificate = SelfSignedCertificateForSealBuilder
             .Create()
             .WithOrganizationName("AR sp. z o.o")
             .WithOrganizationIdentifier("VATPL-" + identifierValue)
             .WithCommonName("A R")
             .Build();
 
-        string signedXml = SignatureService.Sign(unsignedXml, certificate);
-
-
-        SignatureResponse authOperationInfo = await authorizationClient
-            .SubmitXadesAuthRequestAsync(signedXml, false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-        AuthStatus finalStatus = await WaitForAuthCompletionAsync(authorizationClient, authOperationInfo).ConfigureAwait(false);
-        EnsureSuccess(finalStatus);
-
-        AuthenticationOperationStatusResponse authResult =
-            await authorizationClient.GetAccessTokenAsync(authOperationInfo.AuthenticationToken.Token).ConfigureAwait(false);
-        return authResult;
+        return await AuthenticateWithCertificateAsync(
+            authorizationClient,
+            contextIdentifierType,
+            identifierValue,
+            certificate,
+            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject).ConfigureAwait(false);
     }
 
 
@@ -105,29 +67,15 @@ public static class AuthenticationUtils
         string contextIdentifierValue,
         AuthenticationTokenContextIdentifierType contextIdentifierType = AuthenticationTokenContextIdentifierType.Nip)
     {
-        AuthenticationChallengeResponse challengeResponse = await authorizationClient   
-            .GetAuthChallengeAsync().ConfigureAwait(false);
-
-        AuthenticationTokenRequest authTokenRequest = GetAuthorizationTokenRequest(
-            challengeResponse.Challenge,
-            contextIdentifierType,
-            contextIdentifierValue,
-            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject);
-
-        string unsignedXml = AuthenticationTokenRequestSerializer.SerializeToXmlString(authTokenRequest);
-
         X509Certificate2 certificate =
             CertificateUtils.GetPersonalCertificate("A", "R", identifierValue.Length == 11 ? "PNOPL" : "TINPL", identifierValue, "A R");
 
-        string signedXml = SignatureService.Sign(unsignedXml, certificate);
-
-        SignatureResponse authOperationInfo = await authorizationClient
-            .SubmitXadesAuthRequestAsync(signedXml, false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-        AuthStatus finalStatus = await WaitForAuthCompletionAsync(authorizationClient, authOperationInfo).ConfigureAwait(false);
-        EnsureSuccess(finalStatus);
-
-        return await authorizationClient.GetAccessTokenAsync(authOperationInfo.AuthenticationToken.Token).ConfigureAwait(false);
+        return await AuthenticateWithCertificateAsync(
+            authorizationClient,
+            contextIdentifierType,
+            contextIdentifierValue,
+            certificate,
+            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -142,28 +90,14 @@ public static class AuthenticationUtils
     {
         string nip = identifier ?? MiscellaneousUtils.GetRandomNip();
 
-        AuthenticationChallengeResponse challengeResponse = await authorizationClient
-            .GetAuthChallengeAsync().ConfigureAwait(false);
-
-        AuthenticationTokenRequest authTokenRequest = GetAuthorizationTokenRequest(
-            challengeResponse.Challenge,
-            contextIdentifierType,
-            nip,
-            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject);
-
-        string unsignedXml = AuthenticationTokenRequestSerializer.SerializeToXmlString(authTokenRequest);
-
         X509Certificate2 certificate = CertificateUtils.GetPersonalCertificate("A", "R", "TINPL", nip, "A R", encryptionMethod);
 
-        string signedXml = SignatureService.Sign(unsignedXml, certificate);
-
-        SignatureResponse authOperationInfo = await authorizationClient
-            .SubmitXadesAuthRequestAsync(signedXml, false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-        AuthStatus finalStatus = await WaitForAuthCompletionAsync(authorizationClient, authOperationInfo).ConfigureAwait(false);
-        EnsureSuccess(finalStatus);
-
-        return await authorizationClient.GetAccessTokenAsync(authOperationInfo.AuthenticationToken.Token).ConfigureAwait(false);
+        return await AuthenticateWithCertificateAsync(
+            authorizationClient,
+            contextIdentifierType,
+            nip,
+            certificate,
+            AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -175,6 +109,26 @@ public static class AuthenticationUtils
         AuthenticationTokenContextIdentifierType contextIdentifierType,
         X509Certificate2 certificate,
         AuthenticationTokenSubjectIdentifierTypeEnum subjectIdentifierType = AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject)
+    {
+        return await AuthenticateWithCertificateAsync(
+            authorizationClient,
+            contextIdentifierType,
+            contextIdentifierValue,
+            certificate,
+            subjectIdentifierType).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Wspólna logika uwierzytelnienia XAdES: buduje żądanie, podpisuje je wskazanym certyfikatem,
+    /// wysyła do KSeF, czeka na zakończenie operacji i pobiera parę access/refresh token.
+    /// </summary>
+    private static async Task<AuthenticationOperationStatusResponse> AuthenticateWithCertificateAsync(
+        IAuthorizationClient authorizationClient,
+        AuthenticationTokenContextIdentifierType contextIdentifierType,
+        string contextIdentifierValue,
+        X509Certificate2 certificate,
+        AuthenticationTokenSubjectIdentifierTypeEnum subjectIdentifierType,
+        bool enforceXadesCompliance = false)
     {
         AuthenticationChallengeResponse challengeResponse = await authorizationClient
             .GetAuthChallengeAsync().ConfigureAwait(false);
@@ -190,7 +144,7 @@ public static class AuthenticationUtils
         string signedXml = SignatureService.Sign(unsignedXml, certificate);
 
         SignatureResponse authOperationInfo = await authorizationClient
-            .SubmitXadesAuthRequestAsync(signedXml, false, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            .SubmitXadesAuthRequestAsync(signedXml, false, enforceXadesCompliance, CancellationToken.None).ConfigureAwait(false);
 
         AuthStatus finalStatus = await WaitForAuthCompletionAsync(authorizationClient, authOperationInfo).ConfigureAwait(false);
         EnsureSuccess(finalStatus);

@@ -17,6 +17,11 @@ public sealed class CollectiveIdentifiersClient(IRestClient restClient, IRouteBu
         Guard.ThrowIfNull(request);
         Guard.ThrowIfNullOrWhiteSpace(accessToken);
 
+        if (request.Invoices is null || request.Invoices.Count < 2)
+        {
+            throw new ArgumentException("Identyfikator zbiorczy wymaga co najmniej 2 faktur.", nameof(request));
+        }
+
         return ExecuteAsync<GenerateCollectiveIdentifierResponse, GenerateCollectiveIdentifierRequest>(Routes.CollectiveIdentifiers.Root, request, accessToken, cancellationToken);
     }
 
@@ -70,21 +75,21 @@ public sealed class CollectiveIdentifiersClient(IRestClient restClient, IRouteBu
 
     /// <inheritdoc />
     public Task<CollectiveIdentifierInvoicesQueryResponse> GetCollectiveIdentifierInvoicesAsync(
-        string collectiveIdentifierNumber,
+        CollectiveIdentifierInvoicesQueryRequest request,
         string accessToken,
         string continuationToken = null,
         int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        Guard.ThrowIfNullOrWhiteSpace(collectiveIdentifierNumber);
+        Guard.ThrowIfNull(request);
         Guard.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new(Routes.CollectiveIdentifiers.InvoicesByCollectiveIdentifierNumber(Uri.EscapeDataString(collectiveIdentifierNumber)));
+        StringBuilder urlBuilder = new(Routes.CollectiveIdentifiers.Invoices);
         PaginationHelper.AppendPagination(null, pageSize, urlBuilder);
 
-        return ExecuteAsync<CollectiveIdentifierInvoicesQueryResponse>(
+        return ExecuteAsync<CollectiveIdentifierInvoicesQueryResponse, CollectiveIdentifierInvoicesQueryRequest>(
             urlBuilder.ToString(),
-            HttpMethod.Get,
+            request,
             accessToken,
             !string.IsNullOrWhiteSpace(continuationToken)
                 ? new Dictionary<string, string> { { "x-continuation-token", Regex.Unescape(continuationToken) } }

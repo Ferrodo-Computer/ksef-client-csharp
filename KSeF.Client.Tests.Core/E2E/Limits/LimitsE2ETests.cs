@@ -36,6 +36,8 @@ public class LimitsE2ETests : TestBase
         Assert.True(limitsForContext.BatchSession.MaxInvoiceSizeInMB > 0);
         Assert.True(limitsForContext.BatchSession.MaxInvoiceWithAttachmentSizeInMB > 0);
 
+        Assert.True(limitsForContext.CollectiveIdentifier.MaxInvoices > 0);
+
         // 4. Zmiana limitów bieżącego kontekstu sesji
         Client.Core.Models.TestData.ChangeSessionLimitsInCurrentContextRequest newLimits =
             new()
@@ -52,6 +54,11 @@ public class LimitsE2ETests : TestBase
                     MaxInvoices = limitsForContext.BatchSession.MaxInvoices + LimitsChangeValue,
                     MaxInvoiceSizeInMB = limitsForContext.BatchSession.MaxInvoiceSizeInMB + LimitsChangeValue,
                     MaxInvoiceWithAttachmentSizeInMB = limitsForContext.BatchSession.MaxInvoiceWithAttachmentSizeInMB + LimitsChangeValue,
+                },
+
+                CollectiveIdentifier = new Client.Core.Models.TestData.CollectiveIdentifierSessionLimits
+                {
+                    MaxInvoices = limitsForContext.CollectiveIdentifier.MaxInvoices + LimitsChangeValue,
                 }
             };
 
@@ -69,6 +76,7 @@ public class LimitsE2ETests : TestBase
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceSizeInMB, newLimits.OnlineSession.MaxInvoiceSizeInMB);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMB);
         Assert.NotNull(limitsForContext.BatchSession);
+        Assert.Equal(limitsForContext.CollectiveIdentifier.MaxInvoices, newLimits.CollectiveIdentifier.MaxInvoices);
 
         // 6. Przywrócenie oryginalnych limitów bieżącego kontekstu sesji
         await TestDataClient.RestoreDefaultSessionLimitsInCurrentContextAsync(
@@ -84,6 +92,7 @@ public class LimitsE2ETests : TestBase
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceSizeInMB, newLimits.OnlineSession.MaxInvoiceSizeInMB - LimitsChangeValue);
         Assert.Equal(limitsForContext.OnlineSession.MaxInvoiceWithAttachmentSizeInMB, newLimits.OnlineSession.MaxInvoiceWithAttachmentSizeInMB - LimitsChangeValue);
         Assert.NotNull(limitsForContext.BatchSession);
+        Assert.Equal(limitsForContext.CollectiveIdentifier.MaxInvoices, newLimits.CollectiveIdentifier.MaxInvoices - LimitsChangeValue);
     }
 
     /// <summary>

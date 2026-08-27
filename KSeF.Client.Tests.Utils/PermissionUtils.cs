@@ -134,7 +134,7 @@ public static class PermissionsUtils
     /// <param name="client">Klient KSeF.</param>
     /// <param name="accessToken">Token dostępu.</param>
     /// <param name="state">Stan uprawnienia.</param>
-    /// <returns>Lista uprawnień osoby.</returns>a
+    /// <returns>Lista uprawnień osoby.</returns>
     public static async Task<IReadOnlyList<PersonPermission>> SearchPersonPermissionsAsync(
         IKSeFClient client, string accessToken, PersonPermissionState state)
         => await SearchPersonPermissionsAsync(client, accessToken, PersonQueryType.PermissionsGrantedInCurrentContext, state).ConfigureAwait(false);

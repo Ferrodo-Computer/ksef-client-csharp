@@ -7,6 +7,7 @@ public enum KsefApiEndpoint
 {
     InvoiceQueryMetadata,
     InvoiceExport,
+    InvoiceExportStatus,
     InvoiceGetByNumber,
     SessionBatchOpen,
     SessionBatchClose,
@@ -14,5 +15,9 @@ public enum KsefApiEndpoint
     SessionOnlineSendInvoice,
     SessionOnlineClose,
     SessionInvoiceStatus,
+    SessionList,
+    SessionInvoiceList,
+    SessionMisc,
+    CollectiveIdentifier,
     Other
 }

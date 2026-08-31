@@ -35,10 +35,10 @@ namespace KSeF.Client.Core.Interfaces.Clients
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// GET /collective-identifiers/{collectiveIdentifierNumber}/invoices — pobranie listy faktur wchodzących w skład identyfikatora zbiorczego.
+        /// POST /collective-identifiers/invoices — pobranie listy faktur wchodzących w skład wskazanych identyfikatorów zbiorczych (maksymalnie 10 na żądanie).
         /// </summary>
         Task<CollectiveIdentifierInvoicesQueryResponse> GetCollectiveIdentifierInvoicesAsync(
-            string collectiveIdentifierNumber,
+            CollectiveIdentifierInvoicesQueryRequest request,
             string accessToken,
             string continuationToken = null,
             int? pageSize = null,

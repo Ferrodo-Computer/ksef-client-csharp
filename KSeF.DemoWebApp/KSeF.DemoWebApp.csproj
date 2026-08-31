@@ -19,6 +19,7 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\KSeF.Client.Core\KSeF.Client.Core.csproj" />
 	  <ProjectReference Include="..\KSeF.Client\KSeF.Client.csproj" />
+	  <ProjectReference Include="..\KSeF.Client.ClientFactory\KSeF.Client.ClientFactory.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -30,6 +31,9 @@
 	  </None>
 	  <None Update="faktura2.xml">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Templates\invoice-template-fa-3.xml">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </None>
 	</ItemGroup>
 

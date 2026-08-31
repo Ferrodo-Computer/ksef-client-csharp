@@ -6,24 +6,38 @@ namespace KSeF.Client.Tests.Core.Utils.RateLimit;
 /// </summary>
 public static class KsefApiLimits
 {
-    // Predefiniowane profile limitów
-    private static readonly ApiLimits Medium = new() { RequestsPerSecond = 8, RequestsPerMinute = 16, RequestsPerHour = 20 };
-    private static readonly ApiLimits Standard = new() { RequestsPerSecond = 10, RequestsPerMinute = 20, RequestsPerHour = 120 };
-    private static readonly ApiLimits Enhanced = new() { RequestsPerSecond = 10, RequestsPerMinute = 30, RequestsPerHour = 120 };
-    private static readonly ApiLimits High = new() { RequestsPerSecond = 30, RequestsPerMinute = 120, RequestsPerHour = 720 };
-    
+    // Profile limitów - nazwane wg grup zwracanych przez GET /rate-limits (EffectiveApiRateLimits)
+    private static readonly ApiLimits InvoiceMetadata = new() { RequestsPerSecond = 8, RequestsPerMinute = 16, RequestsPerHour = 20 };
+    private static readonly ApiLimits InvoiceExportLimits = new() { RequestsPerSecond = 8, RequestsPerMinute = 16, RequestsPerHour = 20 };
+    private static readonly ApiLimits InvoiceExportStatus = new() { RequestsPerSecond = 10, RequestsPerMinute = 60, RequestsPerHour = 600 };
+    private static readonly ApiLimits InvoiceDownload = new() { RequestsPerSecond = 8, RequestsPerMinute = 16, RequestsPerHour = 64 };
+    private static readonly ApiLimits BatchSession = new() { RequestsPerSecond = 10, RequestsPerMinute = 20, RequestsPerHour = 60 };
+    private static readonly ApiLimits OnlineSession = new() { RequestsPerSecond = 10, RequestsPerMinute = 30, RequestsPerHour = 120 };
+    private static readonly ApiLimits InvoiceSend = new() { RequestsPerSecond = 10, RequestsPerMinute = 30, RequestsPerHour = 180 };
+    private static readonly ApiLimits InvoiceStatus = new() { RequestsPerSecond = 30, RequestsPerMinute = 120, RequestsPerHour = 1200 };
+    private static readonly ApiLimits SessionList = new() { RequestsPerSecond = 5, RequestsPerMinute = 10, RequestsPerHour = 60 };
+    private static readonly ApiLimits SessionInvoiceList = new() { RequestsPerSecond = 10, RequestsPerMinute = 20, RequestsPerHour = 200 };
+    private static readonly ApiLimits SessionMisc = new() { RequestsPerSecond = 10, RequestsPerMinute = 120, RequestsPerHour = 1200 };
+    private static readonly ApiLimits CollectiveIdentifier = new() { RequestsPerSecond = 20, RequestsPerMinute = 120, RequestsPerHour = 240 };
+    private static readonly ApiLimits Other = new() { RequestsPerSecond = 10, RequestsPerMinute = 30, RequestsPerHour = 120 };
+
     private static readonly Dictionary<KsefApiEndpoint, ApiLimits> _limits = new()
     {
-        [KsefApiEndpoint.InvoiceQueryMetadata] = Medium,
-        [KsefApiEndpoint.InvoiceExport] = Medium,
-        [KsefApiEndpoint.InvoiceGetByNumber] = Medium with { RequestsPerHour = 64 },
-        [KsefApiEndpoint.SessionBatchOpen] = Standard,
-        [KsefApiEndpoint.SessionBatchClose] = Standard,
-        [KsefApiEndpoint.SessionOnlineOpen] = Enhanced,
-        [KsefApiEndpoint.SessionOnlineSendInvoice] = Enhanced with { RequestsPerHour = 180 },
-        [KsefApiEndpoint.SessionOnlineClose] = Enhanced,
-        [KsefApiEndpoint.SessionInvoiceStatus] = High,
-        [KsefApiEndpoint.Other] = Enhanced
+        [KsefApiEndpoint.InvoiceQueryMetadata] = InvoiceMetadata,
+        [KsefApiEndpoint.InvoiceExport] = InvoiceExportLimits,
+        [KsefApiEndpoint.InvoiceExportStatus] = InvoiceExportStatus,
+        [KsefApiEndpoint.InvoiceGetByNumber] = InvoiceDownload,
+        [KsefApiEndpoint.SessionBatchOpen] = BatchSession,
+        [KsefApiEndpoint.SessionBatchClose] = BatchSession,
+        [KsefApiEndpoint.SessionOnlineOpen] = OnlineSession,
+        [KsefApiEndpoint.SessionOnlineSendInvoice] = InvoiceSend,
+        [KsefApiEndpoint.SessionOnlineClose] = OnlineSession,
+        [KsefApiEndpoint.SessionInvoiceStatus] = InvoiceStatus,
+        [KsefApiEndpoint.SessionList] = SessionList,
+        [KsefApiEndpoint.SessionInvoiceList] = SessionInvoiceList,
+        [KsefApiEndpoint.SessionMisc] = SessionMisc,
+        [KsefApiEndpoint.CollectiveIdentifier] = CollectiveIdentifier,
+        [KsefApiEndpoint.Other] = Other
     };
     
     /// <summary>

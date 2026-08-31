@@ -165,45 +165,7 @@ public static partial class MiscellaneousUtils
     public static string GetRandomNipVatEU(CountryCode countryCode = CountryCode.ES)
     {
         string nip = GetRandomNip();
-
-        string vatPart = countryCode switch
-        {
-            CountryCode.AT => "U" + Random.Next(10000000, 99999999),
-            CountryCode.BE => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
-            CountryCode.BG => Random.Next(0, 2) == 0
-                ? $"{Random.Next(100000000, 999999999)}"
-                : $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.CY => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
-            CountryCode.CZ => Random.Next(0, 2) == 0
-                ? $"{Random.Next(10000000, 99999999)}"
-                : $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.DE => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.DK => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.EE => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.EL => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.ES => GenerateEsVat(),
-            CountryCode.FI => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.FR => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
-            CountryCode.HR => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.HU => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.IE => GenerateIeVat(),
-            CountryCode.IT => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.LT => Random.Next(0, 2) == 0
-                ? $"{Random.Next(100000000, 999999999)}"
-                : $"{Random.NextInt64(100000000000, 999999999999)}",
-            CountryCode.LU => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.LV => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.MT => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.NL => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
-            CountryCode.PT => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.RO => $"{Random.NextInt64(10, 9999999999)}",
-            CountryCode.SE => $"{Random.NextInt64(100000000000, 999999999999)}",
-            CountryCode.SI => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.SK => $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.XI => GenerateXiVat(),
-            CountryCode.PL => GetRandomNip(),
-            _ => throw new ArgumentException($"Niewspierany kod kraju {countryCode}")
-        };
+        string vatPart = GenerateVatPart(countryCode);
 
         return $"{nip}-{countryCode}{vatPart}";
     }
@@ -326,44 +288,7 @@ public static partial class MiscellaneousUtils
     /// </summary>
     public static string GetRandomNipVatEU(string nip, CountryCode countryCode = CountryCode.ES)
     {
-        string vatPart = countryCode switch
-        {
-            CountryCode.AT => "U" + Random.Next(10000000, 99999999),
-            CountryCode.BE => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
-            CountryCode.BG => Random.Next(0, 2) == 0
-                ? $"{Random.Next(100000000, 999999999)}"
-                : $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.CY => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
-            CountryCode.CZ => Random.Next(0, 2) == 0
-                ? $"{Random.Next(10000000, 99999999)}"
-                : $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.DE => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.DK => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.EE => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.EL => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.ES => GenerateEsVat(),
-            CountryCode.FI => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.FR => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
-            CountryCode.HR => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.HU => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.IE => GenerateIeVat(),
-            CountryCode.IT => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.LT => Random.Next(0, 2) == 0
-                ? $"{Random.Next(100000000, 999999999)}"
-                : $"{Random.NextInt64(100000000000, 999999999999)}",
-            CountryCode.LU => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.LV => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.MT => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.NL => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
-            CountryCode.PT => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.RO => $"{Random.NextInt64(10, 9999999999)}",
-            CountryCode.SE => $"{Random.NextInt64(100000000000, 999999999999)}",
-            CountryCode.SI => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.SK => $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.XI => GenerateXiVat(),
-            CountryCode.PL => GetRandomNip(),
-            _ => throw new ArgumentException($"Niewspierany kod kraju {countryCode}")
-        };
+        string vatPart = GenerateVatPart(countryCode);
 
         return $"{nip}-{countryCode}{vatPart}";
     }
@@ -373,44 +298,7 @@ public static partial class MiscellaneousUtils
     /// </summary>
     public static string GetRandomVatEU(CountryCode countryCode = CountryCode.ES)
     {
-        string vatPart = countryCode switch
-        {
-            CountryCode.AT => "U" + Random.Next(10000000, 99999999),
-            CountryCode.BE => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
-            CountryCode.BG => Random.Next(0, 2) == 0
-                ? $"{Random.Next(100000000, 999999999)}"
-                : $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.CY => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
-            CountryCode.CZ => Random.Next(0, 2) == 0
-                ? $"{Random.Next(10000000, 99999999)}"
-                : $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.DE => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.DK => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.EE => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.EL => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.ES => GenerateEsVat(),
-            CountryCode.FI => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.FR => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
-            CountryCode.HR => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.HU => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.IE => GenerateIeVat(),
-            CountryCode.IT => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.LT => Random.Next(0, 2) == 0
-                ? $"{Random.Next(100000000, 999999999)}"
-                : $"{Random.NextInt64(100000000000, 999999999999)}",
-            CountryCode.LU => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.LV => $"{Random.NextInt64(10000000000, 99999999999)}",
-            CountryCode.MT => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.NL => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
-            CountryCode.PT => $"{Random.Next(100000000, 999999999)}",
-            CountryCode.RO => $"{Random.NextInt64(10, 9999999999)}",
-            CountryCode.SE => $"{Random.NextInt64(100000000000, 999999999999)}",
-            CountryCode.SI => $"{Random.Next(10000000, 99999999)}",
-            CountryCode.SK => $"{Random.NextInt64(1000000000, 9999999999)}",
-            CountryCode.XI => GenerateXiVat(),
-            CountryCode.PL => GetRandomNip(),
-            _ => throw new ArgumentException($"Niewspierany kod kraju {countryCode}")
-        };
+        string vatPart = GenerateVatPart(countryCode);
 
         return $"{countryCode}{vatPart}";
     }
@@ -421,6 +309,49 @@ public static partial class MiscellaneousUtils
     }
 
     // --- metody pomocnicze ---
+
+    /// <summary>
+    /// Generuje losową część numeru VAT-UE (bez prefiksu kraju) dla wskazanego kraju.
+    /// </summary>
+    private static string GenerateVatPart(CountryCode countryCode) => countryCode switch
+    {
+        CountryCode.AT => "U" + Random.Next(10000000, 99999999),
+        CountryCode.BE => $"{Random.Next(0, 2)}{Random.Next(100000000, 999999999)}",
+        CountryCode.BG => Random.Next(0, 2) == 0
+            ? $"{Random.Next(100000000, 999999999)}"
+            : $"{Random.NextInt64(1000000000, 9999999999)}",
+        CountryCode.CY => $"{Random.Next(10000000, 99999999)}{(char)('A' + Random.Next(26))}",
+        CountryCode.CZ => Random.Next(0, 2) == 0
+            ? $"{Random.Next(10000000, 99999999)}"
+            : $"{Random.NextInt64(1000000000, 9999999999)}",
+        CountryCode.DE => $"{Random.Next(100000000, 999999999)}",
+        CountryCode.DK => $"{Random.Next(10000000, 99999999)}",
+        CountryCode.EE => $"{Random.Next(100000000, 999999999)}",
+        CountryCode.EL => $"{Random.Next(100000000, 999999999)}",
+        CountryCode.ES => GenerateEsVat(),
+        CountryCode.FI => $"{Random.Next(10000000, 99999999)}",
+        CountryCode.FR => $"{RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 2)}{Random.Next(100000000, 999999999)}",
+        CountryCode.HR => $"{Random.NextInt64(10000000000, 99999999999)}",
+        CountryCode.HU => $"{Random.Next(10000000, 99999999)}",
+        CountryCode.IE => GenerateIeVat(),
+        CountryCode.IT => $"{Random.NextInt64(10000000000, 99999999999)}",
+        CountryCode.LT => Random.Next(0, 2) == 0
+            ? $"{Random.Next(100000000, 999999999)}"
+            : $"{Random.NextInt64(100000000000, 999999999999)}",
+        CountryCode.LU => $"{Random.Next(10000000, 99999999)}",
+        CountryCode.LV => $"{Random.NextInt64(10000000000, 99999999999)}",
+        CountryCode.MT => $"{Random.Next(10000000, 99999999)}",
+        CountryCode.NL => RandomString("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+*", 12),
+        CountryCode.PT => $"{Random.Next(100000000, 999999999)}",
+        CountryCode.RO => $"{Random.NextInt64(10, 9999999999)}",
+        CountryCode.SE => $"{Random.NextInt64(100000000000, 999999999999)}",
+        CountryCode.SI => $"{Random.Next(10000000, 99999999)}",
+        CountryCode.SK => $"{Random.NextInt64(1000000000, 9999999999)}",
+        CountryCode.XI => GenerateXiVat(),
+        CountryCode.PL => GetRandomNip(),
+        _ => throw new ArgumentException($"Niewspierany kod kraju {countryCode}")
+    };
+
     private static string RandomString(string chars, int length) =>
         new([.. Enumerable.Repeat(chars, length).Select(s => s[Random.Next(s.Length)])]);
 
@@ -619,7 +550,6 @@ public static partial class MiscellaneousUtils
 
 #if NETFRAMEWORK
     // net48: [GeneratedRegex] source generator niedostępny — użyj compiled Regex.
-    private static Regex MyRegex() => new(@"^U\d{8}$", RegexOptions.Compiled);
     private static Regex AtPattern() => new(@"^U\d{8}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static Regex NlPattern() => new(@"^\d{9}B\d{2}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static Regex CyPattern() => new(@"^\d{8}[A-Z]$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -632,9 +562,6 @@ public static partial class MiscellaneousUtils
     private static Regex Digits10() => new(@"^\d{10}$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static Regex Digits11() => new(@"^\d{11}$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 #else
-    [GeneratedRegex(@"^U\d{8}$")]
-    private static partial Regex MyRegex();
-
     [GeneratedRegex(@"^U\d{8}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)]
     private static partial Regex AtPattern();
 

@@ -106,6 +106,7 @@ public static class KsefRateLimitWrapper
         {
             KsefApiEndpoint.InvoiceQueryMetadata => limits.InvoiceMetadata,
             KsefApiEndpoint.InvoiceExport => limits.InvoiceExport,
+            KsefApiEndpoint.InvoiceExportStatus => limits.InvoiceExportStatus,
             KsefApiEndpoint.InvoiceGetByNumber => limits.InvoiceDownload,
             KsefApiEndpoint.SessionBatchOpen => limits.BatchSession,
             KsefApiEndpoint.SessionBatchClose => limits.BatchSession,
@@ -113,6 +114,10 @@ public static class KsefRateLimitWrapper
             KsefApiEndpoint.SessionOnlineSendInvoice => limits.InvoiceSend,
             KsefApiEndpoint.SessionOnlineClose => limits.OnlineSession,
             KsefApiEndpoint.SessionInvoiceStatus => limits.InvoiceStatus,
+            KsefApiEndpoint.SessionList => limits.SessionList,
+            KsefApiEndpoint.SessionInvoiceList => limits.SessionInvoiceList,
+            KsefApiEndpoint.SessionMisc => limits.SessionMisc,
+            KsefApiEndpoint.CollectiveIdentifier => limits.CollectiveIdentifier,
             _ => limits.Other
         };
 

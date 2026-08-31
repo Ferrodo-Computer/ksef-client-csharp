@@ -2,6 +2,8 @@
 using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
+using KSeF.Client.Core.Models.Sessions;
+using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using KSeF.Client.Tests.Utils;
 
 namespace KSeF.Client.Tests.Core.E2E.KsefToken;
@@ -369,6 +371,63 @@ public class KsefTokenE2ETests : TestBase
         Assert.NotNull(ownTokenInList);
         Assert.Equal("Self-query E2E token", ownTokenInList.Description);
         Assert.Equal(AuthenticationKsefTokenStatus.Active, ownTokenInList.Status);
+
+        await KsefClient.RevokeKsefTokenAsync(
+            tokenResponse.ReferenceNumber,
+            AccessToken,
+            CancellationToken);
+    }
+
+    /// <summary>
+    /// Test E2E weryfikujący, że token KSeF wygenerowany z uprawnieniem Introspection
+    /// pozwala uwierzytelnionej nim sesji na odczyt statusu cudzej sesji interaktywnej.
+    /// </summary>
+    /// <remarks>
+    /// Kroki:
+    /// 1) Otwiera własną sesję interaktywną przy użyciu głównego access tokenu (właściciela kontekstu).
+    /// 2) Generuje token KSeF z uprawnieniem Introspection i czeka na jego aktywację.
+    /// 3) Uwierzytelnia się tokenem KSeF, uzyskując access token z uprawnieniem Introspection.
+    /// 4) Sprawdza, że przy jego użyciu można odczytać status sesji z kroku 1 (wgląd, nie własność).
+    /// </remarks>
+    [Fact]
+    public async Task KsefToken_WithIntrospectionPermission_CanReadForeignSessionStatus()
+    {
+        EncryptionData encryptionData = CryptographyService.GetEncryptionData();
+        OpenOnlineSessionResponse ownSessionResponse = await OnlineSessionUtils.OpenOnlineSessionAsync(
+            KsefClient, encryptionData, AccessToken);
+        Assert.False(string.IsNullOrWhiteSpace(ownSessionResponse.ReferenceNumber));
+
+        KsefTokenRequest createTokenRequest = new KsefTokenRequest
+        {
+            Permissions = [KsefTokenPermissionType.Introspection],
+            Description = "E2E Introspection token"
+        };
+
+        KsefTokenResponse tokenResponse = await KsefClient.GenerateKsefTokenAsync(
+            createTokenRequest,
+            AccessToken,
+            CancellationToken);
+        Assert.NotNull(tokenResponse);
+        Assert.False(string.IsNullOrWhiteSpace(tokenResponse.ReferenceNumber));
+        Assert.False(string.IsNullOrWhiteSpace(tokenResponse.Token));
+
+        int activationAttempts = Math.Max(1, (TokenActivationTimeoutSeconds * 1000) / SleepTime);
+        AuthenticationKsefToken activeToken = await AsyncPollingUtils.PollAsync(
+            async () => await KsefClient.GetKsefTokenAsync(tokenResponse.ReferenceNumber, AccessToken, CancellationToken).ConfigureAwait(false),
+            result => result is not null && result.Status == AuthenticationKsefTokenStatus.Active,
+            maxAttempts: activationAttempts,
+            cancellationToken: CancellationToken);
+
+        Assert.NotNull(activeToken);
+        Assert.Equal(AuthenticationKsefTokenStatus.Active, activeToken.Status);
+
+        AuthenticationOperationStatusResponse tokenAuthResult = await AuthenticateWithKsefTokenAsync(tokenResponse.Token, Nip);
+        Assert.NotNull(tokenAuthResult);
+        Assert.False(string.IsNullOrWhiteSpace(tokenAuthResult.AccessToken?.Token));
+
+        SessionStatusResponse foreignSessionStatus = await KsefClient.GetSessionStatusAsync(
+            ownSessionResponse.ReferenceNumber, tokenAuthResult.AccessToken.Token);
+        Assert.NotNull(foreignSessionStatus);
 
         await KsefClient.RevokeKsefTokenAsync(
             tokenResponse.ReferenceNumber,

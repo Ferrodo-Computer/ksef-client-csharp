@@ -1124,6 +1124,11 @@ public class KSeFClient(IRestClient restClient) : IKSeFClient
         Guard.ThrowIfNull(request);
         Guard.ThrowIfNullOrWhiteSpace(accessToken);
 
+        if (request.Invoices is null || request.Invoices.Count < 2)
+        {
+            throw new ArgumentException("Identyfikator zbiorczy wymaga co najmniej 2 faktur.", nameof(request));
+        }
+
         return await restClient.SendAsync<GenerateCollectiveIdentifierResponse, GenerateCollectiveIdentifierRequest>(
             HttpMethod.Post,
             "/v2/collective-identifiers",
@@ -1187,22 +1192,22 @@ public class KSeFClient(IRestClient restClient) : IKSeFClient
 
     /// <inheritdoc />
     public async Task<CollectiveIdentifierInvoicesQueryResponse> GetCollectiveIdentifierInvoicesAsync(
-        string collectiveIdentifierNumber,
+        CollectiveIdentifierInvoicesQueryRequest request,
         string accessToken,
         string continuationToken = null,
         int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        Guard.ThrowIfNullOrWhiteSpace(collectiveIdentifierNumber);
+        Guard.ThrowIfNull(request);
         Guard.ThrowIfNullOrWhiteSpace(accessToken);
 
-        StringBuilder urlBuilder = new($"/v2/collective-identifiers/{Uri.EscapeDataString(collectiveIdentifierNumber)}/invoices");
+        StringBuilder urlBuilder = new("/v2/collective-identifiers/invoices");
         PaginationHelper.AppendPagination(null, pageSize, urlBuilder);
 
-        return await restClient.SendAsync<CollectiveIdentifierInvoicesQueryResponse, object>(
-            HttpMethod.Get,
+        return await restClient.SendAsync<CollectiveIdentifierInvoicesQueryResponse, CollectiveIdentifierInvoicesQueryRequest>(
+            HttpMethod.Post,
             urlBuilder.ToString(),
-            default,
+            request,
             accessToken,
             RestClient.DefaultContentType,
             !string.IsNullOrWhiteSpace(continuationToken)

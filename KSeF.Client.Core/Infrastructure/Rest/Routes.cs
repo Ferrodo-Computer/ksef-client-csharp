@@ -499,9 +499,9 @@
             public static string ByKsefNumber(string ksefNumber) => Prefix + "/ksef/" + ksefNumber;
 
             /// <summary>
-            /// Lista faktur wchodzących w skład identyfikatora zbiorczego.
+            /// Lista faktur wchodzących w skład wskazanych identyfikatorów zbiorczych.
             /// </summary>
-            public static string InvoicesByCollectiveIdentifierNumber(string collectiveIdentifierNumber) => Prefix + "/" + collectiveIdentifierNumber + "/invoices";
+            public const string Invoices = Prefix + "/invoices";
         }
     }
 }

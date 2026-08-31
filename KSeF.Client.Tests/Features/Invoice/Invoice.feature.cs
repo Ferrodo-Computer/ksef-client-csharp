@@ -337,7 +337,7 @@ namespace KSeF.Client.Tests.Features
             Assert.NotEmpty(invoices.Invoices);
 
             // wyszukiwanie faktury jako podmiot3---
-            AuthenticationOperationStatusResponse autResult = await AuthenticationUtils.AuthenticateAsOrganizationAsync(KsefClient, thirdSubjectIdentifier, AuthenticationTokenContextIdentifierType.Nip, EncryptionMethodEnum.ECDsa);
+            AuthenticationOperationStatusResponse autResult = await AuthenticationUtils.AuthenticateAsOrganizationAsync(KsefClient, thirdSubjectIdentifier, AuthenticationTokenContextIdentifierType.Nip);
             string thirdSubjectToken = autResult.AccessToken.Token;
 
             await Task.Delay(10 * SleepTime);

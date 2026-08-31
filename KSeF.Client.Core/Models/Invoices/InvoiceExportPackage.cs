@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using KSeF.Client.Core.Models.Sessions.BatchSession;
 
 namespace KSeF.Client.Core.Models.Invoices
 {
@@ -47,5 +48,10 @@ namespace KSeF.Client.Core.Models.Invoices
         /// Dotyczy wyłącznie zapytań filtrowanych po typie daty PermanentStorage. Jeśli zapytanie dotyczyło najnowszego okresu, wartość ta może być wartością nieznacznie skorygowaną względem górnej granicy podanej w warunkach zapytania.
         /// </summary>
         public DateTimeOffset? PermanentStorageHwmDate { get; set; }
+
+        /// <summary>
+        /// Typ kompresji użyty do przygotowania paczki eksportu.
+        /// </summary>
+        public CompressionType CompressionType { get; set; }
     }
 }

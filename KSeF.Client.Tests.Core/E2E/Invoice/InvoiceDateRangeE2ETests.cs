@@ -30,7 +30,7 @@ namespace KSeF.Client.Tests.Core.E2E.Invoice
         /// Test weryfikujący zachowanie API QueryInvoiceMetadataAsync w zależności od sposobu utworzenia DateTimeOffset w .NET.
         /// 
         /// SPECYFIKACJA API KSeF - DateRange:
-        /// Typ i zakres dat, według którego filtrowane są faktury. Maksymalny dozwolony okres wynosi 3 miesiące w strefie UTC lub w strefie Europe/Warsaw (WAW).
+        /// Typ i zakres dat, według którego filtrowane są faktury. Maksymalny dozwolony okres wynosi 100 dni liczonych w strefie UTC.
         /// 
         /// Format daty:
         /// * Daty muszą być przekazane w formacie ISO 8601, np. `yyyy-MM-ddTHH:mm:ss`.
@@ -176,31 +176,31 @@ namespace KSeF.Client.Tests.Core.E2E.Invoice
         }
 
         /// <summary>
-        /// Edge-case walidacji DateRange (maks 3 miesiące) + faktury z kontrolowaną datą P_1.
-        /// 
+        /// Edge-case walidacji DateRange (maks 100 dni liczonych w UTC) + faktury z kontrolowaną datą P_1.
+        ///
         /// Kluczowe: aby test miał sens E2E (a nie tylko walidacja requestu), tworzymy faktury z P_1 ustawionym
-        /// tak, żeby mieściły się w danym zakresie (dla przypadków PASS).
-        /// 
-        /// A) PASS: zakres tuż poniżej 3 miesięcy (UTC) -> wysyłamy faktury z P_1 wewnątrz tego zakresu -> query powinno zwrócić nasze faktury.
-        /// B) FAIL: zakres tuż powyżej 3 miesięcy (UTC) -> query powinno polecieć wyjątkiem (walidacja po stronie klienta/serwera).
-        /// C) PASS: UTC minimalnie > 3 miesiące, ale PL <= 3 miesiące -> wysyłamy faktury z P_1 wewnątrz -> query powinno zwrócić nasze faktury.
-        /// D) FAIL: przekracza 3 miesiące w UTC i PL -> query powinno polecieć wyjątkiem.
+        /// tak, żeby mieściły się w danym zakresie (dla przypadku PASS).
+        ///
+        /// A) PASS: zakres tuż poniżej 100 dni (UTC) -> wysyłamy faktury z P_1 wewnątrz tego zakresu -> query powinno zwrócić nasze faktury.
+        /// B) FAIL: zakres tuż powyżej 100 dni (UTC) -> query powinno polecieć wyjątkiem (walidacja po stronie klienta/serwera).
         /// </summary>
         [Theory]
         [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml", DateType.Invoicing)]
         [InlineData(SystemCode.FA3, "invoice-template-fa-3.xml", DateType.PermanentStorage)]
-        public async Task QueryInvoiceMetadata_DateRange_ThreeMonths_EdgeCases(
+        public async Task QueryInvoiceMetadata_DateRange_HundredDays_EdgeCases(
             SystemCode systemCode,
             string invoiceTemplatePath,
             DateType dateType)
         {
+            const int MaxDateRangeDays = 100;
+
             DateTime today = DateTime.UtcNow.Date;
             await SendInvoicesWithIssueDateAndWaitForProcessingAsync(systemCode, invoiceTemplatePath, today).ConfigureAwait(false);
             // Give backend time to index invoices for metadata queries
             await Task.Delay(SleepTime).ConfigureAwait(false);
 
             DateTimeOffset from = today;
-            DateTimeOffset to = from.AddMonths(3).AddSeconds(-1);
+            DateTimeOffset to = from.AddDays(MaxDateRangeDays).AddSeconds(-1);
             InvoiceQueryFilters filtersA = new InvoiceQueryFilters
             {
                 DateRange = new DateRange { From = from, To = to, DateType = dateType },
@@ -212,7 +212,7 @@ namespace KSeF.Client.Tests.Core.E2E.Invoice
             Assert.NotEmpty(respA.Invoices);
             VerifyInvoicesInDateRange(respA.Invoices, filtersA.DateRange);
 
-            DateTimeOffset toB = from.AddMonths(3).AddTicks(1);
+            DateTimeOffset toB = from.AddDays(MaxDateRangeDays).AddTicks(1);
             InvoiceQueryFilters filtersB = new InvoiceQueryFilters
             {
                 DateRange = new DateRange { From = from, To = toB, DateType = dateType },
@@ -222,30 +222,6 @@ namespace KSeF.Client.Tests.Core.E2E.Invoice
             await Assert.ThrowsAnyAsync<Exception>(async () =>
             {
                 await KsefClient.QueryInvoiceMetadataAsync(filtersB, _accessToken, cancellationToken: CancellationToken).ConfigureAwait(false);
-            });
-
-            DateTimeOffset toC = from.AddMonths(3).AddMinutes(-1);
-            InvoiceQueryFilters filtersC = new InvoiceQueryFilters
-            {
-                DateRange = new DateRange { From = from, To = toC, DateType = dateType },
-                SubjectType = InvoiceSubjectType.Subject1
-            };
-
-            PagedInvoiceResponse respC = await KsefClient.QueryInvoiceMetadataAsync(filtersC, _accessToken, cancellationToken: CancellationToken).ConfigureAwait(false);
-            Assert.NotNull(respC);
-            Assert.NotEmpty(respC.Invoices);
-            VerifyInvoicesInDateRange(respC.Invoices, filtersC.DateRange);
-
-            DateTimeOffset toD = from.AddMonths(3).AddDays(1);
-            InvoiceQueryFilters filtersD = new InvoiceQueryFilters
-            {
-                DateRange = new DateRange { From = from, To = toD, DateType = dateType },
-                SubjectType = InvoiceSubjectType.Subject1
-            };
-
-            await Assert.ThrowsAnyAsync<Exception>(async () =>
-            {
-                await KsefClient.QueryInvoiceMetadataAsync(filtersD, _accessToken, cancellationToken: CancellationToken).ConfigureAwait(false);
             });
         }
 

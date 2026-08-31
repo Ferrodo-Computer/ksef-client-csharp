@@ -119,6 +119,31 @@ Domyślnie używany jest: - DefaultCertificateFetcher
 
 
 
+## BackgroundService + IKSeFClientFactory
+
+Przykładowa implementacja BackgroundService
+
+Dla jobów / serwisów tła używamy `RegisterKSeFClientFactory()`
+i singletonowej `IKSeFClientFactory`, która tworzy klienta na żądanie.
+
+`KsefClientBackgroundService` uruchamia zarejestrowane joby (`IKsefBackgroundJob`):
+- `KsefAuthenticationBackgroundJob` - auth + odczyt aktywnych sesji
+- `KsefInvoiceUpoBackgroundJob` - auth, sesja online, faktura i UPO
+
+### Konfiguracja (`BackgroundKsef`)
+
+| Klucz                          | Typ    | Opis                                              |
+| ------------------------------ | ------ | ------------------------------------------------- |
+| **Enabled**                    | bool   | Włącza pracę serwisu (domyślnie `false`).         |
+| **IntervalSeconds**            | int    | Interwał między tickami (min. 5 s).               |
+| **Environment**                | enum   | `Test`, `Demo` lub `Prod` (domyślnie `Test`).     |
+| **InvoiceTemplateRelativePath**| string | Szablon FA(3) względem katalogu aplikacji.        |
+| **RunOnce**                    | bool   | Po sukcesie joba nie powtarzaj do restartu.       |
+
+Testy dla funkcjonalności zostały zaimplementowane w projekcie `KSeF.DemoWebApp.Tests`
+
+
+
 ## 🔐 Endpoint: `POST /auth/auth-by-coordinator-with-pz`
 
 Endpoint służy do rozpoczęcia procesu uwierzytelniania w środowisku testowym KSeF przy użyciu

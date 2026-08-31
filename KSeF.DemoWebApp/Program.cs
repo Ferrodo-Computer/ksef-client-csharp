@@ -1,9 +1,22 @@
-﻿using KSeF.Client.DI;
+﻿using KSeF.Client.ClientFactory.DI;
+using KSeF.Client.DI;
+using KSeF.DemoWebApp.Services;
 using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<BackgroundKsefOptions>(
+    builder.Configuration.GetSection(BackgroundKsefOptions.SectionName));
+
+// Osobna ścieżka DI dla jobów / BackgroundService (singletonowa fabryka klientów).
+builder.Services.RegisterKSeFClientFactory();
+builder.Services.AddSingleton<IKsefAuthJobResultStore, KsefAuthJobResultStore>();
+builder.Services.AddSingleton<IKsefBackgroundWorkResultStore, KsefBackgroundWorkResultStore>();
+builder.Services.AddSingleton<IKsefBackgroundJob, KsefAuthenticationBackgroundJob>();
+builder.Services.AddSingleton<IKsefBackgroundJob, KsefInvoiceUpoBackgroundJob>();
+builder.Services.AddHostedService<KsefClientBackgroundService>();
 
 builder.Services.AddKSeFClient
     (options =>

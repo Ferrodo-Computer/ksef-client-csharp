@@ -19,8 +19,10 @@ public class AuthorizationE2ETests : TestBase
     public async Task AuthAsyncFullIntegrationFlowReturnsAccessToken(EncryptionMethodEnum encryptionMethodEnum)
     {
         // Arrange & Act
+        string nip = MiscellaneousUtils.GetRandomNip();
+
         AuthenticationOperationStatusResponse authResult =
-            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, default, encryptionMethodEnum);
+            await AuthenticationUtils.AuthenticateAsync(AuthorizationClient, nip, default, encryptionMethodEnum);
 
         // Assert
         Assert.NotNull(authResult);

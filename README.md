@@ -4,6 +4,7 @@
 
 Repozytorium zawiera:
 
+- `RELEASE_NOTES.md` - pełen rejestr zmian projektu.
 - **Implementacja klienta KSeF 2.0**
   - **KSeF.Client** - główna biblioteka klienta z logiką biznesową
   - **KSeF.Client.Core** - modele, interfejsy i wyjątki (wydzielone dla zgodności z .NET Standard 2.0)

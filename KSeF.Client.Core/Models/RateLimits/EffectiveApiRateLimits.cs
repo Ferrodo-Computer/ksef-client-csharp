@@ -6,14 +6,24 @@
     public class EffectiveApiRateLimits
     {
         /// <summary>
-        /// Limity otwierania/zamykania sesji interaktywnych.
+        /// Limity otwierania sesji interaktywnych.
         /// </summary>
         public EffectiveApiRateLimitValues OnlineSession { get; set; }
 
         /// <summary>
-        /// Limity otwierania/zamykania sesji wsadowych.
+        /// Limity zamykania sesji interaktywnych.
+        /// </summary>
+        public EffectiveApiRateLimitValues OnlineSessionClose { get; set; }
+
+        /// <summary>
+        /// Limity otwierania sesji wsadowych.
         /// </summary>
         public EffectiveApiRateLimitValues BatchSession { get; set; }
+
+        /// <summary>
+        /// Limity zamykania sesji wsadowych.
+        /// </summary>
+        public EffectiveApiRateLimitValues BatchSessionClose { get; set; }
 
         /// <summary>
         /// Limity wysyłki faktur.
@@ -69,5 +79,15 @@
         /// Limity generowania identyfikatorów zbiorczych.
         /// </summary>
         public EffectiveApiRateLimitValues CollectiveIdentifier { get; set; }
+
+        /// <summary>
+        /// Limity anonimowych (nieuwierzytelnionych) operacji API.
+        /// </summary>
+        public EffectiveApiRateLimitValues Anonymous { get; set; }
+
+        /// <summary>
+        /// Limity globalne API naliczane per adres IP. Mechanizm może być wyłączony (wartości -1).
+        /// </summary>
+        public EffectiveApiRateLimitValues Global { get; set; }
     }
 }

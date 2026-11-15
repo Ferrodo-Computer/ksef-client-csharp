@@ -16,6 +16,7 @@ namespace KSeF.Client.Core.Models.Permissions.Entity
     {
         InvoiceRead,
         InvoiceWrite,
+        CollectiveIdentifierManage
     }
 
     public class EntityPermission

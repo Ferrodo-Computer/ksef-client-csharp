@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using KSeF.Client.Http;
+using KSeF.Client.Extensions;
 using System.Net.Http.Headers;
 
 namespace KSeF.Client.ClientFactory.DI
@@ -16,6 +17,8 @@ namespace KSeF.Client.ClientFactory.DI
         /// <exception cref="ArgumentException"></exception>
         public static IServiceCollection RegisterKSeFClientFactory(this IServiceCollection services, bool useCamelCase = false)
         {
+            CryptographyConfigInitializer.EnsureInitialized();
+
             if (useCamelCase)
             {
                 JsonUtil.ResetConfigurationForCasePropertyName(useCamelCase);

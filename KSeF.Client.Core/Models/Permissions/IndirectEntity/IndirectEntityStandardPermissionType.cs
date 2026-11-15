@@ -4,5 +4,6 @@ namespace KSeF.Client.Core.Models.Permissions.IndirectEntity
     {
         InvoiceRead,
         InvoiceWrite,
+        CollectiveIdentifierManage
     }
 }

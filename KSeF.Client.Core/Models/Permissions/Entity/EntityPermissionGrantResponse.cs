@@ -22,6 +22,7 @@ namespace KSeF.Client.Core.Models.Permissions.Entity
     public enum PermissionScope
     {
         InvoiceWrite,
-        InvoiceRead
+        InvoiceRead,
+        CollectiveIdentifierManage
     }
 }

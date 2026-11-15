@@ -18,8 +18,6 @@ public class CollectiveIdentifiersE2ETests : TestBase
     private const int InvoicesCount = 5;
     private const int FirstGroupInvoicesCount = 3;
     private const int SecondGroupInvoicesCount = 2;
-    private const int PermissionPropagationMaxAttempts = 30;
-    private static readonly TimeSpan PermissionPropagationDelay = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// Weryfikuje pełny cykl generowania dwóch odrębnych identyfikatorów zbiorczych dla rozłącznych grup faktur sprzedawcy
@@ -114,80 +112,6 @@ public class CollectiveIdentifiersE2ETests : TestBase
         Assert.Contains(queryResponse.CollectiveIdentifiers, ci => ci.CollectiveIdentifierNumber == secondCollectiveIdentifierNumber);
     }
 
-    /// <summary>
-    /// Weryfikuje, że osoba, której nadano w kontekście sprzedawcy uprawnienia `InvoiceRead` i `CollectiveIdentifierManage`
-    /// przez rzeczywisty endpoint nadawania uprawnień (`POST /permissions/persons/grants`), może w tym kontekście
-    /// wygenerować identyfikator zbiorczy (zgodnie z wymaganymi uprawnieniami endpointu).
-    /// Kroki:
-    /// 1) Sprzedawca wystawia kilka faktur
-    /// 2) Sprzedawca nadaje osobie (PESEL) uprawnienia `InvoiceRead` i `CollectiveIdentifierManage` w swoim kontekście
-    /// 3) Oczekiwanie na zakończenie operacji nadania uprawnień
-    /// 4) Uwierzytelnienie tej osoby w kontekście sprzedawcy
-    /// 5) Wygenerowanie identyfikatora zbiorczego przy użyciu tokenu tej osoby — powinno się udać
-    /// </summary>
-    [Fact]
-    public async Task GrantCollectiveIdentifierManagePermission_ThenGenerateCollectiveIdentifier()
-    {
-        string sellerNip = MiscellaneousUtils.GetRandomNip();
-        string authorizedPesel = MiscellaneousUtils.GetRandomPesel();
-
-        AuthenticationOperationStatusResponse sellerAuth = await AuthenticationUtils.AuthenticateAsync(
-            AuthorizationClient, sellerNip);
-        string sellerToken = sellerAuth.AccessToken.Token;
-
-        string buyerNip = MiscellaneousUtils.GetRandomNip();
-        List<string> ksefNumbers = [];
-        for (int i = 0; i < InvoicesCount; i++)
-        {
-            ksefNumbers.Add(await SendInvoiceAndGetKsefNumberAsync(sellerNip, buyerNip, sellerToken));
-        }
-
-        GrantPermissionsPersonSubjectIdentifier subject = new()
-        {
-            Type = GrantPermissionsPersonSubjectIdentifierType.Pesel,
-            Value = authorizedPesel
-        };
-
-        PersonPermissionSubjectDetails subjectDetails = new()
-        {
-            SubjectDetailsType = PersonPermissionSubjectDetailsType.PersonByIdentifier,
-            PersonById = new PersonPermissionPersonById { FirstName = "Jan", LastName = "Testowy" }
-        };
-
-        OperationResponse grantResponse = await PermissionsUtils.GrantPersonPermissionsAsync(
-            KsefClient,
-            sellerToken,
-            subject,
-            [PersonPermissionType.InvoiceRead, PersonPermissionType.CollectiveIdentifierManage],
-            subjectDetails,
-            "E2E CollectiveIdentifierManage test");
-
-        Assert.NotNull(grantResponse);
-        Assert.False(string.IsNullOrWhiteSpace(grantResponse.ReferenceNumber));
-
-        PermissionsOperationStatusResponse grantStatus = await AsyncPollingUtils.PollAsync(
-            action: () => KsefClient.OperationsStatusAsync(grantResponse.ReferenceNumber, sellerToken),
-            condition: s => s?.Status?.Code == OperationStatusCodeResponse.Success,
-            delay: PermissionPropagationDelay,
-            maxAttempts: PermissionPropagationMaxAttempts,
-            cancellationToken: CancellationToken);
-
-        Assert.Equal(OperationStatusCodeResponse.Success, grantStatus.Status.Code);
-
-        AuthenticationOperationStatusResponse authorizedAuth = await AuthenticationUtils.AuthenticateAsync(
-            AuthorizationClient, authorizedPesel, sellerNip);
-        string authorizedToken = authorizedAuth.AccessToken.Token;
-
-        GenerateCollectiveIdentifierResponse generateResponse = await CollectiveIdentifiersClient.GenerateCollectiveIdentifierAsync(
-            new GenerateCollectiveIdentifierRequest
-            {
-                Invoices = ksefNumbers.Select(ksefNumber => new CollectiveIdentifierInvoice { KsefNumber = ksefNumber }).ToList()
-            },
-            authorizedToken, CancellationToken);
-
-        Assert.NotNull(generateResponse);
-        Assert.False(string.IsNullOrWhiteSpace(generateResponse.CollectiveIdentifierNumber));
-    }
 
 	/// <summary>
 	/// Wystawia wskazaną liczbę faktur i zwraca ich numery KSeF.

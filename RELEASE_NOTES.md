@@ -1,5 +1,24 @@
 # Rejestr zmian
 
+## Wersja 2.9.0.1
+### Zmodyfikowane
+- Zaktualizowano wszystkie zależności NuGet do najnowszych stabilnych wersji.
+- Usunięto znane podatności zgłaszane przez `dotnet list package --vulnerable --include-transitive`.
+
+## Wersja 2.9.0
+### Nowe
+- `PersonalPermissionsQueryResponse` (dziedziczy po `PagedPermissionsResponse<PersonalPermission>`): dodaje pole `OwnerPermissions` (`List<PersonPermissionType>`), zwracające listę uprawnień właścicielskich uwierzytelnionego podmiotu. Nowy typ odpowiedzi `POST /permissions/query/personal/grants`.
+
+### Zmodyfikowane
+- `ISearchPermissionClient.SearchGrantedPersonalPermissionsAsync` / `SearchPermissionClient` / `KSeFClient`: typ zwracany zmieniono z `PagedPermissionsResponse<PersonalPermission>` na `PersonalPermissionsQueryResponse`. Wywołania przypisujące wynik do zmiennej typowanej jawnie jako `PagedPermissionsResponse<PersonalPermission>` wymagają zmiany.
+
+## Wersja 2.8.1
+### Nowe
+- Dodano wartość `CollectiveIdentifierManage` do enumów uprawnień dla podmiotów oraz uprawnień pośrednich:
+  - `EntityStandardPermissionType` (żądanie nadania uprawnień dla podmiotu `POST /permissions/entities/grants`),
+  - `PermissionScope` (odpowiedź zapytania o uprawnienia podmiotów `POST /permissions/query/entities/grants`),
+  - `IndirectEntityStandardPermissionType` (żądanie nadania uprawnień pośrednich `POST /permissions/indirect/grants`).
+
 ## Wersja 2.8.0
 ### Nowe
 - `EffectiveApiRateLimits`: dodano pola `OnlineSessionClose`, `BatchSessionClose`, `Anonymous` oraz `Global` zgodnie z kontraktem API 2.8.0 (domyślne limity zamykania sesji: `20/60/240` i `20/40/120`).

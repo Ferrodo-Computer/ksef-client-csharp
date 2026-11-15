@@ -6,7 +6,7 @@
 		<Nullable Condition="'$(TargetFramework)' != 'netstandard2.0'">enable</Nullable>
 		<IsPackable>true</IsPackable>
 		<PackageId>KSeF.Client</PackageId>
-		<PackageVersion>1.0.0</PackageVersion>
+		<PackageVersion>8.2.9</PackageVersion>
 
 		<UserSecretsId>7931c1d1-5bfa-4559-8b2e-e9a0a03d4a82</UserSecretsId>
 

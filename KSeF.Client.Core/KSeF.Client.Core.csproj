@@ -3,7 +3,7 @@
 	<PropertyGroup>
 	  <TargetFramework>netstandard2.0</TargetFramework>
 	  <PackageId>KSeF.Client.Core</PackageId>
-	  <PackageVersion>1.0.0</PackageVersion>
+	  <PackageVersion>8.2.9</PackageVersion>
 		
 	 <!-- Strong naming the assembly -->
 	  <SignAssembly>True</SignAssembly>

@@ -5,4 +5,5 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
   </PropertyGroup>
+  <Import Project="Ferrodo.Build.props" />
 </Project>

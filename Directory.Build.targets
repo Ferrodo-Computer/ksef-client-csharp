@@ -1,0 +1,48 @@
+<Project>
+
+	<!--
+		Konfiguracja Ferrodo: osobne paczki NuGet dla każdej wersji .NET
+		(logika taka sama jak w FerrodoLib, netCore\Directory.Build.targets).
+
+		Standardowo projekt z wieloma TargetFrameworks tworzy JEDNĄ paczkę zawierającą
+		wszystkie TFM z jednym numerem wersji. Tutaj, dla projektów z GeneratePackageOnBuild=True,
+		wyłączamy to i po kompilacji pakujemy osobno każdy TFM z FerrodoPackTargetFrameworks,
+		z własnym numerem wersji:
+		  KSeF.Client.8.2.9.nupkg   (lib\net8.0)
+		  KSeF.Client.10.2.9.nupkg  (lib\net10.0)
+		Zależność KSeF.Client -> KSeF.Client.Core dostaje wersję z tej samej linii (.NET 8 -> 8.x, .NET 10 -> 10.x).
+	-->
+
+	<PropertyGroup Condition="'$(GeneratePackageOnBuild)' == 'true' and '$(FerrodoSplitPackages)' != 'false'">
+		<FerrodoSplitPackages>true</FerrodoSplitPackages>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+	</PropertyGroup>
+
+	<!--
+		PackageVersion = Version z podmienioną pierwszą sekcją na FerrodoPackNetMajor.
+		Version (wersja DLL) pozostaje zależna od TFM: 8.x.y dla net8.0, 10.x.y dla net10.0.
+		PackageVersion jest stały dla wszystkich TFM (wymóg restore w VS) i zmienia się tylko
+		przy pakowaniu konkretnego TFM. Ten plik jest importowany przed targetami NuGet,
+		więc ustawiona tu wartość ma pierwszeństwo przed domyślnym PackageVersion=$(Version).
+	-->
+	<PropertyGroup Condition="'$(PackageVersion)' == '' and '$(Version)' != '' and $(Version.Contains('.'))">
+		<PackageVersion>$(FerrodoPackNetMajor)$(Version.Substring($(Version.IndexOf('.'))))</PackageVersion>
+	</PropertyGroup>
+
+	<Target Name="FerrodoPackPerTargetFramework"
+			AfterTargets="Build"
+			Condition="'$(FerrodoSplitPackages)' == 'true' and '$(IsCrossTargetingBuild)' == 'true' and '$(FerrodoInnerPack)' != 'true'">
+		<ItemGroup>
+			<_FerrodoPackTfm Include="$(FerrodoPackTargetFrameworks)" />
+		</ItemGroup>
+		<!-- Restore tylko dla danego TFM (do osobnego obj\pack-<tfm>\) -->
+		<MSBuild Projects="$(MSBuildProjectFullPath)"
+				 Targets="Restore"
+				 Properties="TargetFrameworks=%(_FerrodoPackTfm.Identity);FerrodoInnerPack=true;FerrodoRestoreStep=true" />
+		<!-- Pakowanie już skompilowanych bibliotek -->
+		<MSBuild Projects="$(MSBuildProjectFullPath)"
+				 Targets="Pack"
+				 Properties="TargetFrameworks=%(_FerrodoPackTfm.Identity);FerrodoInnerPack=true;NoBuild=true" />
+	</Target>
+
+</Project>

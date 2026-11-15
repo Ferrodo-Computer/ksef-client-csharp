@@ -44,3 +44,14 @@ Instalację paczki można przeprowadzić na dwa sposoby:
 * *.NET CLI*
 	dotnet add package KSeF.Client --prerelease
 	dotnet add package KSeF.Client.Core	--prerelease
+
+## Wersje Ferrodo (.NET 8 i .NET 10)
+
+W forku Ferrodo projekty `KSeF.Client` i `KSeF.Client.Core` tworzą paczki NuGet automatycznie przy kompilacji solution (konfiguracja w `Ferrodo.Build.props` i `Directory.Build.targets`).
+Jedna kompilacja tworzy osobne paczki dla każdej wersji .NET (lista w `FerrodoPackTargetFrameworks`), różniące się tylko pierwszą sekcją numeru wersji:
+* `KSeF.Client.8.2.9.nupkg` - zawiera `lib\net8.0`, zależność do `KSeF.Client.Core 8.2.9`
+* `KSeF.Client.10.2.9.nupkg` - zawiera `lib\net10.0`, zależność do `KSeF.Client.Core 10.2.9`
+
+W csproj wersja zapisana jest jako `<Version>$(FerrodoNetMajor).2.9</Version>` - przy podbijaniu wersji zmieniamy tylko część po `$(FerrodoNetMajor).`.
+Pozostałe TFM (`netstandard2.0`, `net9.0`) są nadal kompilowane na potrzeby innych projektów solution, ale nie trafiają do paczek.
+Paczka `KSeF.Client.Core` powstaje przy kompilacji całego solution (nie przy kompilacji samego projektu `KSeF.Client`).

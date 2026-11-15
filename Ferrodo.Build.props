@@ -1,0 +1,62 @@
+<Project>
+
+	<!--
+		Konfiguracja Ferrodo (fork CIRFMF/ksef-client-csharp), importowana z Directory.Build.props.
+		Logika taka sama jak w FerrodoLib (netCore\Directory.Build.props).
+
+		Wersjonowanie:
+		  W csproj wersja zapisana jest jako  <Version>$(FerrodoNetMajor).X.Y</Version>
+		  gdzie FerrodoNetMajor = główna wersja .NET dla bieżącego TargetFramework
+		  (net8.0 -> 8, net10.0 -> 10). Dzięki temu jedna kompilacja daje np.
+		  8.2.9 dla .NET 8 oraz 10.2.9 dla .NET 10.
+
+		Paczki NuGet:
+		  Projekty z GeneratePackageOnBuild=True tworzą osobną paczkę dla każdego TFM
+		  z listy FerrodoPackTargetFrameworks (patrz Directory.Build.targets).
+		  Pozostałe TFM z TargetFrameworks (netstandard2.0, net9.0) są nadal kompilowane,
+		  bo potrzebują ich inne projekty solution (ClientFactory, XmlSerialization, testy),
+		  ale nie trafiają do paczek.
+	-->
+
+	<PropertyGroup>
+		<!-- Wersje .NET, dla których tworzone są paczki NuGet. -->
+		<FerrodoPackTargetFrameworks Condition="'$(FerrodoPackTargetFrameworks)' == ''">net8.0;net10.0</FerrodoPackTargetFrameworks>
+	</PropertyGroup>
+
+	<!-- Kompilacja wewnętrzna (konkretny TargetFramework) -->
+	<PropertyGroup Condition="'$(FerrodoNetMajor)' == '' and '$(TargetFramework)' != ''">
+		<FerrodoNetMajor>$([MSBuild]::GetTargetFrameworkVersion('$(TargetFramework)', 1))</FerrodoNetMajor>
+	</PropertyGroup>
+
+	<!-- Pakowanie pojedynczego TFM (wywoływane z Directory.Build.targets z TargetFrameworks=netX.0) -->
+	<PropertyGroup Condition="'$(FerrodoNetMajor)' == '' and '$(FerrodoInnerPack)' == 'true' and '$(TargetFrameworks)' != ''">
+		<FerrodoNetMajor>$([MSBuild]::GetTargetFrameworkVersion('$(TargetFrameworks)', 1))</FerrodoNetMajor>
+	</PropertyGroup>
+
+	<!--
+		Pakowanie pojedynczego TFM: osobny katalog na project.assets.json, aby restore
+		dla jednego TFM nie nadpisał wspólnego i aby nuspec zawierał zależności tylko
+		dla pakowanego TFM.
+	-->
+	<PropertyGroup Condition="'$(FerrodoInnerPack)' == 'true'">
+		<MSBuildProjectExtensionsPath>$(MSBuildProjectDirectory)\obj\pack-$(TargetFrameworks)\</MSBuildProjectExtensionsPath>
+	</PropertyGroup>
+
+	<!--
+		Główna wersja .NET dla PackageVersion. Musi być TAKA SAMA dla wszystkich TFM projektu,
+		bo restore w Visual Studio wymaga jednej wartości PackageVersion (błąd NU1105).
+		Rzeczywistą wartość dostaje tylko przy pakowaniu pojedynczego TFM (FerrodoInnerPack).
+	-->
+	<PropertyGroup Condition="'$(FerrodoPackNetMajor)' == '' and '$(FerrodoInnerPack)' == 'true' and '$(TargetFrameworks)' != ''">
+		<FerrodoPackNetMajor>$([MSBuild]::GetTargetFrameworkVersion('$(TargetFrameworks)', 1))</FerrodoPackNetMajor>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(FerrodoPackNetMajor)' == ''">
+		<FerrodoPackNetMajor>8</FerrodoPackNetMajor>
+	</PropertyGroup>
+
+	<!-- Kompilacja zewnętrzna (wiele TFM) - wartość tylko techniczna, nie trafia do DLL ani paczek -->
+	<PropertyGroup Condition="'$(FerrodoNetMajor)' == ''">
+		<FerrodoNetMajor>8</FerrodoNetMajor>
+	</PropertyGroup>
+
+</Project>
